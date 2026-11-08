@@ -133,7 +133,46 @@
     "subtitle": "Ogni riquadro è grande quanto lo spazio che usa.",
     "onlyApps": "Solo app",
     "onlyFiles": "Solo file",
-    "everything": "Tutto"
+    "everything": "Tutto",
+    "summary": "Ogni riquadro è grande quanto lo spazio che usa. Disco {drive} · {used} usati su {total}.",
+    "rescan": "Misura di nuovo",
+    "measuring": "Sto misurando lo spazio sul disco…",
+    "checked": "{count} file controllati",
+    "readOnly": "Guardo soltanto: niente viene modificato o cancellato.",
+    "failed": "Non sono riuscito a misurare lo spazio: {error}",
+    "retry": "Riprova",
+    "shownTotal": "Mostrati: {size}",
+    "ofDisk": "{share} del disco",
+    "pickBlock": "Clicca un riquadro per sapere cos'è.",
+    "openApps": "Vai ad App",
+    "openFiles": "Vai a File",
+    "blocks": {
+      "desktop": "Desktop",
+      "documents": "Documenti",
+      "downloads": "Download",
+      "pictures": "Immagini",
+      "videos": "Video",
+      "music": "Musica",
+      "oneDrive": "OneDrive",
+      "appData": "Dati delle app",
+      "caches": "File temporanei e cache",
+      "recycleBin": "Cestino",
+      "system": "Windows e altro",
+      "free": "Spazio libero",
+      "other": {
+        "apps": "Altre app ({count})",
+        "games": "Altri giochi ({count})",
+        "personal": "Altre cartelle ({count})",
+        "reclaimable": "Altro recuperabile ({count})"
+      }
+    },
+    "hints": {
+      "caches": "Windows, i browser e le app li ricreano da soli. Puoi liberarli da File.",
+      "recycle-bin": "File che hai eliminato in Windows. Svuota il Cestino per riavere questo spazio.",
+      "system": "Windows stesso, i suoi file di memoria e di sospensione, e le cartelle degli altri utenti.",
+      "free": "Spazio che puoi ancora usare.",
+      "other": "Elementi piccoli messi insieme, così la mappa resta leggibile."
+    }
   },
   "quarantine": {
     "title": "Quarantena",
@@ -160,6 +199,13 @@
   "settings": {
     "title": "Impostazioni",
     "language": "Lingua",
+    "theme": "Tema",
+    "themeHint": "Sistema segue la modalità chiara o scura scelta in Windows.",
+    "themes": {
+      "system": "Sistema",
+      "light": "Chiaro",
+      "dark": "Scuro"
+    },
     "quarantineDays": "Conserva gli elementi rimossi per",
     "days": "{days} giorni",
     "restorePoint": "Crea un punto di ripristino prima di disinstallare",
@@ -178,7 +224,8 @@
     "apps": "App",
     "games": "Giochi",
     "personal": "File personali",
-    "system": "Windows",
-    "reclaimable": "Recuperabile"
+    "system": "Windows e altro",
+    "reclaimable": "Recuperabile",
+    "free": "Spazio libero"
   }
 }

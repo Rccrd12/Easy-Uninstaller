@@ -9,9 +9,9 @@ back: everything it removes waits in a quarantine for 7 days and comes back with
 ![Easy Uninstaller home screen](docs/screenshots/home.png)
 
 > [!NOTE]
-> **Early preview.** Installed apps, the file scan, the quarantine and restore points are
-> real. Uninstalling apps, the *Leftovers* screen and the *Space map* are still in progress
-> and show sample data for now. See the [roadmap](#roadmap).
+> **Early preview.** Installed apps, the file scan, the space map, the quarantine and
+> restore points are real. Uninstalling apps and the *Leftovers* screen are still in
+> progress and show sample data for now. See the [roadmap](#roadmap).
 
 ## Why another uninstaller?
 
@@ -24,6 +24,7 @@ back: everything it removes waits in a quarantine for 7 days and comes back with
   already part of Windows, so the installer is a few MB instead of 100+ MB.
 - **Private.** It works entirely on your PC. No account, no ads, no tracking.
 - **English and Italian.** Picked from your system language, changeable in Settings.
+- **Light and dark.** Follows the Windows mode by default, changeable in Settings.
 
 ## Screenshots
 
@@ -32,6 +33,8 @@ back: everything it removes waits in a quarantine for 7 days and comes back with
 | ![Apps screen: installed programs and Store apps, sorted by size](docs/screenshots/apps.png) | ![Files screen: groups of files labelled Safe or Check](docs/screenshots/files.png) |
 | **Quarantine** | **Space map** |
 | ![Quarantine screen: removed items with Restore buttons](docs/screenshots/quarantine.png) | ![Space map: what takes up the most space](docs/screenshots/map.png) |
+| **Dark mode** | **Space map, dark** |
+| ![Home screen in dark mode](docs/screenshots/home-dark.png) | ![Space map in dark mode](docs/screenshots/map-dark.png) |
 
 <sub>Screenshots use sample data.</sub>
 
@@ -83,8 +86,9 @@ maintainer privately for anything sensitive.
 4. ✅ Quarantine and restore: files are moved, kept 7 days, restorable with one click; Windows restore points
 5. ⬜ Uninstall apps, with their leftovers moved to quarantine
 6. ⬜ Leftovers screen with real data
-7. ⬜ Space map with real data
-8. ⬜ Signed installer and first stable release
+7. ✅ Space map with real data: apps, profile folders, app data, caches and Recycle Bin (read only)
+8. ✅ Dark mode, following Windows or chosen in Settings
+9. ⬜ Signed installer and first stable release
 
 ## Development
 
@@ -124,12 +128,13 @@ src/                    UI (Svelte 5 + TypeScript)
   lib/mock.ts           sample data, removed piece by piece as scanners land
   lib/i18n/             translations: en.json (reference), it.json
   lib/screens/          one component per screen
-  styles/theme.css      design tokens (colors, radii)
+  styles/theme.css      design tokens (colors, radii), light and dark
 src-tauri/              backend (Rust)
   src/lib.rs            registers the commands
   src/disk.rs           system drive usage
   src/apps.rs           installed apps: registry (Win32/MSI) and Microsoft Store, with icons
   src/files.rs          file scan: temp, installers, old downloads, duplicates, large files
+  src/space.rs          space map: what takes up the system drive
   src/quarantine.rs     moves files to quarantine, restores and expires them
   src/restore_point.rs  Windows restore points
 docs/                   screenshots, design mockups, code signing notes

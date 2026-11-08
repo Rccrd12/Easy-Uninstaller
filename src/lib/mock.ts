@@ -1,7 +1,7 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { FileGroup, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, SpaceBlock } from "./types";
+import type { FileGroup, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, SpaceFolder, SpaceUsage } from "./types";
 
 export const sampleApps: InstalledApp[] = [
   { id: "photoshop", name: "Adobe Photoshop 2025", publisher: "Adobe", sizeBytes: 6.8 * GB, source: "win32", installedOn: "2025-01-14", lastUsed: "3 months ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#e3008c", icon: null },
@@ -58,18 +58,35 @@ export const sampleLeftovers: LeftoverItem[] = [
   { id: "l4", appName: "Old Game Launcher", path: "C:\\Users\\you\\Desktop\\Launcher.lnk", sizeBytes: 0, kind: "shortcut" },
 ];
 
-export const sampleSpace: SpaceBlock[] = [
-  { id: "photos", label: "Photos and videos", sizeBytes: 62 * GB, category: "personal" },
-  { id: "windows", label: "Windows", sizeBytes: 57 * GB, category: "system" },
-  { id: "cod", label: "Call of Duty", sizeBytes: 48 * GB, category: "games" },
-  { id: "docs", label: "Documents", sizeBytes: 21 * GB, category: "personal" },
-  { id: "other-apps", label: "Other apps", sizeBytes: 15 * GB, category: "apps" },
-  { id: "vs", label: "Visual Studio", sizeBytes: 9 * GB, category: "apps" },
-  { id: "photoshop", label: "Adobe Photoshop", sizeBytes: 6.8 * GB, category: "apps" },
-  { id: "old-dl", label: "Old downloads", sizeBytes: 4.2 * GB, category: "reclaimable" },
-  { id: "unknown", label: "Unknown folders", sizeBytes: 3.8 * GB, category: "reclaimable" },
-  { id: "cache", label: "Caches and temp", sizeBytes: 3.1 * GB, category: "reclaimable" },
-];
+const folder = (id: string, key: string | null, label: string | null, size: number, category: SpaceFolder["category"], path: string | null): SpaceFolder => ({
+  id,
+  labelKey: key && `map.blocks.${key}`,
+  label,
+  path,
+  sizeBytes: size,
+  category,
+});
+
+export const sampleSpaceUsage: SpaceUsage = {
+  mountPoint: "C:",
+  totalBytes: 476 * GB,
+  freeBytes: 64 * GB,
+  folders: [
+    folder("videos", "videos", null, 96 * GB, "personal", `${U}\\Videos`),
+    folder("pictures", "pictures", null, 78 * GB, "personal", `${U}\\Pictures`),
+    folder("documents", "documents", null, 34 * GB, "personal", `${U}\\Documents`),
+    folder("appdata", "appData", null, 24 * GB, "apps", `${U}\\AppData`),
+    folder("downloads", "downloads", null, 22 * GB, "personal", `${U}\\Downloads`),
+    folder("folder:projects", null, "Projects", 19 * GB, "personal", `${U}\\Projects`),
+    folder("folder:onedrive", "oneDrive", null, 12 * GB, "personal", `${U}\\OneDrive`),
+    folder("music", "music", null, 8 * GB, "personal", `${U}\\Music`),
+    folder("desktop", "desktop", null, 4.5 * GB, "personal", `${U}\\Desktop`),
+    folder("caches", "caches", null, 3.1 * GB, "reclaimable", null),
+    folder("recycle-bin", "recycleBin", null, 1.4 * GB, "reclaimable", null),
+    folder("folder:.vscode", null, ".vscode", 620 * MB, "personal", `${U}\\.vscode`),
+    folder("folder:saved games", null, "Saved Games", 180 * MB, "personal", `${U}\\Saved Games`),
+  ],
+};
 
 const DAY = 24 * 60 * 60;
 const daysAgo = (days: number) => Math.floor(Date.now() / 1000) - days * DAY;
