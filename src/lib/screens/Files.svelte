@@ -497,8 +497,8 @@
               {#if canExplain}<ExplainTag explainId={item.explainId} answer={answerFor(item.path)} />{/if}
               <span class="item-size">{formatBytes(item.sizeBytes)}</span>
             </svelte:element>
-            <button class="hide-pill" disabled={moving} onclick={() => hideDetail(item)} aria-label={t("files.hideItem", { name: nameOf(item.originalPath ?? item.path) })} title={t("files.hide")}>
-              <EyeOffIcon size={14} />
+            <button class="hide-btn" disabled={moving} onclick={() => hideDetail(item)} aria-label={t("files.hideItem", { name: nameOf(item.originalPath ?? item.path) })} title={t("files.hide")}>
+              <EyeOffIcon size={15} />
             </button>
           </li>
         {/each}
@@ -609,7 +609,7 @@
   .big-icon { font-size: 26px; }
 
   /* Wider on a wide window: the group rows need less room than the folder list. */
-  .side { width: clamp(330px, 30vw, 520px); flex: none; padding: 18px; min-height: 420px; display: flex; flex-direction: column; position: sticky; top: 0; }
+  .side { width: clamp(340px, 34vw, 600px); flex: none; padding: 18px; min-height: 420px; display: flex; flex-direction: column; position: sticky; top: 0; }
   .label { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; color: var(--text-muted); text-transform: uppercase; }
   .side h3 { font-size: 17px; margin: 6px 0 4px; }
   .side h4 { font-size: 12.5px; margin-top: 10px; }
@@ -620,9 +620,10 @@
   dd { font-weight: 600; }
   .list-label { margin-top: 14px; }
   .items { list-style: none; margin-top: 6px; }
-  .items li { border-bottom: 1px solid var(--border); }
-  .item-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; width: 100%; border: none; background: none; color: inherit; font: inherit; text-align: left; }
-  .item-row.clickable { cursor: pointer; padding: 6px 6px; margin: 0 -6px; width: calc(100% + 12px); border-radius: var(--radius-sm); }
+  /* Hide sits last on every row, in its own place: it never covers the tag or the size. */
+  .items li { border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 4px; }
+  .item-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; flex: 1; min-width: 0; border: none; background: none; color: inherit; font: inherit; text-align: left; }
+  .item-row.clickable { cursor: pointer; padding: 6px 6px; margin-left: -6px; border-radius: var(--radius-sm); }
   .item-row.clickable:hover { background: var(--hover); }
   .item-text { flex: 1; min-width: 0; }
   .item-name, .item-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -648,10 +649,10 @@
   .dots { flex: none; border: none; background: none; font-size: 18px; line-height: 1; padding: 4px 8px; margin-right: -6px; border-radius: var(--radius-sm); color: var(--text-muted); }
   .dots:hover { background: var(--hover); color: var(--text); }
   /* Over the size on hover, so the name keeps its room. */
-  .items li { position: relative; }
-  .hide-pill { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 999px; padding: 4px 6px; font-size: 12px; opacity: 0; transition: opacity 0.12s; }
-  .items li:hover .hide-pill, .hide-pill:focus-visible { opacity: 1; }
-  .hide-pill:hover { background: var(--hover); }
+  .hide-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-right: -4px; border: none; background: none; border-radius: var(--radius-sm); color: var(--text-muted); opacity: 0.55; transition: opacity 0.12s, background 0.12s; }
+  .items li:hover .hide-btn, .hide-btn:focus-visible { opacity: 1; }
+  .hide-btn:hover { background: var(--hover); color: var(--text); }
+  .hide-btn:disabled { opacity: 0.3; cursor: default; }
   .hidden-link { display: flex; align-items: center; gap: 8px; margin-top: 16px; border: none; background: none; padding: 6px 2px; font-size: 13px; color: var(--text-muted); text-align: left; }
   .link-action { color: var(--accent); font-weight: 600; }
   .hidden-link:hover .link-action { text-decoration: underline; }
