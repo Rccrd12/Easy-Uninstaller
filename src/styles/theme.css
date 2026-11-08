@@ -139,6 +139,7 @@ select { background: var(--surface); }
 .tag-check { background: var(--check-bg); color: var(--check-fg); }
 .tag-keep { background: var(--keep-bg); color: var(--keep-fg); }
 .tag-info { background: var(--accent-soft); color: var(--accent); }
+.tag-gray { background: var(--track); color: var(--text-muted); }
 
 .sample-banner {
   font-size: 13px; padding: 8px 12px; border-radius: var(--radius-sm);

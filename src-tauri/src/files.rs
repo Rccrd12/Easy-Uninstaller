@@ -5,14 +5,24 @@
 //!
 //! Groups, in the order they are claimed (a file lands in one group at most):
 //! 1. `temp`: temporary files and app caches older than a day (Safe).
-//! 2. `installers`: setup files in Downloads for programs that are installed (Safe).
-//! 3. `old-downloads`: downloads not opened or changed in over a year (Check).
-//! 4. `duplicates`: identical copies in the user's folders; the oldest copy is kept (Check).
-//! 5. `large-files`: files of 1 GB or more in the user's folders (Check).
+//! 2. `recycle-bin`: items in the Recycle Bin for over 30 days (Safe).
+//! 3. `crash-reports`: error reports and crash dumps older than a day (Safe).
+//! 4. `thumbnails`: the thumbnail cache Explorer rebuilds (Safe).
+//! 5. `installers`: setup files in Downloads for programs that are installed (Safe).
+//! 6. `old-downloads`: downloads not opened or changed in over a year (Check).
+//! 7. `duplicates`: identical copies in the user's folders; the oldest copy is kept (Check).
+//! 8. `large-files`: files of 1 GB or more in the user's folders (Check).
+//! 9. `unknown-folders`: big folders in AppData and ProgramData (Check, review only:
+//!    listed with an explanation, never moved as a group).
+//!
+//! Groups 2-4 and 9 live in `files/extra.rs`; folder explanations in `explain.rs`.
 //!
 //! What the UI shows is rebuilt from the kept file lists by `review.rs`, leaving
 //! out files that are gone or changed and files the user asked never to see again.
 
+mod extra;
+
+use crate::explain::KnownFolders;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, Metadata};
@@ -55,6 +65,10 @@ pub struct FileItem {
     pub last_used: Option<String>,
     /// For duplicates: the copy that is kept.
     pub duplicate_of: Option<String>,
+    /// A folder the app can explain ("What is this?"): an id from `known_folders.json`.
+    pub explain_id: Option<String>,
+    /// For Recycle Bin items: where the file was before it was deleted.
+    pub original_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -70,6 +84,8 @@ pub struct FileGroup {
     pub item_count: u64,
     /// Largest first, at most [`MAX_ITEMS`]. For temp files, one item per folder.
     pub items: Vec<FileItem>,
+    /// Only shown and explained: it cannot be selected or moved as a whole.
+    pub review_only: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -79,13 +95,15 @@ pub enum ScanStep {
     Downloads,
     Personal,
     Duplicates,
+    AppFolders,
 }
 
-const STEPS: [ScanStep; 4] = [
+const STEPS: [ScanStep; 5] = [
     ScanStep::Caches,
     ScanStep::Downloads,
     ScanStep::Personal,
     ScanStep::Duplicates,
+    ScanStep::AppFolders,
 ];
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -172,6 +190,15 @@ pub struct Locations {
     pub downloads: Option<PathBuf>,
     /// Roots searched for large files and duplicates (the user profile).
     pub personal: Vec<PathBuf>,
+    /// The current user's Recycle Bin folder on each drive (`X:\$Recycle.Bin\<SID>`).
+    pub recycle_bins: Vec<PathBuf>,
+    /// Error report and crash dump folders.
+    pub crash_reports: Vec<PathBuf>,
+    /// Where Explorer keeps `thumbcache_*.db`.
+    pub thumbnails: Option<PathBuf>,
+    /// AppData and ProgramData: their big subfolders are listed and explained.
+    pub app_data: Vec<PathBuf>,
+    pub known: KnownFolders,
 }
 
 #[tauri::command]
@@ -233,6 +260,8 @@ impl Seen {
             size_bytes: self.size,
             last_used: Some(iso_date(self.last_used)),
             duplicate_of: duplicate_of.map(|p| p.to_string_lossy().into_owned()),
+            explain_id: None,
+            original_path: None,
         }
     }
 }
@@ -306,6 +335,8 @@ pub fn scan(
                 size_bytes: size,
                 last_used: None,
                 duplicate_of: None,
+                explain_id: None,
+                original_path: None,
             });
         }
     }
@@ -316,6 +347,43 @@ pub fn scan(
         temp_items,
     ));
     files.insert("temp".into(), temp_files);
+
+    // 2, 3 and 4. Recycle Bin, error reports, thumbnails: one step with the caches.
+    let bin = extra::recycle_bin(&loc.recycle_bins, now, &mut || progress.tick());
+    let bin_files: Vec<ScannedFile> = bin.iter().flat_map(|e| e.files.clone()).collect();
+    // Counted without the small `$I` info files, which the user never sees.
+    let bin_count = bin_files.len() - bin.len();
+    groups.push(group(
+        "recycle-bin",
+        Safety::Safe,
+        bin_count as u64,
+        bin.into_iter().map(|e| e.item).collect(),
+    ));
+    files.insert("recycle-bin".into(), bin_files);
+
+    let crash = extra::crash_reports(
+        &dedup_dirs(&loc.crash_reports),
+        &|t| older_than(t, TEMP_MIN_AGE),
+        &mut || progress.tick(),
+    );
+    let crash: Vec<Seen> = crash
+        .into_iter()
+        .filter(|s| !claimed.contains(&s.path))
+        .collect();
+    claimed.extend(crash.iter().map(|s| s.path.clone()));
+    groups.push(files_group(
+        "crash-reports",
+        Safety::Safe,
+        &crash,
+        &mut files,
+    ));
+
+    let thumbs: Vec<Seen> = extra::thumbnails(loc.thumbnails.as_deref(), &mut || progress.tick())
+        .into_iter()
+        .filter(|s| !claimed.contains(&s.path))
+        .collect();
+    claimed.extend(thumbs.iter().map(|s| s.path.clone()));
+    groups.push(files_group("thumbnails", Safety::Safe, &thumbs, &mut files));
 
     // 2 and 3. Downloads: installers of installed programs, then old files.
     progress.start(ScanStep::Downloads);
@@ -398,8 +466,30 @@ pub fn scan(
         &mut files,
     ));
 
+    // 9. Big app folders: listed and explained only, so no files are kept for moving.
+    progress.start(ScanStep::AppFolders);
+    let folders = extra::app_folders(&dedup_dirs(&loc.app_data), &loc.known, &mut || {
+        progress.tick()
+    });
+    let mut unknown = group(
+        "unknown-folders",
+        Safety::Check,
+        folders.len() as u64,
+        folders,
+    );
+    unknown.review_only = true;
+    groups.push(unknown);
+
     groups.retain(|g| g.item_count > 0);
     files.retain(|id, _| groups.iter().any(|g| &g.id == id));
+    for item in groups.iter_mut().flat_map(|g| g.items.iter_mut()) {
+        if item.explain_id.is_none() {
+            item.explain_id = loc
+                .known
+                .lookup(Path::new(&item.path))
+                .map(|f| f.id.clone());
+        }
+    }
     let duplicate_sets = duplicate_sets
         .iter()
         .map(|set| set.iter().map(Seen::scanned).collect())
@@ -435,6 +525,7 @@ fn group(id: &str, safety: Safety, item_count: u64, mut items: Vec<FileItem>) ->
         size_bytes,
         item_count,
         items,
+        review_only: false,
     }
 }
 
@@ -707,7 +798,7 @@ pub(crate) fn iso_date(t: SystemTime) -> String {
 
 #[cfg(windows)]
 mod platform {
-    use super::Locations;
+    use super::{KnownFolders, Locations};
     use std::fs::Metadata;
     use std::os::windows::fs::MetadataExt;
     use std::path::{Path, PathBuf};
@@ -758,7 +849,6 @@ mod platform {
         if let Some(local) = env("LOCALAPPDATA") {
             for sub in [
                 r"Microsoft\Windows\INetCache",
-                "CrashDumps",
                 "D3DSCache",
                 r"NVIDIA\DXCache",
                 r"NVIDIA\GLCache",
@@ -783,12 +873,60 @@ mod platform {
         }
         caches.retain(|p| p.is_dir());
 
+        let local = env("LOCALAPPDATA");
+        // Only folders the user can clean without administrator rights; system-wide
+        // reports (ProgramData, Windows\Minidump) would just be skipped when moved.
+        let crash_reports = local
+            .iter()
+            .flat_map(|l| [l.join("CrashDumps"), l.join(r"Microsoft\Windows\WER")])
+            .filter(|p| p.is_dir())
+            .collect();
+        let app_data = [env("LOCALAPPDATA"), env("APPDATA"), env("PROGRAMDATA")]
+            .into_iter()
+            .flatten()
+            .filter(|p| p.is_dir())
+            .collect();
+
         let profile = env("USERPROFILE");
         Locations {
             caches,
             downloads: downloads_dir().or_else(|| profile.as_ref().map(|p| p.join("Downloads"))),
+            recycle_bins: profile.as_deref().map(recycle_bins).unwrap_or_default(),
             personal: profile.into_iter().collect(),
+            crash_reports,
+            thumbnails: local.map(|l| l.join(r"Microsoft\Windows\Explorer")),
+            app_data,
+            known: KnownFolders::from_env(),
         }
+    }
+
+    /// The user's Recycle Bin folder on each local drive. Other users' folders are left alone.
+    fn recycle_bins(profile: &Path) -> Vec<PathBuf> {
+        let Some(sid) = user_sid(profile) else {
+            return Vec::new();
+        };
+        let Ok(disks) = sysinfo::Disks::new_with_refreshed_list() else {
+            return Vec::new();
+        };
+        (&disks)
+            .into_iter()
+            .map(|d| d.mount_point().join("$Recycle.Bin").join(&sid))
+            .filter(|p| p.is_dir())
+            .collect()
+    }
+
+    /// The security id of the user whose profile folder is `profile` (e.g. `S-1-5-21-…`),
+    /// which names their folder inside `$Recycle.Bin`.
+    fn user_sid(profile: &Path) -> Option<String> {
+        let list = RegKey::predef(HKEY_LOCAL_MACHINE)
+            .open_subkey(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList")
+            .ok()?;
+        let wanted = profile.to_string_lossy().to_lowercase();
+        list.enum_keys().flatten().find(|sid| {
+            list.open_subkey(sid)
+                .and_then(|k| k.get_value::<String, _>("ProfileImagePath"))
+                .is_ok_and(|p| expand_env(&p).to_lowercase() == wanted)
+        })
     }
 
     /// The Downloads folder, also when the user moved it to another place.
@@ -857,7 +995,7 @@ mod platform {
 /// Easy Uninstaller targets Windows; elsewhere there is nothing to scan.
 #[cfg(not(windows))]
 mod platform {
-    use super::Locations;
+    use super::{KnownFolders, Locations};
     use std::fs::Metadata;
 
     pub fn skip(_meta: &Metadata) -> bool {
@@ -865,7 +1003,10 @@ mod platform {
     }
 
     pub fn locations() -> Locations {
-        Locations::default()
+        Locations {
+            known: KnownFolders::from_env(),
+            ..Locations::default()
+        }
     }
 
     pub fn installed_app_names() -> Vec<String> {
@@ -960,6 +1101,7 @@ mod tests {
             caches: vec![cache.clone(), cache.join("sub")],
             downloads: Some(downloads.clone()),
             personal: vec![profile.clone()],
+            ..Default::default()
         };
         let (result, updates) = run(&loc, &["Google Chrome", "VLC media player"]);
         let groups = &result.groups;
@@ -1008,7 +1150,7 @@ mod tests {
 
         let steps: Vec<ScanStep> = updates.iter().map(|u| u.step).collect();
         assert_eq!(steps, STEPS);
-        assert!(updates.iter().all(|u| u.step_count == 4));
+        assert!(updates.iter().all(|u| u.step_count == 5));
     }
 
     #[test]
@@ -1017,6 +1159,7 @@ mod tests {
             caches: vec![PathBuf::from("/definitely/not/here")],
             downloads: Some(PathBuf::from("/nor/here")),
             personal: vec![],
+            ..Default::default()
         };
         let (result, _) = run(&loc, &[]);
         assert!(result.groups.is_empty());

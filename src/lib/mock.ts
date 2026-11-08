@@ -1,7 +1,7 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { FileGroup, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, SpaceFolder, SpaceUsage } from "./types";
+import type { DriveInfo, FileGroup, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage } from "./types";
 
 export const sampleApps: InstalledApp[] = [
   { id: "photoshop", name: "Adobe Photoshop 2025", publisher: "Adobe", sizeBytes: 6.8 * GB, source: "win32", installedOn: "2025-01-14", lastUsed: "3 months ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#e3008c", icon: null },
@@ -62,12 +62,59 @@ export const sampleDuplicateSets: SampleFile[][] = [
   [file("duplicates", `${U}\\Documents\\Contracts\\rental-contract.pdf`, 2.3 * MB, "2023-01-30"), file("duplicates", `${D}\\rental-contract.pdf`, 2.3 * MB, "2023-02-02")],
 ];
 
+const item = (path: string, sizeBytes: number, lastUsed: string | null = null, duplicateOf: string | null = null): FileItem => ({
+  path,
+  sizeBytes,
+  lastUsed,
+  duplicateOf,
+  explainId: null,
+  originalPath: null,
+});
+/** A folder the app knows (see src-tauri/src/known_folders.json), or null for one it does not. */
+const folderItem = (path: string, sizeBytes: number, explainId: string | null): FileItem => ({ ...item(path, sizeBytes), explainId });
+const binItem = (id: string, originalPath: string, sizeBytes: number): FileItem => ({
+  ...item(`C:\\$Recycle.Bin\\S-1-5-21-1004\\$R${id}`, sizeBytes),
+  explainId: "recycleBin",
+  originalPath,
+});
+
 /** Temp folders: listed by folder, like the real scan does. */
 export const sampleTempFolders: FileItem[] = [
-  { path: `${U}\\AppData\\Local\\Temp`, sizeBytes: 1.6 * GB, lastUsed: null, duplicateOf: null },
-  { path: `${U}\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache`, sizeBytes: 820 * MB, lastUsed: null, duplicateOf: null },
-  { path: "C:\\Windows\\Temp", sizeBytes: 410 * MB, lastUsed: null, duplicateOf: null },
-  { path: `${U}\\AppData\\Local\\NVIDIA\\DXCache`, sizeBytes: 270 * MB, lastUsed: null, duplicateOf: null },
+  folderItem(`${U}\\AppData\\Local\\Temp`, 1.6 * GB, "temp"),
+  folderItem(`${U}\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache`, 820 * MB, "browserCache"),
+  folderItem("C:\\Windows\\Temp", 410 * MB, "temp"),
+  folderItem(`${U}\\AppData\\Local\\NVIDIA\\DXCache`, 270 * MB, "shaderCache"),
+];
+
+/** Groups that are listed as found, not reviewed file by file (from "What is this?"). */
+const sampleExtraGroups: [id: string, key: string, safety: FileGroup["safety"], itemCount: number, items: FileItem[]][] = [
+  ["recycle-bin", "recycleBin", "safe", 14, [
+    binItem("K2J9QX.zip", `${U}\\Downloads\\Old project`, 840 * MB),
+    binItem("8DF1LA.mp4", `${U}\\Videos\\Screen recording 2025-03-02.mp4`, 310 * MB),
+    binItem("Q7ZP02.psd", `${U}\\Desktop\\poster draft.psd`, 95 * MB),
+  ]],
+  ["crash-reports", "crashReports", "safe", 9, [
+    { ...item(`${U}\\AppData\\Local\\CrashDumps\\GameLauncher.exe.8812.dmp`, 410 * MB, "2025-06-14"), explainId: "crashDumps" },
+    { ...item(`${U}\\AppData\\Local\\CrashDumps\\explorer.exe.4410.dmp`, 160 * MB, "2025-04-02"), explainId: "crashDumps" },
+    { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\WER\\ReportArchive\\AppCrash_Spotify\\Report.wer`, 70 * MB, "2025-02-20"), explainId: "crashDumps" },
+  ]],
+  ["thumbnails", "thumbnails", "safe", 6, [
+    { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\Explorer\\thumbcache_256.db`, 380 * MB, "2025-07-01"), explainId: "thumbCache" },
+    { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\Explorer\\thumbcache_1280.db`, 210 * MB, "2025-07-01"), explainId: "thumbCache" },
+  ]],
+  ["unknown-folders", "unknownFolders", "check", 11, [
+    folderItem("C:\\ProgramData\\Package Cache", 4.2 * GB, "packageCache"),
+    folderItem(`${U}\\AppData\\Roaming\\Zoom`, 1.1 * GB, "zoom"),
+    folderItem(`${U}\\AppData\\Local\\ABX_7731`, 820 * MB, null),
+    folderItem(`${U}\\AppData\\Local\\Spotify`, 640 * MB, "spotify"),
+    folderItem(`${U}\\AppData\\Local\\NVIDIA`, 450 * MB, "shaderCache"),
+    folderItem(`${U}\\AppData\\Local\\npm-cache`, 380 * MB, "devCache"),
+    folderItem(`${U}\\AppData\\Roaming\\anythingllm-desktop`, 360 * MB, null),
+    folderItem(`${U}\\AppData\\Roaming\\Code`, 350 * MB, "vscode"),
+    folderItem("C:\\ProgramData\\NVIDIA Corporation", 340 * MB, "gpuDrivers"),
+    folderItem(`${U}\\AppData\\Local\\Docker`, 330 * MB, "docker"),
+    folderItem(`${U}\\AppData\\Local\\uv`, 320 * MB, null),
+  ]],
 ];
 
 /**
@@ -83,20 +130,30 @@ export function buildSampleGroups(present: (path: string) => boolean): FileGroup
     sizeBytes: items.reduce((s, i) => s + i.sizeBytes, 0),
     itemCount,
     items: [...items].sort((a, b) => b.sizeBytes - a.sizeBytes),
+    reviewOnly: id === "unknown-folders",
   });
   const files = (id: string): FileItem[] =>
-    sampleFiles.filter((f) => f.group === id && present(f.path)).map((f) => ({ path: f.path, sizeBytes: f.sizeBytes, lastUsed: f.lastUsed, duplicateOf: null }));
+    sampleFiles.filter((f) => f.group === id && present(f.path)).map((f) => item(f.path, f.sizeBytes, f.lastUsed));
   const temp = sampleTempFolders.filter((f) => present(f.path));
   const copies: FileItem[] = sampleDuplicateSets.flatMap((set) => {
     const left = set.filter((f) => present(f.path));
-    return left.slice(1).map((f) => ({ path: f.path, sizeBytes: f.sizeBytes, lastUsed: f.lastUsed, duplicateOf: left[0].path }));
+    return left.slice(1).map((f) => item(f.path, f.sizeBytes, f.lastUsed, left[0].path));
   });
+  const extra = (id: string): FileGroup => {
+    const [, key, safety, count, items] = sampleExtraGroups.find((g) => g[0] === id)!;
+    const left = items.filter((i) => present(i.path));
+    return group(id, key, safety, left.length === items.length ? count : left.length, left);
+  };
   return [
     group("temp", "temp", "safe", Math.round((4821 * temp.length) / sampleTempFolders.length), temp),
+    extra("recycle-bin"),
+    extra("crash-reports"),
+    extra("thumbnails"),
     group("installers", "installers", "safe", files("installers").length, files("installers")),
     group("old-downloads", "oldDownloads", "check", files("old-downloads").length, files("old-downloads")),
     group("duplicates", "duplicates", "check", copies.length, copies),
     group("large-files", "largeFiles", "check", files("large-files").length, files("large-files")),
+    extra("unknown-folders"),
   ].filter((g) => g.itemCount > 0);
 }
 
@@ -217,3 +274,8 @@ export const sampleQuarantine: QuarantineEntry[] = [
     needsAdmin: false,
   },
 ];
+
+/** Changed by `setQuarantineSettings` in the browser fallback. */
+export const sampleQuarantineSettings: QuarantineSettings = { keepDays: 7, drive: null };
+
+export const sampleDrives: DriveInfo[] = [{ mountPoint: "D:", label: "Data", totalBytes: 931 * GB, freeBytes: 612 * GB }];

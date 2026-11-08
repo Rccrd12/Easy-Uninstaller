@@ -6,13 +6,15 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GB } from "./format";
 import {
   buildSampleGroups,
-  sampleAppLeftovers,
   sampleApps,
+  sampleAppLeftovers,
+  sampleDrives,
   sampleDuplicateSets,
   sampleFiles,
   sampleLeftovers,
   samplePreview,
   sampleQuarantine,
+  sampleQuarantineSettings,
   sampleSpaceUsage,
   type SampleFile,
 } from "./mock";
@@ -20,6 +22,7 @@ import type {
   DiskInfo,
   Exclusion,
   FileGroup,
+  FileItem,
   FileSelection,
   GroupReview,
   HiddenKind,
@@ -27,6 +30,8 @@ import type {
   LeftoverItem,
   MoveReport,
   QuarantineEntry,
+  QuarantineOptions,
+  QuarantineSettings,
   RestorePointOutcome,
   RestoreReport,
   ReviewFile,
@@ -36,8 +41,13 @@ import type {
   UninstallOutcome,
 } from "./types";
 
-/** Matches `KEEP_DAYS` in src-tauri/src/quarantine.rs. */
-export const QUARANTINE_DAYS = 7;
+/** Matches `KEEP_DAYS_CHOICES` in src-tauri/src/quarantine.rs. */
+export const KEEP_DAYS_CHOICES = [3, 7, 30] as const;
+/**
+ * File groups deleted right away instead of going to Quarantine: Windows and apps
+ * recreate them. Matches `DELETE_NOW_GROUPS` in src-tauri/src/cleanup.rs.
+ */
+export const DELETE_NOW_GROUPS: readonly string[] = ["temp"];
 const DAY = 24 * 60 * 60;
 
 /**
@@ -58,10 +68,13 @@ export function usesSampleData(): boolean {
   return !isTauri();
 }
 
+/** Browser fallback: grows when sample files are removed, like a real disk would. */
+let sampleFreeBytes = 64 * GB;
+
 /** Real: implemented in src-tauri/src/disk.rs. */
 export async function getSystemDisk(): Promise<DiskInfo> {
   if (isTauri()) return invoke<DiskInfo>("get_system_disk");
-  return { mountPoint: "C:", totalBytes: 476 * GB, freeBytes: 64 * GB };
+  return { mountPoint: "C:", totalBytes: 476 * GB, freeBytes: sampleFreeBytes };
 }
 
 let appsCache: Promise<InstalledApp[]> | null = null;
@@ -119,7 +132,7 @@ function scanFilesNative(notify: (p: ScanProgress) => void): Promise<FileGroup[]
 
 /** Browser fallback: plays the scan steps quickly so the progress view can be designed. */
 async function sampleScan(notify: (p: ScanProgress) => void): Promise<FileGroup[]> {
-  const steps = ["caches", "downloads", "personal", "duplicates"] as const;
+  const steps = ["caches", "downloads", "personal", "duplicates", "appFolders"] as const;
   for (const [i, step] of steps.entries()) {
     for (let n = 0; n < 4; n++) {
       notify({ step, stepIndex: i + 1, stepCount: steps.length, filesChecked: n * 1250 });
@@ -179,7 +192,7 @@ export async function quarantineLeftovers(ids: string[], found: LeftoverItem[]):
   if (isTauri()) return invoke<MoveReport>("quarantine_leftovers", { ids });
   await sleep(700);
   const now = Math.floor(Date.now() / 1000);
-  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
   const picked = found.filter((l) => ids.includes(l.id));
   const byApp = new Map<string, LeftoverItem[]>();
   for (const l of picked) byApp.set(l.appName ?? "", [...(byApp.get(l.appName ?? "") ?? []), l]);
@@ -193,7 +206,7 @@ export async function quarantineLeftovers(ids: string[], found: LeftoverItem[]):
       itemCount: items.length,
       sizeBytes: size,
       removedAt: now,
-      expiresAt: now + QUARANTINE_DAYS * DAY,
+      expiresAt: now + sampleQuarantineSettings.keepDays * DAY,
       items: items.map((l) => ({ originalPath: l.path, sizeBytes: l.sizeBytes, kind: l.kind === "registry" ? "registry" : l.kind === "folder" ? "folder" : "file" })),
       needsAdmin: items.some((l) => l.needsAdmin),
     });
@@ -248,17 +261,40 @@ export async function listQuarantine(): Promise<QuarantineEntry[]> {
 }
 
 /**
- * Moves whole groups of the last file scan into quarantine (one entry per group).
- * Only group ids are sent: Rust moves exactly the files its own scan found.
+ * Removes whole groups of the last file scan: the groups in `DELETE_NOW_GROUPS` are
+ * deleted right away, every other group goes to Quarantine (one entry per group).
+ * Only group ids are sent: Rust removes exactly the files its own scan found.
+ * Real: src-tauri/src/cleanup.rs.
  */
-export async function quarantineFileGroups(groupIds: string[]): Promise<MoveReport> {
-  if (isTauri()) return invoke<MoveReport>("quarantine_file_groups", { groupIds });
+export async function removeFileGroups(groupIds: string[]): Promise<MoveReport> {
+  if (isTauri()) return invoke<MoveReport>("remove_file_groups", { groupIds });
+  await new Promise((r) => setTimeout(r, 900));
   const now = Math.floor(Date.now() / 1000);
-  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, skippedCount: 0, declinedCount: 0 };
-  for (const g of sampleGroups().filter((x) => groupIds.includes(x.id))) {
+  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  for (const g of sampleGroups().filter((x) => groupIds.includes(x.id) && !x.reviewOnly)) {
+    if (DELETE_NOW_GROUPS.includes(g.id)) {
+      report.deletedCount += g.itemCount;
+      report.deletedBytes += g.sizeBytes;
+      report.freedBytes += g.sizeBytes;
+      g.items.forEach((i) => sampleGone.add(i.path));
+      continue;
+    }
     sampleMove(report, g, g.items.map((i) => ({ path: i.path, sizeBytes: i.sizeBytes })), g.itemCount, now);
   }
+  sampleFreeBytes += report.freedBytes;
   return report;
+}
+
+/** Real: src-tauri/src/quarantine.rs. The quarantine choices and the drives it can use. */
+export async function getQuarantineOptions(): Promise<QuarantineOptions> {
+  if (isTauri()) return invoke<QuarantineOptions>("get_quarantine_options");
+  return { settings: { ...sampleQuarantineSettings }, systemDrive: "C:", drives: sampleDrives };
+}
+
+/** Saves the quarantine choices. Fails if the chosen drive cannot be written to. */
+export async function setQuarantineSettings(settings: QuarantineSettings): Promise<void> {
+  if (isTauri()) return invoke("set_quarantine_settings", { settings });
+  Object.assign(sampleQuarantineSettings, settings);
 }
 
 /** Browser fallback: records a move in the sample quarantine and hides the files. */
@@ -272,7 +308,7 @@ function sampleMove(report: MoveReport, g: FileGroup, files: { path: string; siz
     itemCount: count,
     sizeBytes: size,
     removedAt: now,
-    expiresAt: now + QUARANTINE_DAYS * DAY,
+    expiresAt: now + sampleQuarantineSettings.keepDays * DAY,
     items: files.map((f) => ({ originalPath: f.path, sizeBytes: f.sizeBytes, kind: "file" })),
     needsAdmin: false,
   });
@@ -280,16 +316,18 @@ function sampleMove(report: MoveReport, g: FileGroup, files: { path: string; siz
   report.entryIds.push(id);
   report.movedCount += count;
   report.movedBytes += size;
+  if (sampleQuarantineSettings.drive) report.freedBytes += size;
 }
 
 /**
- * Moves the files the user picked, one quarantine entry per group. Rust only moves
- * files its own scan found, and always leaves one copy of every duplicate set.
+ * Removes the files the user picked, like `removeFileGroups`: one quarantine entry per
+ * group, or deleted right away for `DELETE_NOW_GROUPS`. Rust only touches files its own
+ * scan found, and always leaves one copy of every duplicate set. Real: src-tauri/src/review.rs.
  */
 export async function quarantineFileSelection(selections: FileSelection[]): Promise<MoveReport> {
   if (isTauri()) return invoke<MoveReport>("quarantine_file_selection", { selections });
   const now = Math.floor(Date.now() / 1000);
-  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
   const groups = sampleGroups();
   for (const sel of selections) {
     const g = groups.find((x) => x.id === sel.groupId);
@@ -305,8 +343,18 @@ export async function quarantineFileSelection(selections: FileSelection[]): Prom
     } else {
       picked = sampleFiles.filter((f) => f.group === g.id && wanted.has(f.path) && samplePresent(f.path));
     }
-    if (picked.length) sampleMove(report, g, picked, picked.length, now);
+    if (!picked.length) continue;
+    if (DELETE_NOW_GROUPS.includes(g.id)) {
+      const size = picked.reduce((s, f) => s + f.sizeBytes, 0);
+      report.deletedCount += picked.length;
+      report.deletedBytes += size;
+      report.freedBytes += size;
+      picked.forEach((f) => sampleGone.add(f.path));
+      continue;
+    }
+    sampleMove(report, g, picked, picked.length, now);
   }
+  sampleFreeBytes += report.freedBytes;
   return report;
 }
 
@@ -418,6 +466,32 @@ export async function showScannedFile(path: string): Promise<void> {
   if (isTauri()) return invoke("show_scanned_file", { path });
 }
 
+/**
+ * Real: src-tauri/src/app_folders.rs. Moves one folder of the "unknown folders" group into
+ * quarantine as one entry. Rust checks the path again; folders outside the user's
+ * profile (ProgramData) make Windows ask for permission.
+ */
+export async function quarantineAppFolder(item: FileItem): Promise<MoveReport> {
+  if (isTauri()) return invoke<MoveReport>("quarantine_app_folder", { path: item.path });
+  await sleep(700);
+  const now = Math.floor(Date.now() / 1000);
+  const id = `${now}-folder-${sampleQuarantine.length}`;
+  const name = item.path.split(/[\\/]/).pop() ?? item.path;
+  sampleQuarantine.push({
+    id,
+    titleKey: null,
+    title: name,
+    itemCount: 1,
+    sizeBytes: item.sizeBytes,
+    removedAt: now,
+    expiresAt: now + sampleQuarantineSettings.keepDays * DAY,
+    items: [{ originalPath: item.path, sizeBytes: item.sizeBytes, kind: "folder" }],
+    needsAdmin: !/\\AppData\\/i.test(item.path),
+  });
+  sampleGone.add(item.path);
+  return { entryIds: [id], movedCount: 1, movedBytes: item.sizeBytes, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+}
+
 /** Puts the files of these entries back where they were. */
 export async function restoreQuarantine(ids: string[]): Promise<RestoreReport> {
   if (isTauri()) return invoke<RestoreReport>("restore_quarantine", { ids });
@@ -426,9 +500,9 @@ export async function restoreQuarantine(ids: string[]): Promise<RestoreReport> {
     const i = sampleQuarantine.findIndex((e) => e.id === id);
     if (i < 0) continue;
     const [entry] = sampleQuarantine.splice(i, 1);
+    entry.items.forEach((item) => sampleGone.delete(item.originalPath));
     report.restoredCount += entry.itemCount;
     for (const item of entry.items) {
-      sampleGone.delete(item.originalPath);
       const l = sampleLeftovers.find((x) => x.path === item.originalPath);
       if (l) sampleMovedLeftovers.delete(l.id);
     }

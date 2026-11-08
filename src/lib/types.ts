@@ -39,6 +39,10 @@ export interface FileItem {
   lastUsed: string | null;
   /** For duplicates: the copy that is kept. */
   duplicateOf: string | null;
+  /** A folder the app can explain: an id from src-tauri/src/known_folders.json. */
+  explainId: string | null;
+  /** For Recycle Bin items: where the file was before it was deleted. */
+  originalPath: string | null;
 }
 
 export interface FileGroup {
@@ -52,9 +56,11 @@ export interface FileGroup {
   itemCount: number;
   /** Largest first, at most 200. Temp files are listed one folder per item. */
   items: FileItem[];
+  /** Only shown and explained: it cannot be selected or moved as a whole. */
+  reviewOnly: boolean;
 }
 
-export type ScanStep = "caches" | "downloads" | "personal" | "duplicates";
+export type ScanStep = "caches" | "downloads" | "personal" | "duplicates" | "appFolders";
 
 export interface ScanProgress {
   step: ScanStep;
@@ -161,15 +167,45 @@ export interface QuarantineEntry {
   needsAdmin: boolean;
 }
 
+/** What removing file groups did. Mirrors `MoveReport` in src-tauri/src/quarantine.rs. */
 export interface MoveReport {
   /** One entry per group moved; restoring them undoes the move. */
   entryIds: string[];
+  /** Moved into quarantine. */
   movedCount: number;
   movedBytes: number;
+  /** Deleted right away (temporary files and caches only). */
+  deletedCount: number;
+  deletedBytes: number;
+  /** Space really given back: deleted, plus moved to a quarantine on another drive. */
+  freedBytes: number;
   /** Left in place: in use, changed since the scan, or gone. */
   skippedCount: number;
   /** Left in place because the Windows permission prompt was answered no. */
   declinedCount: number;
+}
+
+/** Mirrors `QuarantineSettings` in src-tauri/src/quarantine.rs. */
+export interface QuarantineSettings {
+  /** 3, 7 or 30. */
+  keepDays: number;
+  /** "D:", or null for the app's own folder on the system drive. */
+  drive: string | null;
+}
+
+/** Another fixed drive. Mirrors `DriveInfo` in src-tauri/src/disk.rs. */
+export interface DriveInfo {
+  mountPoint: string;
+  label: string;
+  totalBytes: number;
+  freeBytes: number;
+}
+
+/** Mirrors `QuarantineOptions` in src-tauri/src/quarantine.rs. */
+export interface QuarantineOptions {
+  settings: QuarantineSettings;
+  systemDrive: string;
+  drives: DriveInfo[];
 }
 
 export interface RestoreReport {

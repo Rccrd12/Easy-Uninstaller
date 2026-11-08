@@ -2,7 +2,8 @@
   import { untrack } from "svelte";
   import EyeOffIcon from "./EyeOffIcon.svelte";
   import FileThumb from "./FileThumb.svelte";
-  import { hiddenItem, openScannedFile, QUARANTINE_DAYS, reviewFileGroup, showScannedFile } from "../api";
+  import { DELETE_NOW_GROUPS, hiddenItem, openScannedFile, reviewFileGroup, showScannedFile } from "../api";
+  import { quarantine } from "../settings.svelte";
   import { fileCount, formatBytes, formatDate } from "../format";
   import { locale, t } from "../i18n/index.svelte";
   import { displayPath, folderOf, nameOf, topFolder, topFolderName } from "../paths";
@@ -43,6 +44,8 @@
   let menu = $state<{ file: ReviewFile; set: ReviewFile[] | null; x: number; y: number } | null>(null);
 
   const isDuplicates = $derived(group.id === "duplicates");
+  /** Temporary files and caches are deleted right away, not kept in Quarantine. */
+  const deletesNow = $derived(DELETE_NOW_GROUPS.includes(group.id));
   let loadedOnce = false;
 
   $effect(() => {
@@ -348,7 +351,11 @@
       <div class="footer-text">
         <b>{t("files.review.selected", { files: fileCount(selected.size), size: formatBytes(selectedBytes) })}</b>
         <span class="muted small">
-          {isDuplicates ? t("files.review.oneCopyStays") : t("files.review.restorable", { days: QUARANTINE_DAYS })}
+          {isDuplicates
+            ? t("files.review.oneCopyStays")
+            : deletesNow
+              ? t("files.deletedRightAway")
+              : t("files.review.restorable", { days: quarantine.keepDays })}
         </span>
       </div>
       <span class="grow"></span>
@@ -357,7 +364,7 @@
         <EyeOffIcon /> {t("files.review.hideSelected", { count: count(selected.size) })}
       </button>
       <button class="btn btn-primary" disabled={!selected.size || busy} onclick={move}>
-        {busy ? t("files.moving") : `${t("common.moveToQuarantine")} (${formatBytes(selectedBytes)})`}
+        {busy ? t("files.moving") : deletesNow ? t("files.deleteNow", { size: formatBytes(selectedBytes) }) : `${t("common.moveToQuarantine")} (${formatBytes(selectedBytes)})`}
       </button>
     </div>
   {/if}

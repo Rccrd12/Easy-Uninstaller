@@ -5,14 +5,13 @@
     createRestorePoint,
     findAppLeftovers,
     isAppInstalled,
-    QUARANTINE_DAYS,
     quarantineLeftovers,
     restoreQuarantine,
     uninstallApp,
   } from "../api";
   import { formatBytes, leftoverCount } from "../format";
   import { t } from "../i18n/index.svelte";
-  import { settings } from "../settings.svelte";
+  import { quarantine, settings } from "../settings.svelte";
   import type { InstalledApp, LeftoverItem, MoveReport, RestorePointOutcome } from "../types";
 
   /**
@@ -298,7 +297,7 @@
     {:else if step.kind === "cleaning"}
       <h2 id="uninstall-title">{t("uninstall.cleaning", { count: leftoverCount(toClean.length) })}</h2>
       <div class="bar" aria-hidden="true"><i></i></div>
-      <p class="muted">{t("uninstall.quarantineNote", { days: QUARANTINE_DAYS })}</p>
+      <p class="muted">{t("uninstall.quarantineNote", { days: quarantine.keepDays })}</p>
     {:else if step.kind === "done"}
       <div class="done">
         <div class="check"><StatusIcon kind={removedApps.length ? "ok" : "warn"} size={56} /></div>
@@ -332,7 +331,7 @@
           <p>{t("uninstall.undone")}</p>
         {:else if step.report}
           <p>
-            {t(withSettings ? "uninstall.movedNoteSettings" : "uninstall.movedNote", { count: leftoverCount(step.report.movedCount), days: QUARANTINE_DAYS })}
+            {t(withSettings ? "uninstall.movedNoteSettings" : "uninstall.movedNote", { count: leftoverCount(step.report.movedCount), days: quarantine.keepDays })}
             {#if movedItems.length}
               <button class="link" onclick={() => (showItems = !showItems)}>{showItems ? t("quarantine.hideItems") : t("quarantine.showItems")}</button>
             {/if}

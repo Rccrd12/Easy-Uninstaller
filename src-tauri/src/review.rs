@@ -12,8 +12,9 @@
 //! can choose which copy to keep, but at least one copy of every set always stays
 //! where it is: a request to move all of them leaves the oldest in place.
 
+use crate::cleanup;
 use crate::files::{iso_date, FileGroup, FileItem, Kept, LastScan, ScannedFile, Seen, MAX_ITEMS};
-use crate::quarantine::{Item, MoveReport, Quarantine, Title};
+use crate::quarantine::{MoveReport, Quarantine};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
@@ -187,11 +188,12 @@ fn files_group(kept: &Kept, g: &FileGroup) -> Option<FileGroup> {
     let excluded = |p: &str| is_excluded(kept, Path::new(p));
     let files = kept.files.get(&g.id).filter(|f| !f.is_empty());
     let Some(files) = files else {
-        // Nothing to move, only to look at: shown as scanned, minus excluded items.
+        // Nothing to move as a group, only to look at (unknown folders): shown as
+        // scanned, minus excluded items and folders moved one by one since the scan.
         let items: Vec<FileItem> = g
             .items
             .iter()
-            .filter(|i| !excluded(&i.path))
+            .filter(|i| !excluded(&i.path) && fs::symlink_metadata(&i.path).is_ok())
             .cloned()
             .collect();
         let removed = (g.items.len() - items.len()) as u64;
@@ -520,7 +522,8 @@ pub async fn review_file_group(
     with_kept(app, move |kept| review(kept, &group_id)).await
 }
 
-/// Moves the picked files into quarantine, one entry per group.
+/// Removes the picked files through [`cleanup::remove`], like whole groups: one
+/// quarantine entry per group, or deleted right away for temporary files and caches.
 #[tauri::command]
 pub async fn quarantine_file_selection(
     app: AppHandle,
@@ -532,25 +535,14 @@ pub async fn quarantine_file_selection(
             let kept = last.0.lock().map_err(|e| e.to_string())?;
             selections
                 .iter()
-                .filter_map(|s| {
-                    let group = kept.groups.iter().find(|g| g.id == s.group_id)?;
-                    let files = pick(&kept, &s.group_id, &s.paths);
-                    Some((group.title_key.clone(), files))
-                })
+                .filter(|s| kept.groups.iter().any(|g| g.id == s.group_id))
+                .map(|s| (s.group_id.clone(), pick(&kept, &s.group_id, &s.paths)))
                 .collect()
         };
         let quarantine = app.state::<Quarantine>();
         let mut report = MoveReport::default();
-        for (title_key, files) in picked.into_iter().filter(|(_, f)| !f.is_empty()) {
-            let items: Vec<Item> = files.iter().map(Item::from).collect();
-            quarantine
-                .add(
-                    Title::Key(title_key),
-                    &items,
-                    now_secs(),
-                    false,
-                    &mut report,
-                )
+        for (group_id, files) in picked.into_iter().filter(|(_, f)| !f.is_empty()) {
+            cleanup::remove(&quarantine, &group_id, &files, now_secs(), &mut report)
                 .map_err(|e| e.to_string())?;
         }
         Ok(report)
@@ -773,6 +765,7 @@ mod tests {
             size_bytes: items.iter().map(|i| i.size_bytes).sum(),
             item_count: items.len() as u64,
             items,
+            review_only: false,
         }
     }
 
@@ -782,6 +775,8 @@ mod tests {
             size_bytes: f.size,
             last_used: last_used.map(str::to_string),
             duplicate_of: None,
+            explain_id: None,
+            original_path: None,
         }
     }
 
