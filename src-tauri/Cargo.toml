@@ -18,6 +18,9 @@ tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 sysinfo = { version = "0.40", default-features = false, features = ["disk"] }
 
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56"
+
 # Keep the shipped binary as small as possible.
 [profile.release]
 opt-level = "s"

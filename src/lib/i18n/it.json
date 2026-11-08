@@ -66,8 +66,50 @@
     "selected": "Selezionati {size}",
     "details": "Dettagli",
     "size": "Dimensione",
-    "modified": "Ultima modifica",
-    "pickGroup": "Seleziona un gruppo per vedere cosa contiene."
+    "files": "File",
+    "pickGroup": "Seleziona un gruppo per vedere cosa contiene.",
+    "groups": {
+      "temp": {
+        "title": "File temporanei e cache",
+        "description": "Windows, i browser e le app li ricreano da soli"
+      },
+      "installers": {
+        "title": "Installer già usati",
+        "description": "File di installazione in Download di programmi che hai già installato"
+      },
+      "oldDownloads": {
+        "title": "Download vecchi",
+        "description": "Nella cartella Download, non aperti da oltre un anno"
+      },
+      "duplicates": {
+        "title": "Duplicati",
+        "description": "Copie identiche: la più vecchia viene sempre tenuta"
+      },
+      "largeFiles": {
+        "title": "File grandi",
+        "description": "File da 1 GB in su nelle tue cartelle"
+      }
+    },
+    "scanning": "Sto cercando i file che puoi togliere…",
+    "scanNote": "Guardo soltanto: niente viene modificato o cancellato.",
+    "steps": {
+      "caches": "File temporanei e cache",
+      "downloads": "La cartella Download",
+      "personal": "Le tue cartelle",
+      "duplicates": "Confronto i file per trovare i duplicati"
+    },
+    "stepOf": "Passo {n} di {total}",
+    "checked": "{count} file controllati",
+    "fileCount": "{count} file",
+    "fileCountOne": "1 file",
+    "largest": "Gli elementi più grandi",
+    "more": "e altri {count}",
+    "copyOf": "Copia di {path}",
+    "lastUsed": "usato l'ultima volta il {date}",
+    "empty": "Niente da pulire qui: i tuoi file sono in ordine.",
+    "rescan": "Cerca di nuovo",
+    "failed": "La ricerca non è riuscita a finire: {error}",
+    "retry": "Riprova"
   },
   "leftovers": {
     "title": "Avanzi",
