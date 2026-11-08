@@ -1,22 +1,29 @@
 <script lang="ts">
+  import EyeOffIcon from "../components/EyeOffIcon.svelte";
   import FileReview from "../components/FileReview.svelte";
   import SafetyTag from "../components/SafetyTag.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
   import {
-    addExclusion,
+    addExclusions,
+    hiddenItem,
     keepFileGroups,
+    listExclusions,
     listFileGroups,
     QUARANTINE_DAYS,
     quarantineFileGroups,
     quarantineFileSelection,
     refreshFileGroups,
+    removeExclusions,
     restoreQuarantine,
     usesSampleData,
   } from "../api";
   import { fileCount, formatBytes, restoreSummary } from "../format";
   import { locale, t } from "../i18n/index.svelte";
   import { displayPath, folderOf, nameOf } from "../paths";
+  import type { Screen } from "../screens";
   import type { Exclusion, FileGroup, FileItem, FileSelection, MoveReport, ScanProgress } from "../types";
+
+  let { onNavigate }: { onNavigate: (s: Screen) => void } = $props();
 
   /** How many items the details panel lists. */
   const SHOWN_ITEMS = 8;
@@ -24,6 +31,7 @@
   /** What the toast at the bottom says after a move or an undo. */
   type Notice =
     | { kind: "moved"; report: MoveReport }
+    | { kind: "hidden"; items: Exclusion[]; lines: string[] }
     | { kind: "info"; lines: string[] }
     | { kind: "error"; lines: string[] };
 
@@ -40,6 +48,10 @@
   let reviewing = $state<FileGroup | null>(null);
   /** Changes after every move, undo or hidden file, so the review reads its files again. */
   let version = $state(0);
+  /** How many files, folders and groups are hidden (leftovers have their own screen). */
+  let hiddenCount = $state(0);
+  /** The ⋯ menu of a group card. */
+  let menu = $state<{ group: FileGroup; x: number; y: number } | null>(null);
 
   const focused = $derived(groups.find((g) => g.id === focusedId) ?? null);
 
@@ -67,6 +79,13 @@
   }
 
   $effect(() => load());
+  $effect(() => countHidden());
+
+  function countHidden() {
+    listExclusions()
+      .then((list) => (hiddenCount = list.filter((e) => e.kind !== "leftover").length))
+      .catch(() => {});
+  }
 
   const sections = $derived([
     { title: "files.safeSection", items: groups.filter((g) => g.safety === "safe") },
@@ -130,17 +149,61 @@
     }
   }
 
-  /** "Don't show again": nothing is moved, the file or folder is only left out from now on. */
-  async function hide(exclusion: Exclusion) {
+  /** The name a hidden item goes by in a sentence. */
+  function hiddenName(e: Exclusion): string {
+    if (e.kind === "group") return t(e.label ?? e.path);
+    return e.kind === "folder" ? displayPath(e.path) : nameOf(e.path);
+  }
+
+  const itemCount = (n: number) => (n === 1 ? t("hidden.countOne") : t("hidden.count", { count: count(n) }));
+
+  /** "Hide": nothing is moved or deleted, the files, folders or groups are only left out from now on. */
+  async function hide(items: Exclusion[]) {
+    if (!items.length) return;
     try {
-      await addExclusion(exclusion);
-      const name = exclusion.folder ? displayPath(exclusion.path) : nameOf(exclusion.path);
-      notice = { kind: "info", lines: [t("files.review.hidden", { name }), t("files.review.hiddenHint")] };
+      await addExclusions(items);
+      const many = items.every((e) => e.kind === "file") ? fileCount(items.length) : itemCount(items.length);
+      const line = items.length === 1 ? t("hidden.done", { name: hiddenName(items[0]) }) : t("hidden.doneMany", { count: many });
+      notice = { kind: "hidden", items, lines: [line] };
       await refresh();
     } catch (e) {
-      notice = { kind: "error", lines: [String(e)] };
+      notice = { kind: "error", lines: [t("hidden.failed", { error: String(e) })] };
+    } finally {
+      countHidden();
     }
   }
+
+  /** Undoes a hide: the items are listed again where they were. */
+  async function unhide(items: Exclusion[]) {
+    undoing = true;
+    try {
+      await removeExclusions(items);
+      await refresh();
+      notice = { kind: "info", lines: [t("hidden.shownAgain")] };
+    } catch (e) {
+      notice = { kind: "error", lines: [t("hidden.failed", { error: String(e) })] };
+    } finally {
+      undoing = false;
+      countHidden();
+    }
+  }
+
+  function openMenu(e: MouseEvent, group: FileGroup) {
+    e.stopPropagation();
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const width = 290;
+    menu = { group, x: Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8)), y: r.bottom + 4 };
+  }
+
+  /** Runs a menu action with the menu's group, then closes the menu. */
+  function act(action: (g: FileGroup) => unknown) {
+    const g = menu?.group;
+    menu = null;
+    if (g) action(g);
+  }
+
+  /** Folder items (temp) hide the whole folder; the others one file. */
+  const hideDetail = (item: FileItem) => hide([hiddenItem(item.lastUsed === null ? "folder" : "file", item.path)]);
 
   async function undo(report: MoveReport) {
     undoing = true;
@@ -189,7 +252,7 @@
 
 {#if reviewing}
   {@const g = reviewing}
-  <FileReview group={g} {version} busy={moving} onBack={() => (reviewing = null)} onMove={moveSelection} onHide={hide} />
+  <FileReview group={g} {version} busy={moving || undoing} onBack={() => (reviewing = null)} onMove={moveSelection} onHide={hide} />
 {:else}
 <div class="layout">
   <div class="col">
@@ -244,6 +307,8 @@
               {/if}
               <SafetyTag safety={group.safety} />
               <span class="size">{formatBytes(group.sizeBytes)}</span>
+              <button class="dots" aria-label={t("files.groupMenu", { name: t(group.titleKey) })} aria-haspopup="menu"
+                      onclick={(e) => openMenu(e, group)}>⋯</button>
             </div>
           {/each}
         {/if}
@@ -256,6 +321,14 @@
           {moving ? t("files.moving") : t("common.moveToQuarantine")}
         </button>
       </div>
+    {/if}
+
+    {#if !scanning && hiddenCount > 0}
+      <button class="hidden-link" onclick={() => onNavigate("hidden")}>
+        <EyeOffIcon />
+        <span>{t("files.hiddenLink", { count: itemCount(hiddenCount) })}</span>
+        <span class="link-action">{t("files.hiddenLinkAction")} ›</span>
+      </button>
     {/if}
   </div>
 
@@ -276,6 +349,9 @@
               <div class="item-name">{nameOf(item.path)}</div>
               <div class="muted item-note">{itemNote(item)}</div>
             </div>
+            <button class="hide-pill" disabled={moving} onclick={() => hideDetail(item)} aria-label={t("files.hideItem", { name: nameOf(item.path) })}>
+              <EyeOffIcon size={14} /> {t("files.hide")}
+            </button>
             <span class="item-size">{formatBytes(item.sizeBytes)}</span>
           </li>
         {/each}
@@ -302,10 +378,15 @@
 {#if notice}
   {@const n = notice}
   <div class="card toast" class:error={n.kind === "error"} class:raised={reviewing !== null} role="status" aria-live="polite">
-    <span class="toast-icon" aria-hidden="true">{n.kind === "error" ? "⚠️" : "✅"}</span>
+    <span class="toast-icon" aria-hidden="true">
+      {#if n.kind === "hidden"}<EyeOffIcon size={20} />{:else}{n.kind === "error" ? "⚠️" : "✅"}{/if}
+    </span>
     <div class="toast-text">
       {#each n.kind === "moved" ? movedLines(n.report) : n.lines as line, i (i)}<p>{line}</p>{/each}
     </div>
+    {#if n.kind === "hidden"}
+      <button class="btn btn-ghost" disabled={undoing} onclick={() => unhide(n.items)}>↩ {t("files.undo")}</button>
+    {/if}
     {#if n.kind === "moved"}
       <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(n.report)}>
         {undoing ? t("files.undoing") : `↩ ${t("files.undo")}`}
@@ -314,6 +395,23 @@
     <button class="close" aria-label={t("common.close")} onclick={() => (notice = null)}>✕</button>
   </div>
 {/if}
+
+{#if menu}
+  {@const m = menu}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="card menu" style="left:{m.x}px;top:{m.y}px" role="menu" tabindex="-1" onclick={(e) => e.stopPropagation()}>
+    {#if reviewable(m.group)}
+      <button role="menuitem" onclick={() => act(openReview)}>🔍 {t("files.review.oneByOne")}</button>
+      <hr />
+    {/if}
+    <button role="menuitem" class="menu-hide" onclick={() => act((g) => hide([hiddenItem("group", g.id, g.titleKey)]))}>
+      <EyeOffIcon />
+      <span>{t("files.hideGroup")}<span class="muted menu-hint">{t("files.hideGroupHint")}</span></span>
+    </button>
+  </div>
+{/if}
+
+<svelte:window onclick={() => (menu = null)} onkeydown={(e) => e.key === "Escape" && (menu = null)} onresize={() => (menu = null)} />
 
 <style>
   .layout { display: flex; gap: 18px; align-items: flex-start; }
@@ -367,11 +465,28 @@
   .review-link { border: none; background: none; color: var(--accent); font-size: 12.5px; font-weight: 600; padding: 4px 6px; border-radius: var(--radius-sm); white-space: nowrap; }
   .review-link:hover { background: var(--accent-soft); }
 
+  .dots { flex: none; border: none; background: none; font-size: 18px; line-height: 1; padding: 4px 8px; margin-right: -6px; border-radius: var(--radius-sm); color: var(--text-muted); }
+  .dots:hover { background: var(--hover); color: var(--text); }
+  /* Over the size on hover, so the name keeps its room. */
+  .items li { position: relative; }
+  .hide-pill { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 999px; padding: 3px 10px; font-size: 12px; opacity: 0; transition: opacity 0.12s; }
+  .items li:hover .hide-pill, .hide-pill:focus-visible { opacity: 1; }
+  .hide-pill:hover { background: var(--hover); }
+  .hidden-link { display: flex; align-items: center; gap: 8px; margin-top: 16px; border: none; background: none; padding: 6px 2px; font-size: 13px; color: var(--text-muted); text-align: left; }
+  .link-action { color: var(--accent); font-weight: 600; }
+  .hidden-link:hover .link-action { text-decoration: underline; }
+  .menu { position: fixed; z-index: 20; width: 290px; padding: 6px; box-shadow: var(--shadow-pop); display: flex; flex-direction: column; }
+  .menu button { border: none; background: none; text-align: left; padding: 8px 10px; border-radius: 5px; font-size: 13px; }
+  .menu button:hover, .menu button:focus-visible { background: var(--hover); outline: none; }
+  .menu hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+  .menu-hide { display: flex; align-items: flex-start; gap: 8px; }
+  .menu-hide :global(.eye-off) { margin-top: 2px; }
+  .menu-hint { display: block; font-size: 12px; margin-top: 2px; }
   .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
   .toast.error { border-left-color: var(--danger); }
   /* Above the review's sticky footer, so its buttons stay reachable. */
   .toast.raised { bottom: 96px; }
-  .toast-icon { font-size: 18px; }
+  .toast-icon { font-size: 18px; display: flex; color: var(--text-muted); }
   .toast-text { flex: 1; font-size: 13px; line-height: 1.4; }
   .toast-text p + p { color: var(--text-muted); margin-top: 2px; }
   .toast .btn { flex: none; }

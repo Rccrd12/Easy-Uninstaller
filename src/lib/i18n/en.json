@@ -126,7 +126,7 @@
     "review": {
       "start": "Review",
       "oneByOne": "Review one by one",
-      "subtitle": "{files} · {size} · pick what to remove, one by one or all together",
+      "subtitle": "{files} · {size} · you choose what to remove and what to hide",
       "dupSubtitle": "{count} identical copies · {size} · pick what to remove, one by one or all together",
       "view": "View",
       "list": "List",
@@ -159,10 +159,8 @@
       "open": "Open",
       "showInFolder": "Show in folder",
       "keepInstead": "Keep this one instead",
-      "hideFile": "Don't show me this file again",
-      "hideFolder": "Always ignore the folder “{folder}”",
-      "hidden": "Hidden: {name}. It will not be shown or moved again.",
-      "hiddenHint": "You can show it again in Settings.",
+      "hideFile": "Hide this file",
+      "hideFolder": "Hide the whole folder “{folder}”",
       "folders": {
         "desktop": "Desktop",
         "documents": "Documents",
@@ -170,8 +168,16 @@
         "music": "Music",
         "pictures": "Pictures",
         "videos": "Videos"
-      }
-    }
+      },
+      "hideSelected": "Hide ({count})"
+    },
+    "hide": "Hide",
+    "hideItem": "Hide {name}",
+    "groupMenu": "More for {name}",
+    "hideGroup": "Hide this group",
+    "hideGroupHint": "It won't be suggested again. Nothing is deleted.",
+    "hiddenLink": "You hid {count}.",
+    "hiddenLinkAction": "See and show again"
   },
   "leftovers": {
     "title": "Leftovers",
@@ -268,12 +274,9 @@
       "disabled": "System Restore is turned off on this PC.",
       "failed": "The restore point could not be created."
     },
-    "hidden": "Hidden files and folders",
-    "hiddenHint": "Files you asked not to see again. They are never shown or moved.",
-    "hiddenNone": "None",
-    "hiddenCount": "Show {count}",
-    "hiddenClose": "Close",
-    "showAgain": "Show again"
+    "hidden": "Hidden items",
+    "hiddenHint": "Files, folders, groups and leftovers you don't want to see any more",
+    "manage": "Manage"
   },
   "categories": {
     "apps": "Apps",
@@ -282,5 +285,35 @@
     "system": "Windows and other",
     "reclaimable": "Reclaimable",
     "free": "Free space"
+  },
+  "hidden": {
+    "title": "Hidden items",
+    "subtitle": "Things you asked not to see again. They are still on your PC: the app just doesn't suggest them.",
+    "count": "{count} items",
+    "countOne": "1 item",
+    "tabs": {
+      "all": "All",
+      "file": "Files",
+      "folder": "Folders",
+      "group": "Groups",
+      "leftover": "Leftovers"
+    },
+    "kinds": {
+      "file": "File",
+      "folder": "Folder",
+      "group": "Group",
+      "leftover": "Leftover"
+    },
+    "folderNote": "and everything in it",
+    "groupNote": "Whole group on the Files screen",
+    "showAgain": "Show again",
+    "showAll": "Show all again",
+    "note": "Showing again moves nothing: it is simply listed again.",
+    "empty": "Nothing is hidden. When you hide a file, a folder or a group, you'll find it here.",
+    "done": "Hidden: {name}. It stays where it is and won't be suggested again.",
+    "doneMany": "Hidden: {count}. They stay where they are and won't be suggested again.",
+    "shownAgain": "Shown again.",
+    "shownAgainMany": "Shown again: {count}.",
+    "failed": "Couldn't save: {error}"
   }
 }

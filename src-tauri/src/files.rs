@@ -143,6 +143,8 @@ pub(crate) struct Kept {
     pub duplicate_sets: Vec<Vec<ScannedFile>>,
     /// Paths of files and folders never to show or move; see `review.rs`.
     pub excluded: Vec<PathBuf>,
+    /// Ids of whole groups the user hid.
+    pub hidden_groups: Vec<String>,
 }
 
 impl LastScan {

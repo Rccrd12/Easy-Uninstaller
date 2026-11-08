@@ -21,6 +21,7 @@ import type {
   FileGroup,
   FileSelection,
   GroupReview,
+  HiddenKind,
   InstalledApp,
   LeftoverItem,
   MoveReport,
@@ -123,7 +124,7 @@ async function sampleScan(notify: (p: ScanProgress) => void): Promise<FileGroup[
       await new Promise((r) => setTimeout(r, 120));
     }
   }
-  return buildSampleGroups(samplePresent);
+  return sampleGroups();
 }
 
 /** Sample until the leftovers scanner lands. */
@@ -181,7 +182,7 @@ export async function quarantineFileGroups(groupIds: string[]): Promise<MoveRepo
   if (isTauri()) return invoke<MoveReport>("quarantine_file_groups", { groupIds });
   const now = Math.floor(Date.now() / 1000);
   const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, skippedCount: 0 };
-  for (const g of buildSampleGroups(samplePresent).filter((x) => groupIds.includes(x.id))) {
+  for (const g of sampleGroups().filter((x) => groupIds.includes(x.id))) {
     sampleMove(report, g, g.items.map((i) => ({ path: i.path, sizeBytes: i.sizeBytes })), g.itemCount, now);
   }
   return report;
@@ -215,7 +216,7 @@ export async function quarantineFileSelection(selections: FileSelection[]): Prom
   if (isTauri()) return invoke<MoveReport>("quarantine_file_selection", { selections });
   const now = Math.floor(Date.now() / 1000);
   const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, skippedCount: 0 };
-  const groups = buildSampleGroups(samplePresent);
+  const groups = sampleGroups();
   for (const sel of selections) {
     const g = groups.find((x) => x.id === sel.groupId);
     if (!g) continue;
@@ -237,7 +238,7 @@ export async function quarantineFileSelection(selections: FileSelection[]): Prom
 
 /** The groups of the last scan as they are now, after a move, an undo or a hidden file. */
 export async function refreshFileGroups(): Promise<FileGroup[]> {
-  const groups = isTauri() ? await invoke<FileGroup[]>("current_file_groups") : buildSampleGroups(samplePresent);
+  const groups = isTauri() ? await invoke<FileGroup[]>("current_file_groups") : sampleGroups();
   keepFileGroups(groups);
   return groups;
 }
@@ -273,28 +274,55 @@ export async function reviewFileGroup(groupId: string): Promise<GroupReview | nu
 // Browser fallback: what was moved or hidden in this session.
 const sampleGone = new Set<string>();
 const sampleHidden: Exclusion[] = [];
-const sampleHides = (path: string) => sampleHidden.some((e) => path === e.path || (e.folder && path.startsWith(`${e.path}\\`)));
+const sampleHides = (path: string) =>
+  sampleHidden.some((e) => (e.kind === "file" && path === e.path) || (e.kind === "folder" && (path === e.path || path.startsWith(`${e.path}\\`))));
 const samplePresent = (path: string) => !sampleGone.has(path) && !sampleHides(path);
+const sampleGroups = () => buildSampleGroups(samplePresent).filter((g) => !sampleHidden.some((e) => e.kind === "group" && e.path === g.id));
 
-/** Files and folders the user asked never to see again. */
+/** A hidden item, ready to save (the date is set when saved). */
+export const hiddenItem = (kind: HiddenKind, path: string, label: string | null = null): Exclusion => ({ kind, path, label, hiddenAt: 0 });
+
+/** Everything the user chose to hide, oldest first. */
 export async function listExclusions(): Promise<Exclusion[]> {
   if (isTauri()) return invoke<Exclusion[]>("list_exclusions");
   return [...sampleHidden];
 }
 
-/** Never show this file (or anything in this folder) again, in any scan. Nothing is moved. */
-export async function addExclusion(exclusion: Exclusion): Promise<void> {
-  if (isTauri()) return invoke("add_exclusion", { exclusion });
-  const i = sampleHidden.findIndex((e) => e.path === exclusion.path);
-  if (i >= 0) sampleHidden.splice(i, 1);
-  sampleHidden.push(exclusion);
+/**
+ * Hides files, folders, whole groups or leftovers: they stay where they are and are
+ * never shown or moved again. Nothing is deleted.
+ */
+export async function addExclusions(items: Exclusion[]): Promise<void> {
+  if (isTauri()) await invoke("add_exclusions", { items });
+  else {
+    const now = Math.floor(Date.now() / 1000);
+    for (const item of items) {
+      const i = sampleHidden.findIndex((e) => e.path === item.path && e.kind === item.kind);
+      if (i >= 0) sampleHidden.splice(i, 1);
+      sampleHidden.push({ ...item, hiddenAt: item.hiddenAt || now });
+    }
+  }
+  refreshKeptScan();
 }
 
-/** Shows a hidden file or folder again from the next scan on. */
-export async function removeExclusion(path: string): Promise<void> {
-  if (isTauri()) return invoke("remove_exclusion", { path });
-  const i = sampleHidden.findIndex((e) => e.path === path);
-  if (i >= 0) sampleHidden.splice(i, 1);
+/** Shows hidden items again. Nothing moves: they are listed again. */
+export async function removeExclusions(items: Pick<Exclusion, "path" | "kind">[]): Promise<void> {
+  if (isTauri()) await invoke("remove_exclusions", { items: items.map(({ path, kind }) => ({ path, kind })) });
+  else {
+    for (const item of items) {
+      const i = sampleHidden.findIndex((e) => e.path === item.path && e.kind === item.kind);
+      if (i >= 0) sampleHidden.splice(i, 1);
+    }
+  }
+  refreshKeptScan();
+}
+
+/** After hiding or showing again, the kept scan result is rebuilt so every screen agrees. */
+function refreshKeptScan() {
+  if (!fileScan) return;
+  const next = fileScan.then(() => (isTauri() ? invoke<FileGroup[]>("current_file_groups") : sampleGroups()));
+  fileScan = next;
+  next.catch(() => fileScan === next && (fileScan = null));
 }
 
 /**

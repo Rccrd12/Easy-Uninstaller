@@ -1,7 +1,8 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import EyeOffIcon from "./EyeOffIcon.svelte";
   import FileThumb from "./FileThumb.svelte";
-  import { openScannedFile, QUARANTINE_DAYS, reviewFileGroup, showScannedFile } from "../api";
+  import { hiddenItem, openScannedFile, QUARANTINE_DAYS, reviewFileGroup, showScannedFile } from "../api";
   import { fileCount, formatBytes, formatDate } from "../format";
   import { locale, t } from "../i18n/index.svelte";
   import { displayPath, folderOf, nameOf, topFolder, topFolderName } from "../paths";
@@ -21,7 +22,8 @@
     busy: boolean;
     onBack: () => void;
     onMove: (selection: FileSelection) => Promise<void>;
-    onHide: (exclusion: Exclusion) => Promise<void>;
+    /** Hides files or folders: they stay where they are and are not suggested again. */
+    onHide: (items: Exclusion[]) => Promise<void>;
   } = $props();
 
   type View = "list" | "grid";
@@ -162,6 +164,8 @@
     await onMove({ groupId: group.id, paths: [...selected] });
   }
 
+  const hideFiles = (paths: string[]) => onHide(paths.map((p) => hiddenItem("file", p)));
+
   function openMenu(e: MouseEvent, file: ReviewFile, set: ReviewFile[] | null) {
     e.stopPropagation();
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -196,6 +200,12 @@
     return top && folder.endsWith(`\\${top}`) ? topFolderName(top) : nameOf(folder);
   };
 </script>
+
+{#snippet hidePill(file: ReviewFile)}
+  <button class="hide-pill" disabled={busy} onclick={() => hideFiles([file.path])} aria-label={t("files.hideItem", { name: nameOf(file.path) })}>
+    <EyeOffIcon size={14} /> {t("files.hide")}
+  </button>
+{/snippet}
 
 <svelte:window onclick={closeMenu} onkeydown={(e) => e.key === "Escape" && closeMenu()} onresize={closeMenu} />
 
@@ -291,6 +301,7 @@
                   </div>
                   <div class="muted small">{t("files.review.changed", { date: formatDate(file.modified) })}</div>
                 </div>
+                {@render hidePill(file)}
                 <button class="dots" aria-label={t("files.review.more")} onclick={(e) => openMenu(e, file, set)}>⋯</button>
               </div>
             {/each}
@@ -308,6 +319,7 @@
               <div class="name" title={file.path}>{nameOf(file.path)}</div>
               <div class="muted small">{displayPath(folderOf(file.path))} · {t("files.lastUsed", { date: formatDate(file.lastUsed) })}</div>
             </div>
+            {@render hidePill(file)}
             <span class="size">{formatBytes(file.sizeBytes)}</span>
             <button class="dots" aria-label={t("files.review.more")} onclick={(e) => openMenu(e, file, null)}>⋯</button>
           </div>
@@ -341,6 +353,9 @@
       </div>
       <span class="grow"></span>
       <button class="btn btn-ghost" onclick={selectAll}>{allSelected ? t("files.review.selectNone") : t("files.review.selectAll")}</button>
+      <button class="btn btn-ghost with-icon" disabled={!selected.size || busy} onclick={() => hideFiles([...selected])}>
+        <EyeOffIcon /> {t("files.review.hideSelected", { count: count(selected.size) })}
+      </button>
       <button class="btn btn-primary" disabled={!selected.size || busy} onclick={move}>
         {busy ? t("files.moving") : `${t("common.moveToQuarantine")} (${formatBytes(selectedBytes)})`}
       </button>
@@ -361,9 +376,9 @@
       <button role="menuitem" onclick={() => act(() => keepInstead(m.file, set))}>⇄ {t("files.review.keepInstead")}</button>
     {/if}
     <hr />
-    <button role="menuitem" onclick={() => act(() => onHide({ path: m.file.path, folder: false }))}>🚫 {t("files.review.hideFile")}</button>
-    <button role="menuitem" onclick={() => act(() => onHide({ path: folderOf(m.file.path), folder: true }))}>
-      🚫 {t("files.review.hideFolder", { folder: folderName(m.file.path) })}
+    <button role="menuitem" class="with-icon" onclick={() => act(() => hideFiles([m.file.path]))}><EyeOffIcon /> {t("files.review.hideFile")}</button>
+    <button role="menuitem" class="with-icon" onclick={() => act(() => onHide([hiddenItem("folder", folderOf(m.file.path))]))}>
+      <EyeOffIcon /> {t("files.review.hideFolder", { folder: folderName(m.file.path) })}
     </button>
   </div>
 {/if}
@@ -432,5 +447,10 @@
   .menu { position: fixed; z-index: 20; width: 270px; padding: 6px; box-shadow: var(--shadow-pop); display: flex; flex-direction: column; }
   .menu button { border: none; background: none; text-align: left; padding: 8px 10px; border-radius: 5px; font-size: 13px; }
   .menu button:hover, .menu button:focus-visible { background: var(--hover); outline: none; }
+  .with-icon { display: inline-flex; align-items: center; gap: 7px; }
+  .menu .with-icon { display: flex; }
+  .hide-pill { flex: none; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 999px; padding: 3px 10px; font-size: 12px; opacity: 0; transition: opacity 0.12s; }
+  .row:hover .hide-pill, .copy:hover .hide-pill, .hide-pill:focus-visible { opacity: 1; }
+  .hide-pill:hover { background: var(--hover); }
   .menu hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
 </style>
