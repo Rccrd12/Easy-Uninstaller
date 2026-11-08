@@ -37,7 +37,7 @@
   let changed = false;
 
   /** Only what is safe: anything that needs a look stays on the Files screen. */
-  const safe = $derived(all.filter((g) => g.safety === "safe" && g.itemCount > 0));
+  const safe = $derived(all.filter((g) => g.safety === "safe" && !g.reviewOnly && g.itemCount > 0));
   const deletesNow = (id: string) => DELETE_NOW_GROUPS.includes(id);
   const selected = $derived(safe.filter((g) => checked.has(g.id)));
   const totalBytes = $derived(selected.reduce((s, g) => s + g.sizeBytes, 0));

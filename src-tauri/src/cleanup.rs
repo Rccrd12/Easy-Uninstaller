@@ -1,9 +1,10 @@
 //! Removing what the file scan found, group by group.
 //!
 //! Most groups go to the quarantine (`quarantine.rs`), so they can be restored.
-//! The groups in [`DELETE_NOW_GROUPS`] hold only files that Windows and apps
-//! recreate on their own (temporary files and caches): keeping them in quarantine
-//! would give no space back, so they are deleted right away. This is the one place
+//! The groups in [`DELETE_NOW_GROUPS`] hold only files nobody needs back:
+//! temporary files, caches and thumbnails (Windows and apps recreate them), crash
+//! reports, and Recycle Bin items deleted over 30 days ago. Keeping them in
+//! quarantine would give no space back, so they are deleted right away. This is the one place
 //! where Easy Uninstaller deletes files directly (the owner's decision), and only
 //! files the scan listed in those groups, still unchanged since the scan.
 
@@ -16,7 +17,7 @@ use tauri::{AppHandle, Manager};
 
 /// Groups deleted right away instead of going to the quarantine.
 /// Mirrored by `DELETE_NOW_GROUPS` in `src/lib/api.ts`.
-pub const DELETE_NOW_GROUPS: [&str; 1] = ["temp"];
+pub const DELETE_NOW_GROUPS: [&str; 4] = ["temp", "recycle-bin", "crash-reports", "thumbnails"];
 
 pub fn deletes_now(group_id: &str) -> bool {
     DELETE_NOW_GROUPS.contains(&group_id)
@@ -173,8 +174,16 @@ mod tests {
 
     #[test]
     fn only_listed_groups_are_deleted() {
-        assert!(deletes_now("temp"));
-        for id in ["installers", "old-downloads", "duplicates", "large-files"] {
+        for id in ["temp", "recycle-bin", "crash-reports", "thumbnails"] {
+            assert!(deletes_now(id), "{id}");
+        }
+        for id in [
+            "installers",
+            "old-downloads",
+            "duplicates",
+            "large-files",
+            "unknown-folders",
+        ] {
             assert!(!deletes_now(id), "{id}");
         }
     }
