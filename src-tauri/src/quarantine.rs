@@ -19,8 +19,15 @@
 //! The manifest is written before any file is moved and lists everything that is
 //! about to move, so an interrupted move can still be restored: a listed file
 //! that is not in the entry folder was simply never moved.
+//!
+//! Besides files, an entry can hold whole folders (moved as they are) and
+//! registry keys (saved to a file in the entry, then removed; see `regkey.rs`).
+//! Entries made with administrator rights (leftovers in Program Files or in
+//! `HKLM`) can only be restored or deleted with those rights again: see `elevated.rs`.
 
+use crate::elevated::{self, Job};
 use crate::files::ScannedFile;
+use crate::regkey::{self, RegKeyPath};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
@@ -42,13 +49,72 @@ const DRIVE_FOLDER: &str = "Easy Uninstaller Quarantine";
 /// How many files per entry are sent to the UI (largest first).
 const MAX_ITEMS: usize = 50;
 
-/// Where a moved file came from, and the name it has inside the entry folder.
+/// What kind of thing an item is.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ItemKind {
+    #[default]
+    File,
+    Folder,
+    Registry,
+}
+
+/// Something to move into quarantine.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
+pub enum Target {
+    File(PathBuf),
+    Folder(PathBuf),
+    Registry(RegKeyPath),
+}
+
+impl Target {
+    pub fn kind(&self) -> ItemKind {
+        match self {
+            Target::File(_) => ItemKind::File,
+            Target::Folder(_) => ItemKind::Folder,
+            Target::Registry(_) => ItemKind::Registry,
+        }
+    }
+
+    /// How the item is shown and recorded: a path, or `HKCU\...` for a key.
+    pub fn display(&self) -> Option<String> {
+        match self {
+            Target::File(p) | Target::Folder(p) => p.to_str().map(str::to_string),
+            Target::Registry(k) => Some(k.to_string()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Item {
+    pub target: Target,
+    pub size: u64,
+    /// For files found by a scan: moved only if still changed at this time.
+    pub modified: Option<SystemTime>,
+}
+
+impl From<&ScannedFile> for Item {
+    fn from(f: &ScannedFile) -> Self {
+        Item {
+            target: Target::File(f.path.clone()),
+            size: f.size,
+            modified: Some(f.modified),
+        }
+    }
+}
+
+/// Where a moved item came from, and the name it has inside the entry folder.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 struct StoredFile {
+    /// A path, or a registry key such as `HKCU\Software\App`.
     original: String,
     stored: String,
     size: u64,
+    #[serde(default)]
+    kind: ItemKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -63,6 +129,9 @@ struct Manifest {
     removed_at: u64,
     expires_at: u64,
     files: Vec<StoredFile>,
+    /// Made with administrator rights: restoring or deleting needs them too.
+    #[serde(default)]
+    admin: bool,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -70,6 +139,7 @@ struct Manifest {
 pub struct QuarantinedFile {
     pub original_path: String,
     pub size_bytes: u64,
+    pub kind: ItemKind,
 }
 
 /// One move into quarantine, as the UI shows it.
@@ -86,10 +156,12 @@ pub struct QuarantineEntry {
     pub expires_at: u64,
     /// Largest first, at most [`MAX_ITEMS`].
     pub items: Vec<QuarantinedFile>,
+    /// Windows asks for permission to restore or delete it.
+    pub needs_admin: bool,
 }
 
 /// What removing files did. Filled by [`Quarantine::add`] and by `cleanup.rs`.
-#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct MoveReport {
     /// The entries created, one per group, so the UI can undo the move.
@@ -106,6 +178,21 @@ pub struct MoveReport {
     pub freed_bytes: u64,
     /// Files left in place: in use, changed since the scan, or gone.
     pub skipped_count: u64,
+    /// Left in place because the user said no to the Windows permission prompt.
+    pub declined_count: u64,
+}
+
+impl MoveReport {
+    pub fn merge(&mut self, other: MoveReport) {
+        self.entry_ids.extend(other.entry_ids);
+        self.moved_count += other.moved_count;
+        self.moved_bytes += other.moved_bytes;
+        self.deleted_count += other.deleted_count;
+        self.deleted_bytes += other.deleted_bytes;
+        self.freed_bytes += other.freed_bytes;
+        self.skipped_count += other.skipped_count;
+        self.declined_count += other.declined_count;
+    }
 }
 
 /// The quarantine choices the user makes in Settings.
@@ -138,7 +225,7 @@ struct Stored {
     other_roots: Vec<PathBuf>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RestoreReport {
     pub restored_count: u64,
@@ -148,10 +235,21 @@ pub struct RestoreReport {
     pub failed_count: u64,
 }
 
+impl RestoreReport {
+    pub fn merge(&mut self, other: RestoreReport) {
+        self.restored_count += other.restored_count;
+        self.renamed_count += other.renamed_count;
+        self.failed_count += other.failed_count;
+    }
+}
+
 /// The title of a new entry.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub enum Title {
+    /// An i18n key (e.g. a file group).
     Key(String),
-    #[allow(dead_code)] // Used by the app uninstaller, coming next.
+    /// Plain text (e.g. an app name).
     Text(String),
 }
 
@@ -240,27 +338,37 @@ impl Quarantine {
             .unwrap_or_else(|| self.root.clone())
     }
 
-    /// Moves `files` into a new entry. Files that changed since the scan, are gone,
+    /// Moves `items` into a new entry. Items that changed since the scan, are gone,
     /// or cannot be moved (in use, access denied) are left in place and counted as skipped.
+    /// `admin` marks an entry made with administrator rights.
     /// Returns the entry id, or `None` when nothing was moved.
     pub fn add(
         &self,
         title: Title,
-        files: &[ScannedFile],
+        items: &[Item],
         now: u64,
+        admin: bool,
         report: &mut MoveReport,
     ) -> io::Result<Option<String>> {
         let stored = self.guard();
         // Paths that are not valid Unicode cannot be written to the manifest.
-        let (files, odd): (Vec<&ScannedFile>, Vec<&ScannedFile>) =
-            files.iter().partition(|f| f.path.to_str().is_some());
+        let (items, odd): (Vec<&Item>, Vec<&Item>) =
+            items.iter().partition(|i| i.target.display().is_some());
         report.skipped_count += odd.len() as u64;
-        if files.is_empty() {
+        if items.is_empty() {
             return Ok(None);
         }
 
         let roots = Self::roots(&stored, &self.root);
-        let (id, dir) = new_entry_dir(&self.target_root(&stored), &roots, now, &title)?;
+        // Folders can only be moved within their drive (see `move_dir`), so an
+        // entry holding folders stays in the default folder, next to the apps.
+        let target = if items.iter().any(|i| matches!(i.target, Target::Folder(_))) {
+            fs::create_dir_all(&self.root)?;
+            self.root.clone()
+        } else {
+            self.target_root(&stored)
+        };
+        let (id, dir) = new_entry_dir(&target, &roots, now, &title)?;
         let (title_key, title) = match title {
             Title::Key(k) => (Some(k), None),
             Title::Text(t) => (None, Some(t)),
@@ -271,27 +379,24 @@ impl Quarantine {
             title,
             removed_at: now,
             expires_at: now + stored.settings.keep_days * DAY_SECS,
-            files: files
+            files: items
                 .iter()
                 .enumerate()
-                .map(|(i, f)| StoredFile {
-                    original: f.path.to_string_lossy().into_owned(),
-                    stored: stored_name(i, &f.path),
-                    size: f.size,
+                .map(|(i, item)| StoredFile {
+                    original: item.target.display().unwrap_or_default(),
+                    stored: stored_name(i, &item.target),
+                    size: item.size,
+                    kind: item.target.kind(),
                 })
                 .collect(),
+            admin,
         };
         // Written before anything moves: see the module docs.
         write_manifest(&dir, &manifest)?;
 
         let mut moved = Vec::new();
-        for (file, entry) in files.iter().zip(&manifest.files) {
-            let crossed = if unchanged_since_scan(file) {
-                move_file(&file.path, &dir.join(&entry.stored)).ok()
-            } else {
-                None
-            };
-            match crossed {
+        for (item, entry) in items.iter().zip(&manifest.files) {
+            match take(item, &dir.join(&entry.stored)).ok() {
                 Some(crossed) => {
                     report.moved_count += 1;
                     report.moved_bytes += entry.size;
@@ -315,6 +420,14 @@ impl Quarantine {
         Ok(Some(id))
     }
 
+    /// True when the entry was made with administrator rights.
+    pub fn needs_admin(&self, id: &str) -> bool {
+        let stored = self.guard();
+        self.entry_dir(&stored, id)
+            .and_then(|dir| read_manifest(&dir))
+            .is_ok_and(|m| m.admin)
+    }
+
     /// Every entry, newest first. Folders without a readable manifest are not ours
     /// to show or touch, and are left alone.
     pub fn list(&self) -> Vec<QuarantineEntry> {
@@ -328,11 +441,12 @@ impl Quarantine {
     }
 
     /// Deletes for good the entries whose time is up. Returns how many were deleted.
-    pub fn purge_expired(&self, now: u64) -> usize {
+    /// Entries made with administrator rights are deleted only when `elevated`.
+    pub fn purge_expired(&self, now: u64, elevated: bool) -> usize {
         let stored = self.guard();
         manifests(&Self::roots(&stored, &self.root))
             .into_iter()
-            .filter(|(_, _, m)| m.expires_at <= now)
+            .filter(|(_, _, m)| m.expires_at <= now && (elevated || !m.admin))
             .filter(|(dir, _, _)| fs::remove_dir_all(dir).is_ok())
             .count()
     }
@@ -347,20 +461,14 @@ impl Quarantine {
         let mut left = Vec::new();
         for file in manifest.files {
             let stored = dir.join(&file.stored);
-            if !stored.exists() {
+            if fs::symlink_metadata(&stored).is_err() {
                 // Never moved (the move was interrupted): nothing to put back.
                 continue;
             }
-            let original = PathBuf::from(&file.original);
-            let target = free_name(&original);
-            let restored = original
-                .parent()
-                .map_or(Ok(()), fs::create_dir_all)
-                .and_then(|()| move_file(&stored, &target).map(|_| ()));
-            match restored {
-                Ok(()) => {
+            match put_back(file.kind, &stored, &file.original) {
+                Ok(renamed) => {
                     report.restored_count += 1;
-                    if target != original {
+                    if renamed {
                         report.renamed_count += 1;
                     }
                 }
@@ -473,6 +581,7 @@ fn entry(id: String, m: Manifest) -> QuarantineEntry {
         .map(|f| QuarantinedFile {
             original_path: f.original.clone(),
             size_bytes: f.size,
+            kind: f.kind,
         })
         .collect();
     items.sort_by(|a, b| {
@@ -483,6 +592,7 @@ fn entry(id: String, m: Manifest) -> QuarantineEntry {
     items.truncate(MAX_ITEMS);
     QuarantineEntry {
         id,
+        needs_admin: m.admin,
         title_key: m.title_key,
         title: m.title,
         item_count: m.files.len() as u64,
@@ -523,10 +633,15 @@ fn slug(s: &str) -> String {
     }
 }
 
-/// The name a file gets inside its entry folder: a number keeps names unique,
+/// The name an item gets inside its entry folder: a number keeps names unique,
 /// the original name helps anyone who opens the folder.
-fn stored_name(index: usize, path: &Path) -> String {
-    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
+fn stored_name(index: usize, target: &Target) -> String {
+    let name = match target {
+        Target::File(p) | Target::Folder(p) => {
+            p.file_name().and_then(|n| n.to_str()).unwrap_or("file")
+        }
+        Target::Registry(k) => k.name(),
+    };
     let short: String = name
         .chars()
         .rev()
@@ -535,26 +650,113 @@ fn stored_name(index: usize, path: &Path) -> String {
         .into_iter()
         .rev()
         .collect();
-    format!("{index} {short}")
+    match target {
+        Target::Registry(_) => format!("{index} {short}.regkey.json"),
+        _ => format!("{index} {short}"),
+    }
 }
 
 /// True when the file is still the regular file the scan saw: same size, same
 /// last change. Anything else is left alone.
-pub fn unchanged_since_scan(file: &ScannedFile) -> bool {
-    fs::symlink_metadata(&file.path).is_ok_and(|m| {
-        m.is_file() && m.len() == file.size && m.modified().is_ok_and(|t| t == file.modified)
-    })
+pub fn unchanged_since_scan(path: &Path, size: u64, modified: SystemTime) -> bool {
+    fs::symlink_metadata(path)
+        .is_ok_and(|m| m.is_file() && m.len() == size && m.modified().is_ok_and(|t| t == modified))
+}
+
+/// Moves one item into the entry folder, at `to`. Returns true when that gave
+/// space back to the item's drive right away (a file moved to another drive).
+fn take(item: &Item, to: &Path) -> io::Result<bool> {
+    let gone = || io::Error::new(io::ErrorKind::NotFound, "changed or gone");
+    match &item.target {
+        Target::File(path) => {
+            let same = match item.modified {
+                Some(t) => unchanged_since_scan(path, item.size, t),
+                None => fs::symlink_metadata(path).is_ok_and(|m| m.is_file()),
+            };
+            if !same {
+                return Err(gone());
+            }
+            move_file(path, to)
+        }
+        Target::Folder(path) => {
+            // A real folder only: links and junctions point at someone else's files.
+            if !fs::symlink_metadata(path).is_ok_and(|m| m.is_dir() && !is_link(&m)) {
+                return Err(gone());
+            }
+            move_dir(path, to).map(|()| false)
+        }
+        Target::Registry(key) => {
+            let tree = regkey::read(key)?;
+            let text = serde_json::to_vec(&tree).map_err(io::Error::other)?;
+            fs::write(to, text)?;
+            if let Err(e) = regkey::delete(key) {
+                // Removing a key can stop half way: put back whatever went, so
+                // nothing is lost, and leave the key where it is.
+                let _ = regkey::write_missing(key, &tree);
+                let _ = fs::remove_file(to);
+                return Err(e);
+            }
+            Ok(false)
+        }
+    }
+}
+
+/// Puts one item back. Returns true when it came back under a new name.
+fn put_back(kind: ItemKind, stored: &Path, original: &str) -> io::Result<bool> {
+    match kind {
+        ItemKind::File | ItemKind::Folder => {
+            let original = PathBuf::from(original);
+            let target = free_name(&original, kind == ItemKind::Folder);
+            if let Some(parent) = original.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            if kind == ItemKind::File {
+                move_file(stored, &target)?;
+            } else {
+                move_dir(stored, &target)?;
+            }
+            Ok(target != original)
+        }
+        ItemKind::Registry => {
+            let key = RegKeyPath::parse(original)
+                .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "bad key"))?;
+            let tree = serde_json::from_slice(&fs::read(stored)?)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            regkey::write_missing(&key, &tree)?;
+            fs::remove_file(stored)?;
+            Ok(false)
+        }
+    }
+}
+
+#[cfg(windows)]
+fn is_link(m: &fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+    m.file_type().is_symlink() || m.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+}
+
+#[cfg(not(windows))]
+fn is_link(m: &fs::Metadata) -> bool {
+    m.file_type().is_symlink()
 }
 
 /// `path` if it is free, otherwise `name (restored).ext`, `name (restored 2).ext`, ...
-fn free_name(path: &Path) -> PathBuf {
+/// Folders keep their whole name: `Vendor.App (restored)`.
+fn free_name(path: &Path, folder: bool) -> PathBuf {
     if fs::symlink_metadata(path).is_err() {
         return path.to_path_buf();
     }
-    let stem = path.file_stem().map_or("".into(), |s| s.to_string_lossy());
-    let ext = path
-        .extension()
-        .map_or(String::new(), |e| format!(".{}", e.to_string_lossy()));
+    let (stem, ext) = if folder {
+        let name = path.file_name().map_or("".into(), |s| s.to_string_lossy());
+        (name, String::new())
+    } else {
+        let stem = path.file_stem().map_or("".into(), |s| s.to_string_lossy());
+        let ext = path
+            .extension()
+            .map_or(String::new(), |e| format!(".{}", e.to_string_lossy()));
+        (stem, ext)
+    };
     (1..)
         .map(|n| {
             let suffix = if n == 1 {
@@ -596,6 +798,18 @@ fn move_file(from: &Path, to: &Path) -> io::Result<bool> {
     }
 }
 
+/// Moves a folder with everything in it. Only within a drive (a rename): copying
+/// a whole folder across drives could stop half way, so it is refused instead.
+fn move_dir(from: &Path, to: &Path) -> io::Result<()> {
+    if fs::symlink_metadata(to).is_ok() {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "target exists",
+        ));
+    }
+    fs::rename(from, to)
+}
+
 fn crosses_drives(e: &io::Error) -> bool {
     // ERROR_NOT_SAME_DEVICE on Windows, EXDEV elsewhere.
     const CODE: i32 = if cfg!(windows) { 17 } else { 18 };
@@ -615,7 +829,7 @@ fn write_manifest(dir: &Path, manifest: &Manifest) -> io::Result<()> {
     fs::rename(tmp, dir.join(MANIFEST))
 }
 
-fn now_secs() -> u64 {
+pub fn now_secs() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_secs())
@@ -627,9 +841,15 @@ pub fn init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(Quarantine::new(root));
     let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        app.state::<Quarantine>().purge_expired(now_secs());
+        app.state::<Quarantine>().purge_expired(now_secs(), false);
     });
     Ok(())
+}
+
+/// The default quarantine folder, as passed to an elevated helper (which reads
+/// the settings saved in it, so it finds entries on other drives too).
+pub fn root_of(app: &AppHandle) -> PathBuf {
+    app.state::<Quarantine>().root.clone()
 }
 
 /// The quarantine choices, plus the drives it could be moved to.
@@ -672,7 +892,7 @@ pub async fn set_quarantine_settings(
 pub async fn list_quarantine(app: AppHandle) -> Result<Vec<QuarantineEntry>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let quarantine = app.state::<Quarantine>();
-        quarantine.purge_expired(now_secs());
+        quarantine.purge_expired(now_secs(), false);
         quarantine.list()
     })
     .await
@@ -684,10 +904,22 @@ pub async fn restore_quarantine(app: AppHandle, ids: Vec<String>) -> Result<Rest
     tauri::async_runtime::spawn_blocking(move || {
         let quarantine = app.state::<Quarantine>();
         let mut report = RestoreReport::default();
-        for id in ids {
+        let (admin, own): (Vec<String>, Vec<String>) =
+            ids.into_iter().partition(|id| quarantine.needs_admin(id));
+        for id in own {
             quarantine
                 .restore(&id, &mut report)
                 .map_err(|e| e.to_string())?;
+        }
+        if !admin.is_empty() {
+            let job = Job::Restore {
+                root: quarantine.root.clone(),
+                ids: admin,
+            };
+            match elevated::run(&app, &job)? {
+                Some(result) => report.merge(result.restore.unwrap_or_default()),
+                None => return Err(elevated::DECLINED.into()),
+            }
         }
         Ok(report)
     })
@@ -698,9 +930,18 @@ pub async fn restore_quarantine(app: AppHandle, ids: Vec<String>) -> Result<Rest
 #[tauri::command]
 pub async fn delete_quarantine(app: AppHandle, id: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        app.state::<Quarantine>()
-            .delete(&id)
-            .map_err(|e| e.to_string())
+        let quarantine = app.state::<Quarantine>();
+        if !quarantine.needs_admin(&id) {
+            return quarantine.delete(&id).map_err(|e| e.to_string());
+        }
+        let job = Job::Delete {
+            root: quarantine.root.clone(),
+            id,
+        };
+        match elevated::run(&app, &job)? {
+            Some(_) => Ok(()),
+            None => Err(elevated::DECLINED.into()),
+        }
     })
     .await
     .map_err(|e| e.to_string())?
@@ -751,6 +992,10 @@ mod tests {
         Title::Key(format!("files.groups.{k}.title"))
     }
 
+    fn items(files: &[ScannedFile]) -> Vec<Item> {
+        files.iter().map(Item::from).collect()
+    }
+
     #[test]
     fn moves_lists_and_restores() {
         let s = Sandbox::new("roundtrip");
@@ -759,7 +1004,13 @@ mod tests {
         let b = s.file("Downloads/sub/old.pdf", "bb");
         let mut report = MoveReport::default();
         let id = q
-            .add(key("installers"), &[a.clone(), b.clone()], NOW, &mut report)
+            .add(
+                key("installers"),
+                &items(&[a.clone(), b.clone()]),
+                NOW,
+                false,
+                &mut report,
+            )
             .unwrap()
             .unwrap();
         assert_eq!(id, format!("{NOW}-installers"));
@@ -816,7 +1067,13 @@ mod tests {
         let gone = s.file("b.txt", "two");
         fs::remove_file(&gone.path).unwrap();
         let mut report = MoveReport::default();
-        let id = q.add(key("temp"), &[changed.clone(), gone], NOW, &mut report);
+        let id = q.add(
+            key("temp"),
+            &items(&[changed.clone(), gone]),
+            NOW,
+            false,
+            &mut report,
+        );
         assert_eq!(id.unwrap(), None, "nothing moved, no entry");
         assert_eq!((report.moved_count, report.skipped_count), (0, 2));
         assert!(changed.path.exists());
@@ -832,7 +1089,13 @@ mod tests {
         let b = s.file("b.txt", "b");
         let mut report = MoveReport::default();
         let id = q
-            .add(key("temp"), &[a.clone(), b.clone()], NOW, &mut report)
+            .add(
+                key("temp"),
+                &items(&[a.clone(), b.clone()]),
+                NOW,
+                false,
+                &mut report,
+            )
             .unwrap()
             .unwrap();
         // As if the app stopped after moving only `a`: `b` is listed but still at home.
@@ -861,14 +1124,21 @@ mod tests {
         let q = s.quarantine();
         let mut report = MoveReport::default();
         let old = q
-            .add(key("temp"), &[s.file("old.tmp", "x")], NOW, &mut report)
+            .add(
+                key("temp"),
+                &items(&[s.file("old.tmp", "x")]),
+                NOW,
+                false,
+                &mut report,
+            )
             .unwrap()
             .unwrap();
         let newer = q
             .add(
                 key("temp"),
-                &[s.file("new.tmp", "y")],
+                &items(&[s.file("new.tmp", "y")]),
                 NOW + DAY_SECS,
+                false,
                 &mut report,
             )
             .unwrap()
@@ -876,8 +1146,9 @@ mod tests {
         let other = q
             .add(
                 key("temp"),
-                &[s.file("other.tmp", "z")],
+                &items(&[s.file("other.tmp", "z")]),
                 NOW + DAY_SECS,
+                false,
                 &mut report,
             )
             .unwrap()
@@ -890,8 +1161,8 @@ mod tests {
         // Not ours: no manifest. Must survive everything.
         fs::create_dir_all(s.0.join("q").join("stranger")).unwrap();
 
-        assert_eq!(q.purge_expired(NOW + 7 * DAY_SECS - 1), 0);
-        assert_eq!(q.purge_expired(NOW + 7 * DAY_SECS), 1);
+        assert_eq!(q.purge_expired(NOW + 7 * DAY_SECS - 1, false), 0);
+        assert_eq!(q.purge_expired(NOW + 7 * DAY_SECS, false), 1);
         assert!(!s.0.join("q").join(&old).exists());
         let ids: Vec<String> = q.list().into_iter().map(|e| e.id).collect();
         assert_eq!(ids, [other.clone(), newer.clone()], "newest first");
@@ -900,6 +1171,78 @@ mod tests {
         assert_eq!(q.list().len(), 1);
         assert!(q.delete("stranger").is_err());
         assert!(s.0.join("q").join("stranger").exists());
+    }
+
+    #[test]
+    fn moves_and_restores_whole_folders() {
+        let s = Sandbox::new("folders");
+        let q = s.quarantine();
+        let a = s.file("AppData/Zoom/data/settings.ini", "abc");
+        let folder = a.path.parent().unwrap().parent().unwrap().to_path_buf();
+        let gone = s.0.join("home").join("AppData").join("Missing");
+        let item = |p: &Path| Item {
+            target: Target::Folder(p.to_path_buf()),
+            size: 3,
+            modified: None,
+        };
+        let mut report = MoveReport::default();
+        let id = q
+            .add(
+                Title::Text("Zoom".into()),
+                &[item(&folder), item(&gone)],
+                NOW,
+                false,
+                &mut report,
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!((report.moved_count, report.skipped_count), (1, 1));
+        assert!(!folder.exists());
+        let e = &q.list()[0];
+        assert_eq!(e.title.as_deref(), Some("Zoom"));
+        assert_eq!(e.items[0].kind, ItemKind::Folder);
+        assert!(!e.needs_admin);
+
+        // Something new took the name: it comes back next to it, whole.
+        fs::create_dir_all(&folder).unwrap();
+        let mut restored = RestoreReport::default();
+        q.restore(&id, &mut restored).unwrap();
+        assert_eq!((restored.restored_count, restored.renamed_count), (1, 1));
+        let back = folder.with_file_name("Zoom (restored)");
+        assert_eq!(
+            fs::read_to_string(back.join("data").join("settings.ini")).unwrap(),
+            "abc"
+        );
+    }
+
+    #[test]
+    fn entries_made_as_admin_are_only_purged_as_admin() {
+        let s = Sandbox::new("admin");
+        let q = s.quarantine();
+        let f = s.file("x.lnk", "x");
+        let mut report = MoveReport::default();
+        let item = Item {
+            target: Target::File(f.path.clone()),
+            size: 1,
+            modified: None,
+        };
+        let id = q
+            .add(Title::Text("X".into()), &[item], NOW, true, &mut report)
+            .unwrap()
+            .unwrap();
+        assert!(q.needs_admin(&id));
+        assert!(q.list()[0].needs_admin);
+        assert_eq!(q.purge_expired(NOW + 30 * DAY_SECS, false), 0);
+        assert_eq!(q.purge_expired(NOW + 30 * DAY_SECS, true), 1);
+    }
+
+    #[test]
+    fn manifests_from_before_kinds_still_read() {
+        let old = r#"{"version":1,"titleKey":"files.groups.temp.title","title":null,
+            "removedAt":1,"expiresAt":2,"files":[{"original":"C:\\a.tmp","stored":"0 a.tmp","size":3}]}"#;
+        let m: Manifest = serde_json::from_str(old).unwrap();
+        assert_eq!(m.files[0].kind, ItemKind::File);
+        assert!(!m.admin);
     }
 
     #[test]
@@ -936,12 +1279,18 @@ mod tests {
         assert_eq!(reopened.settings(), month, "saved for the next start");
         let mut report = MoveReport::default();
         reopened
-            .add(key("temp"), &[s.file("a.tmp", "a")], NOW, &mut report)
+            .add(
+                key("temp"),
+                &items(&[s.file("a.tmp", "a")]),
+                NOW,
+                false,
+                &mut report,
+            )
             .unwrap();
         let list = reopened.list();
         assert_eq!(list.len(), 1, "the settings file is not an entry");
         assert_eq!(list[0].expires_at, NOW + 30 * DAY_SECS);
-        assert_eq!(reopened.purge_expired(NOW + 29 * DAY_SECS), 0);
+        assert_eq!(reopened.purge_expired(NOW + 29 * DAY_SECS, false), 0);
     }
 
     #[test]
@@ -978,7 +1327,7 @@ mod tests {
         let a = s.file("a.txt", "a");
         let roots = vec![s.0.join("q"), other.clone()];
         let (id, dir) = new_entry_dir(&other, &roots, NOW, &key("installers")).unwrap();
-        let stored = stored_name(0, &a.path);
+        let stored = stored_name(0, &Target::File(a.path.clone()));
         fs::rename(&a.path, dir.join(&stored)).unwrap();
         let m = Manifest {
             version: 1,
@@ -990,14 +1339,22 @@ mod tests {
                 original: a.path.to_string_lossy().into_owned(),
                 stored,
                 size: 1,
+                kind: ItemKind::File,
             }],
+            admin: false,
         };
         write_manifest(&dir, &m).unwrap();
 
         // A new entry made in the same second in the default folder gets another id.
         let mut report = MoveReport::default();
         let id2 = q
-            .add(key("installers"), &[s.file("b.txt", "b")], NOW, &mut report)
+            .add(
+                key("installers"),
+                &items(&[s.file("b.txt", "b")]),
+                NOW,
+                false,
+                &mut report,
+            )
             .unwrap()
             .unwrap();
         assert_ne!(id, id2, "ids never clash across folders");
@@ -1016,7 +1373,35 @@ mod tests {
         // Unplugged drive: its folder is simply skipped.
         fs::remove_dir_all(&other).unwrap();
         assert_eq!(q.list().len(), 1);
-        assert_eq!(q.purge_expired(NOW + 30 * DAY_SECS), 1);
+        assert_eq!(q.purge_expired(NOW + 30 * DAY_SECS, false), 1);
+    }
+
+    #[test]
+    fn folders_stay_in_the_default_folder_when_another_drive_is_chosen() {
+        let s = Sandbox::new("folder-root");
+        let q = s.quarantine();
+        let other = s.0.join("other-drive");
+        q.guard().settings.drive = Some("Z:".into());
+        q.guard().other_roots.push(other);
+        let a = s.file("AppData/Tool/x.ini", "x");
+        let folder = a.path.parent().unwrap().to_path_buf();
+        let mut report = MoveReport::default();
+        let id = q
+            .add(
+                Title::Text("Tool".into()),
+                &[Item {
+                    target: Target::Folder(folder),
+                    size: 1,
+                    modified: None,
+                }],
+                NOW,
+                false,
+                &mut report,
+            )
+            .unwrap()
+            .unwrap();
+        assert!(s.0.join("q").join(&id).is_dir());
+        assert_eq!(report.freed_bytes, 0);
     }
 
     #[test]
@@ -1024,7 +1409,12 @@ mod tests {
         assert_eq!(slug("Old downloads!"), "old-downloads");
         assert_eq!(slug("Ünïcode"), "n-code");
         assert_eq!(slug("***"), "items");
-        assert_eq!(stored_name(3, Path::new("/x/photo.jpg")), "3 photo.jpg");
+        assert_eq!(
+            stored_name(3, &Target::File("/x/photo.jpg".into())),
+            "3 photo.jpg"
+        );
+        let key = RegKeyPath::parse(r"HKCU\Software\Zoom").unwrap();
+        assert_eq!(stored_name(0, &Target::Registry(key)), "0 Zoom.regkey.json");
         assert!(valid_id(&format!("{NOW}-large-files-2")));
         assert!(!valid_id("../x"));
     }

@@ -21,15 +21,44 @@ const fileGroup = (id: string, key: string, safety: FileGroup["safety"], itemCou
   sizeBytes: items.reduce((s, i) => s + i.sizeBytes, 0),
   itemCount,
   items,
+  reviewOnly: id === "unknown-folders",
 });
-const item = (path: string, sizeBytes: number, lastUsed: string | null = null, duplicateOf: string | null = null): FileItem => ({ path, sizeBytes, lastUsed, duplicateOf });
+const item = (path: string, sizeBytes: number, lastUsed: string | null = null, duplicateOf: string | null = null): FileItem => ({
+  path,
+  sizeBytes,
+  lastUsed,
+  duplicateOf,
+  explainId: null,
+  originalPath: null,
+});
+/** A folder the app knows (see src-tauri/src/known_folders.json), or null for one it does not. */
+const folderItem = (path: string, sizeBytes: number, explainId: string | null): FileItem => ({ ...item(path, sizeBytes), explainId });
+const binItem = (id: string, originalPath: string, sizeBytes: number): FileItem => ({
+  ...item(`C:\\$Recycle.Bin\\S-1-5-21-1004\\$R${id}`, sizeBytes),
+  explainId: "recycleBin",
+  originalPath,
+});
 
 export const sampleFileGroups: FileGroup[] = [
   fileGroup("temp", "temp", "safe", 4821, [
-    item(`${U}\\AppData\\Local\\Temp`, 1.6 * GB),
-    item(`${U}\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache`, 820 * MB),
-    item("C:\\Windows\\Temp", 410 * MB),
-    item(`${U}\\AppData\\Local\\NVIDIA\\DXCache`, 270 * MB),
+    folderItem(`${U}\\AppData\\Local\\Temp`, 1.6 * GB, "temp"),
+    folderItem(`${U}\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache`, 820 * MB, "browserCache"),
+    folderItem("C:\\Windows\\Temp", 410 * MB, "temp"),
+    folderItem(`${U}\\AppData\\Local\\NVIDIA\\DXCache`, 270 * MB, "shaderCache"),
+  ]),
+  fileGroup("recycle-bin", "recycleBin", "safe", 14, [
+    binItem("K2J9QX.zip", `${U}\\Downloads\\Old project`, 840 * MB),
+    binItem("8DF1LA.mp4", `${U}\\Videos\\Screen recording 2025-03-02.mp4`, 310 * MB),
+    binItem("Q7ZP02.psd", `${U}\\Desktop\\poster draft.psd`, 95 * MB),
+  ]),
+  fileGroup("crash-reports", "crashReports", "safe", 9, [
+    { ...item(`${U}\\AppData\\Local\\CrashDumps\\GameLauncher.exe.8812.dmp`, 410 * MB, "2025-06-14"), explainId: "crashDumps" },
+    { ...item(`${U}\\AppData\\Local\\CrashDumps\\explorer.exe.4410.dmp`, 160 * MB, "2025-04-02"), explainId: "crashDumps" },
+    { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\WER\\ReportArchive\\AppCrash_Spotify\\Report.wer`, 70 * MB, "2025-02-20"), explainId: "crashDumps" },
+  ]),
+  fileGroup("thumbnails", "thumbnails", "safe", 6, [
+    { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\Explorer\\thumbcache_256.db`, 380 * MB, "2025-07-01"), explainId: "thumbCache" },
+    { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\Explorer\\thumbcache_1280.db`, 210 * MB, "2025-07-01"), explainId: "thumbCache" },
   ]),
   fileGroup("installers", "installers", "safe", 3, [
     item(`${U}\\Downloads\\Adobe_Photoshop_2025_Set-Up.exe`, 1.9 * GB, "2025-01-14"),
@@ -49,13 +78,54 @@ export const sampleFileGroups: FileGroup[] = [
     item(`${U}\\Videos\\Game capture 2025-02-03.mp4`, 5.6 * GB, "2025-02-03"),
     item(`${U}\\Documents\\VirtualBox VMs\\Windows 10.vdi`, 3.9 * GB, "2024-12-01"),
   ]),
+  fileGroup("unknown-folders", "unknownFolders", "check", 11, [
+    folderItem("C:\\ProgramData\\Package Cache", 4.2 * GB, "packageCache"),
+    folderItem(`${U}\\AppData\\Roaming\\Zoom`, 1.1 * GB, "zoom"),
+    folderItem(`${U}\\AppData\\Local\\ABX_7731`, 820 * MB, null),
+    folderItem(`${U}\\AppData\\Local\\Spotify`, 640 * MB, "spotify"),
+    folderItem(`${U}\\AppData\\Local\\NVIDIA`, 450 * MB, "shaderCache"),
+    folderItem(`${U}\\AppData\\Local\\npm-cache`, 380 * MB, "devCache"),
+    folderItem(`${U}\\AppData\\Roaming\\anythingllm-desktop`, 360 * MB, null),
+    folderItem(`${U}\\AppData\\Roaming\\Code`, 350 * MB, "vscode"),
+    folderItem("C:\\ProgramData\\NVIDIA Corporation", 340 * MB, "gpuDrivers"),
+    folderItem(`${U}\\AppData\\Local\\Docker`, 330 * MB, "docker"),
+    folderItem(`${U}\\AppData\\Local\\uv`, 320 * MB, null),
+  ]),
 ];
 
+const leftover = (id: string, appName: string | null, kind: LeftoverItem["kind"], path: string, sizeBytes: number, reason: string, safety: LeftoverItem["safety"] = "safe", needsAdmin = false): LeftoverItem => ({ id, appName, kind, path, sizeBytes, reason, safety, needsAdmin, unowned: false, modifiedAt: null });
+
+/** A folder (or key) that no installed app owns, last changed `daysAgo` days ago. */
+const unowned = (id: string, appName: string, kind: LeftoverItem["kind"], path: string, sizeBytes: number, reason: string, daysAgo: number | null, needsAdmin = false): LeftoverItem => ({
+  ...leftover(id, appName, kind, path, sizeBytes, reason, "check", needsAdmin),
+  unowned: true,
+  modifiedAt: daysAgo === null ? null : Math.floor(Date.now() / 1000) - daysAgo * 86400,
+});
+
+/** What the browser fallback "finds" after uninstalling `app`. */
+export function sampleAppLeftovers(app: string): LeftoverItem[] {
+  const slug = app.replace(/[^A-Za-z0-9]+/g, "");
+  return [
+    leftover(`${slug}-local`, app, "folder", `${U}\\AppData\\Local\\${slug}`, 310 * MB, "localData"),
+    leftover(`${slug}-pf`, app, "folder", `C:\\Program Files\\${app}`, 18 * MB, "programFolder", "safe", true),
+    leftover(`${slug}-reg`, app, "registry", `HKCU\\Software\\${slug}`, 0, "registry"),
+    leftover(`${slug}-lnk`, app, "shortcut", `${U}\\Desktop\\${app}.lnk`, 2048, "shortcut"),
+    leftover(`${slug}-roaming`, app, "folder", `${U}\\AppData\\Roaming\\${slug}`, 96 * MB, "userSettings", "check"),
+  ];
+}
+
 export const sampleLeftovers: LeftoverItem[] = [
-  { id: "l1", appName: "Zoom", path: "C:\\Users\\you\\AppData\\Roaming\\Zoom", sizeBytes: 640 * MB, kind: "folder" },
-  { id: "l2", appName: "Skype", path: "C:\\ProgramData\\Skype", sizeBytes: 210 * MB, kind: "folder" },
-  { id: "l3", appName: "Skype", path: "HKCU\\Software\\Skype", sizeBytes: 0, kind: "registry" },
-  { id: "l4", appName: "Old Game Launcher", path: "C:\\Users\\you\\Desktop\\Launcher.lnk", sizeBytes: 0, kind: "shortcut" },
+  leftover("l1", "Zoom", "folder", `${U}\\AppData\\Local\\Zoom`, 640 * MB, "localData"),
+  leftover("l2", "Zoom", "folder", `${U}\\AppData\\Roaming\\Zoom`, 120 * MB, "userSettings", "check"),
+  leftover("l3", "Zoom", "registry", "HKCU\\Software\\Zoom", 0, "registry"),
+  leftover("l4", "Skype", "folder", "C:\\ProgramData\\Skype", 210 * MB, "sharedData", "safe", true),
+  leftover("l5", "Skype", "registry", "HKLM\\Software\\WOW6432Node\\Skype", 0, "registry", "safe", true),
+  leftover("l6", "Old Game Launcher", "shortcut", `${U}\\Desktop\\Old Game Launcher.lnk`, 1400, "brokenShortcut"),
+  leftover("l7", "Photo Studio 2019", "registry", "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PhotoStudio", 0, "brokenEntry", "safe", true),
+  unowned("u1", "FotoMagic", "folder", "C:\\Program Files\\FotoMagic", 1.4 * GB, "programFolder", 820, true),
+  unowned("u2", "FotoMagic", "folder", `${U}\\AppData\\Roaming\\FotoMagic`, 36 * MB, "userSettings", 790),
+  unowned("u3", "FotoMagic", "registry", "HKCU\\Software\\FotoMagic", 0, "registry", null),
+  unowned("u4", "TurboRecorder", "folder", `${U}\\AppData\\Local\\TurboRecorder`, 420 * MB, "localData", 400),
 ];
 
 const folder = (id: string, key: string | null, label: string | null, size: number, category: SpaceFolder["category"], path: string | null): SpaceFolder => ({
@@ -102,19 +172,25 @@ export const sampleQuarantine: QuarantineEntry[] = [
     removedAt: daysAgo(2),
     expiresAt: daysAgo(2) + 7 * DAY,
     items: [
-      { originalPath: `${U}\\AppData\\Local\\NVIDIA\\DXCache\\nv_cache_old.bin`, sizeBytes: 2.1 * GB },
-      { originalPath: `${U}\\AppData\\Local\\Temp\\setup-log-2025.txt`, sizeBytes: 0.8 * GB },
+      { originalPath: `${U}\\AppData\\Local\\NVIDIA\\DXCache\\nv_cache_old.bin`, sizeBytes: 2.1 * GB, kind: "file" },
+      { originalPath: `${U}\\AppData\\Local\\Temp\\setup-log-2025.txt`, sizeBytes: 0.8 * GB, kind: "file" },
     ],
+    needsAdmin: false,
   },
   {
     id: "q2",
     titleKey: null,
     title: "Discord",
-    itemCount: 214,
+    itemCount: 3,
     sizeBytes: 406 * MB,
     removedAt: daysAgo(1),
     expiresAt: daysAgo(1) + 7 * DAY,
-    items: [{ originalPath: `${U}\\AppData\\Local\\Discord\\app-1.0.9187\\Discord.exe`, sizeBytes: 160 * MB }],
+    items: [
+      { originalPath: `${U}\\AppData\\Local\\Discord`, sizeBytes: 310 * MB, kind: "folder" },
+      { originalPath: `${U}\\AppData\\Roaming\\discord`, sizeBytes: 96 * MB, kind: "folder" },
+      { originalPath: "HKCU\\Software\\Discord", sizeBytes: 0, kind: "registry" },
+    ],
+    needsAdmin: false,
   },
 ];
 

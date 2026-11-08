@@ -4,10 +4,11 @@
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GB } from "./format";
-import { sampleApps, sampleDrives, sampleFileGroups, sampleLeftovers, sampleQuarantine, sampleQuarantineSettings, sampleSpaceUsage } from "./mock";
+import { sampleApps, sampleAppLeftovers, sampleDrives, sampleFileGroups, sampleLeftovers, sampleQuarantine, sampleQuarantineSettings, sampleSpaceUsage } from "./mock";
 import type {
   DiskInfo,
   FileGroup,
+  FileItem,
   InstalledApp,
   LeftoverItem,
   MoveReport,
@@ -19,6 +20,7 @@ import type {
   ScanProgress,
   SpaceProgress,
   SpaceUsage,
+  UninstallOutcome,
 } from "./types";
 
 /** Matches `KEEP_DAYS_CHOICES` in src-tauri/src/quarantine.rs. */
@@ -64,7 +66,7 @@ let appsCache: Promise<InstalledApp[]> | null = null;
  * Reading sizes and icons takes a moment, so the result is kept until `refresh` is true.
  */
 export function listInstalledApps(refresh = false): Promise<InstalledApp[]> {
-  if (!isTauri()) return Promise.resolve(sampleApps);
+  if (!isTauri()) return Promise.resolve(sampleApps.filter((a) => !sampleRemoved.has(a.id)));
   if (refresh || !appsCache) {
     const pending = invoke<InstalledApp[]>("list_installed_apps");
     pending.catch(() => {
@@ -112,7 +114,7 @@ function scanFilesNative(notify: (p: ScanProgress) => void): Promise<FileGroup[]
 
 /** Browser fallback: plays the scan steps quickly so the progress view can be designed. */
 async function sampleScan(notify: (p: ScanProgress) => void): Promise<FileGroup[]> {
-  const steps = ["caches", "downloads", "personal", "duplicates"] as const;
+  const steps = ["caches", "downloads", "personal", "duplicates", "appFolders"] as const;
   for (const [i, step] of steps.entries()) {
     for (let n = 0; n < 4; n++) {
       notify({ step, stepIndex: i + 1, stepCount: steps.length, filesChecked: n * 1250 });
@@ -122,9 +124,78 @@ async function sampleScan(notify: (p: ScanProgress) => void): Promise<FileGroup[
   return sampleFileGroups;
 }
 
-/** Sample until the leftovers scanner lands. */
+// ---------------------------------------------------------------------------
+// Uninstalling and leftovers. Real: src-tauri/src/uninstall.rs and leftovers.rs.
+
+/** Apps "uninstalled" in the browser fallback, so the list can be tried end to end. */
+const sampleRemoved = new Set<string>();
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Runs the app's own uninstaller (or removes a Store app) and waits for it.
+ * Rejects with "notInstalled", "noUninstaller", "itself", or another error text.
+ */
+export async function uninstallApp(id: string): Promise<UninstallOutcome> {
+  if (isTauri()) return invoke<UninstallOutcome>("uninstall_app", { id });
+  await sleep(1800);
+  sampleRemoved.add(id);
+  return "removed";
+}
+
+/** Whether the app is still in the app list (asked while its uninstaller runs). */
+export async function isAppInstalled(id: string): Promise<boolean> {
+  if (isTauri()) return invoke<boolean>("is_app_installed", { id });
+  return !sampleRemoved.has(id);
+}
+
+/** What an app just uninstalled left behind. Only after it is gone from the app list. */
+export async function findAppLeftovers(id: string): Promise<LeftoverItem[]> {
+  if (isTauri()) return invoke<LeftoverItem[]>("find_app_leftovers", { id });
+  await sleep(900);
+  const app = sampleApps.find((a) => a.id === id);
+  return app && app.source !== "store" ? sampleAppLeftovers(app.name) : [];
+}
+
+/** Leftovers of programs no longer installed: broken shortcuts and app-list entries, and leftovers of apps uninstalled here. */
 export async function listLeftovers(): Promise<LeftoverItem[]> {
-  return sampleLeftovers;
+  if (isTauri()) return invoke<LeftoverItem[]>("list_leftovers");
+  return sampleLeftovers.filter((l) => !sampleMovedLeftovers.has(l.id));
+}
+
+const sampleMovedLeftovers = new Set<string>();
+
+/**
+ * Moves leftovers into quarantine, one entry per app. Only ids are sent: Rust moves
+ * exactly what its own search found. Windows asks once for those outside the user's folder.
+ */
+export async function quarantineLeftovers(ids: string[], found: LeftoverItem[]): Promise<MoveReport> {
+  if (isTauri()) return invoke<MoveReport>("quarantine_leftovers", { ids });
+  await sleep(700);
+  const now = Math.floor(Date.now() / 1000);
+  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const picked = found.filter((l) => ids.includes(l.id));
+  const byApp = new Map<string, LeftoverItem[]>();
+  for (const l of picked) byApp.set(l.appName ?? "", [...(byApp.get(l.appName ?? "") ?? []), l]);
+  for (const [app, items] of byApp) {
+    const id = `${now}-leftovers-${sampleQuarantine.length}`;
+    const size = items.reduce((s, l) => s + l.sizeBytes, 0);
+    sampleQuarantine.push({
+      id,
+      titleKey: app ? null : "leftovers.title",
+      title: app || null,
+      itemCount: items.length,
+      sizeBytes: size,
+      removedAt: now,
+      expiresAt: now + sampleQuarantineSettings.keepDays * DAY,
+      items: items.map((l) => ({ originalPath: l.path, sizeBytes: l.sizeBytes, kind: l.kind === "registry" ? "registry" : l.kind === "folder" ? "folder" : "file" })),
+      needsAdmin: items.some((l) => l.needsAdmin),
+    });
+    items.forEach((l) => sampleMovedLeftovers.add(l.id));
+    report.entryIds.push(id);
+    report.movedCount += items.length;
+    report.movedBytes += size;
+  }
+  return report;
 }
 
 // One space scan at a time, kept until a new one is asked for (like the file scan).
@@ -179,7 +250,7 @@ export async function removeFileGroups(groupIds: string[]): Promise<MoveReport> 
   if (isTauri()) return invoke<MoveReport>("remove_file_groups", { groupIds });
   await new Promise((r) => setTimeout(r, 900));
   const now = Math.floor(Date.now() / 1000);
-  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0 };
+  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
   for (const g of sampleFileGroups.filter((x) => groupIds.includes(x.id))) {
     if (DELETE_NOW_GROUPS.includes(g.id)) {
       report.deletedCount += g.itemCount;
@@ -196,7 +267,8 @@ export async function removeFileGroups(groupIds: string[]): Promise<MoveReport> 
       sizeBytes: g.sizeBytes,
       removedAt: now,
       expiresAt: now + sampleQuarantineSettings.keepDays * DAY,
-      items: g.items.map((i) => ({ originalPath: i.path, sizeBytes: i.sizeBytes })),
+      items: g.items.map((i) => ({ originalPath: i.path, sizeBytes: i.sizeBytes, kind: "file" })),
+      needsAdmin: false,
     });
     report.entryIds.push(id);
     report.movedCount += g.itemCount;
@@ -219,13 +291,44 @@ export async function setQuarantineSettings(settings: QuarantineSettings): Promi
   Object.assign(sampleQuarantineSettings, settings);
 }
 
+/**
+ * Real: src-tauri/src/app_folders.rs. Moves one folder of the "unknown folders" group into
+ * quarantine as one entry. Rust checks the path again; folders outside the user's
+ * profile (ProgramData) make Windows ask for permission.
+ */
+export async function quarantineAppFolder(item: FileItem): Promise<MoveReport> {
+  if (isTauri()) return invoke<MoveReport>("quarantine_app_folder", { path: item.path });
+  await sleep(700);
+  const now = Math.floor(Date.now() / 1000);
+  const id = `${now}-folder-${sampleQuarantine.length}`;
+  const name = item.path.split(/[\\/]/).pop() ?? item.path;
+  sampleQuarantine.push({
+    id,
+    titleKey: null,
+    title: name,
+    itemCount: 1,
+    sizeBytes: item.sizeBytes,
+    removedAt: now,
+    expiresAt: now + sampleQuarantineSettings.keepDays * DAY,
+    items: [{ originalPath: item.path, sizeBytes: item.sizeBytes, kind: "folder" }],
+    needsAdmin: !/\\AppData\\/i.test(item.path),
+  });
+  return { entryIds: [id], movedCount: 1, movedBytes: item.sizeBytes, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+}
+
 /** Puts the files of these entries back where they were. */
 export async function restoreQuarantine(ids: string[]): Promise<RestoreReport> {
   if (isTauri()) return invoke<RestoreReport>("restore_quarantine", { ids });
   const report: RestoreReport = { restoredCount: 0, renamedCount: 0, failedCount: 0 };
   for (const id of ids) {
     const i = sampleQuarantine.findIndex((e) => e.id === id);
-    if (i >= 0) report.restoredCount += sampleQuarantine.splice(i, 1)[0].itemCount;
+    if (i < 0) continue;
+    const entry = sampleQuarantine.splice(i, 1)[0];
+    report.restoredCount += entry.itemCount;
+    for (const item of entry.items) {
+      const l = sampleLeftovers.find((x) => x.path === item.originalPath);
+      if (l) sampleMovedLeftovers.delete(l.id);
+    }
   }
   return report;
 }

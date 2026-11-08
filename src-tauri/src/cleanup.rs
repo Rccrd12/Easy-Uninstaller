@@ -8,7 +8,7 @@
 //! files the scan listed in those groups, still unchanged since the scan.
 
 use crate::files::{to_camel, LastScan, ScannedFile};
-use crate::quarantine::{unchanged_since_scan, MoveReport, Quarantine, Title};
+use crate::quarantine::{unchanged_since_scan, Item, MoveReport, Quarantine, Title};
 use std::fs;
 use std::io;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -36,8 +36,9 @@ pub fn remove(
         Ok(())
     } else {
         let key = format!("files.groups.{}.title", to_camel(group_id));
+        let items: Vec<Item> = files.iter().map(Item::from).collect();
         quarantine
-            .add(Title::Key(key), files, now, report)
+            .add(Title::Key(key), &items, now, false, report)
             .map(|_| ())
     }
 }
@@ -46,7 +47,9 @@ pub fn remove(
 /// or gone are left alone and counted as skipped.
 fn delete(files: &[ScannedFile], report: &mut MoveReport) {
     for file in files {
-        if unchanged_since_scan(file) && fs::remove_file(&file.path).is_ok() {
+        if unchanged_since_scan(&file.path, file.size, file.modified)
+            && fs::remove_file(&file.path).is_ok()
+        {
             report.deleted_count += 1;
             report.deleted_bytes += file.size;
             report.freed_bytes += file.size;

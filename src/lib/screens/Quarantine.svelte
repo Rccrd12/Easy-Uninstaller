@@ -1,8 +1,9 @@
 <script lang="ts">
+  import StatusIcon from "../components/StatusIcon.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
   import { deleteQuarantine, listQuarantine, restoreQuarantine, usesSampleData } from "../api";
   import { quarantine } from "../settings.svelte";
-  import { fileCount, formatBytes, relativeTime, restoreSummary } from "../format";
+  import { fileCount, formatBytes, itemCount, relativeTime, restoreSummary } from "../format";
   import { locale, t } from "../i18n/index.svelte";
   import type { QuarantineEntry } from "../types";
 
@@ -37,6 +38,11 @@
   const totalFiles = $derived(entries.reduce((s, e) => s + e.itemCount, 0));
 
   const titleOf = (e: QuarantineEntry) => (e.titleKey ? t(e.titleKey) : (e.title ?? ""));
+  const onlyFiles = (e: QuarantineEntry) => e.items.every((i) => i.kind === "file");
+  /** "3 files", or "3 items" when the entry holds folders or registry keys. */
+  const countOf = (e: QuarantineEntry) => (onlyFiles(e) ? fileCount(e.itemCount) : itemCount(e.itemCount));
+  const kindIcons = { file: "", folder: "📂 ", registry: "🔑 " } as const;
+  const failure = (err: unknown) => (String(err) === "declined" ? t("quarantine.declined") : t("quarantine.failed", { error: String(err) }));
   const nameOf = (path: string) => path.split(/[\\/]/).pop() ?? path;
   const folderOf = (path: string) => path.slice(0, Math.max(path.length - nameOf(path).length - 1, 0));
 
@@ -68,7 +74,7 @@
       const r = await restoreQuarantine([e.id]);
       notice = { error: r.failedCount > 0, lines: restoreSummary(r) };
     } catch (err) {
-      notice = { error: true, lines: [t("quarantine.failed", { error: String(err) })] };
+      notice = { error: true, lines: [failure(err)] };
     } finally {
       busyId = null;
       await load();
@@ -82,7 +88,7 @@
       await deleteQuarantine(e.id);
       notice = { error: false, lines: [t("quarantine.deleted", { size: formatBytes(e.sizeBytes) })] };
     } catch (err) {
-      notice = { error: true, lines: [t("quarantine.failed", { error: String(err) })] };
+      notice = { error: true, lines: [failure(err)] };
     } finally {
       busyId = null;
       confirmId = null;
@@ -97,14 +103,14 @@
     <p class="muted sub">{t("quarantine.subtitle", { days: quarantine.keepDays })}</p>
   </div>
   {#if entries.length}
-    <div class="total">{t("quarantine.summary", { count: fileCount(totalFiles), size: formatBytes(totalBytes) })}</div>
+    <div class="total">{t("quarantine.summary", { count: entries.some((e) => e.items.some((i) => i.kind !== "file")) ? itemCount(totalFiles) : fileCount(totalFiles), size: formatBytes(totalBytes) })}</div>
   {/if}
 </div>
 {#if usesSampleData()}<SampleBanner />{/if}
 
 {#if notice}
   <div class="card notice" class:error={notice.error} role="status" aria-live="polite">
-    <span aria-hidden="true">{notice.error ? "⚠️" : "✅"}</span>
+    <StatusIcon kind={notice.error ? "warn" : "ok"} />
     <div class="notice-text">{#each notice.lines as line, i (i)}<p>{line}</p>{/each}</div>
     <button class="close" aria-label={t("common.close")} onclick={() => (notice = null)}>✕</button>
   </div>
@@ -127,7 +133,7 @@
         <div class="info">
           <div class="title">{titleOf(e)}</div>
           <div class="muted meta" title={from}>
-            {fileCount(e.itemCount)}{#if from}{" · "}{t("quarantine.from", { path: from })}{/if}
+            {countOf(e)}{#if from}{" · "}{t("quarantine.from", { path: from })}{/if}
           </div>
           <div class="meta">
             <span class="muted">{t("quarantine.removedOn", { when: relativeTime(e.removedAt) })}{" · "}</span>
@@ -135,8 +141,8 @@
           </div>
         </div>
         <span class="size">{formatBytes(e.sizeBytes)}</span>
-        <button class="btn btn-primary" disabled={busyId !== null} onclick={() => restore(e)}>
-          {busyId === e.id && confirmId !== e.id ? t("quarantine.restoring") : `↩ ${t("common.restore")}`}
+        <button class="btn btn-primary" disabled={busyId !== null} onclick={() => restore(e)} title={e.needsAdmin ? t("quarantine.permission") : undefined}>
+          {busyId === e.id && confirmId !== e.id ? t("quarantine.restoring") : `${e.needsAdmin ? "🛡️" : "↩"} ${t("common.restore")}`}
         </button>
         <button class="btn btn-ghost" disabled={busyId !== null} onclick={() => (confirmId = confirmId === e.id ? null : e.id)}>
           {t("quarantine.deleteNow")}
@@ -154,17 +160,19 @@
 
       {#if e.items.length > 1}
         <button class="link" aria-expanded={openId === e.id} onclick={() => (openId = openId === e.id ? null : e.id)}>
-          {openId === e.id ? `▾ ${t("quarantine.hideFiles")}` : `▸ ${t("quarantine.showFiles")}`}
+          {openId === e.id
+            ? `▾ ${t(onlyFiles(e) ? "quarantine.hideFiles" : "quarantine.hideItems")}`
+            : `▸ ${t(onlyFiles(e) ? "quarantine.showFiles" : "quarantine.showItems")}`}
         </button>
         {#if openId === e.id}
           <ul class="items">
             {#each e.items.slice(0, SHOWN_ITEMS) as item (item.originalPath)}
               <li title={item.originalPath}>
                 <div class="item-text">
-                  <div class="item-name">{nameOf(item.originalPath)}</div>
+                  <div class="item-name">{kindIcons[item.kind]}{nameOf(item.originalPath)}</div>
                   <div class="muted item-note">{folderOf(item.originalPath)}</div>
                 </div>
-                <span class="item-size">{formatBytes(item.sizeBytes)}</span>
+                <span class="item-size">{item.kind === "registry" ? "—" : formatBytes(item.sizeBytes)}</span>
               </li>
             {/each}
           </ul>
