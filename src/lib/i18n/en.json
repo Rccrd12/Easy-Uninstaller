@@ -1,0 +1,104 @@
+{
+  "nav": {
+    "home": "Home",
+    "apps": "Apps",
+    "files": "Files",
+    "leftovers": "Leftovers",
+    "map": "Space map",
+    "quarantine": "Quarantine",
+    "settings": "Settings"
+  },
+  "common": {
+    "sampleData": "Demo mode: the apps and files shown here are examples, not from your PC. Real scanning is coming in the next versions.",
+    "uninstall": "Uninstall",
+    "cancel": "Cancel",
+    "openFolder": "Open folder",
+    "moveToQuarantine": "Move to quarantine",
+    "safe": "Safe",
+    "check": "Check",
+    "personal": "Personal",
+    "restore": "Restore"
+  },
+  "home": {
+    "greeting": "Hi there 👋",
+    "subtitle": "Here is what you can do to free up space.",
+    "canFree": "You can safely free",
+    "freeNow": "✨ Free up space now",
+    "disk": "Drive {drive}",
+    "diskUsage": "{used} used of {total} · {free} free",
+    "apps": "Apps",
+    "appsText": "Remove programs you don't use, along with the files they leave behind.",
+    "appsButton": "See apps",
+    "files": "Files",
+    "filesText": "Old downloads, huge files, duplicates and forgotten installers.",
+    "filesButton": "Check files",
+    "leftovers": "Leftovers",
+    "leftoversText": "Folders left behind by programs you already uninstalled.",
+    "leftoversButton": "Clean up",
+    "map": "Space map",
+    "mapText": "See at a glance what takes up the most space.",
+    "mapButton": "Open map",
+    "quarantineTip": "Nothing is deleted right away: everything goes to <b>Quarantine</b> for {days} days and you can restore it with one click.",
+    "used": "Used"
+  },
+  "apps": {
+    "title": "Apps",
+    "summary": "{count} apps installed · {size}",
+    "search": "Search for an app… (e.g. Spotify)",
+    "filterAll": "All",
+    "filterUnused": "Not used in 6 months",
+    "filterPreinstalled": "Preinstalled",
+    "filterRecent": "Recently installed",
+    "filterStore": "Microsoft Store",
+    "lastUsed": "used {when}",
+    "neverUsed": "Never used",
+    "bloatware": "Bloatware",
+    "selected": "{count} selected",
+    "willFree": "you will free about {size} (app + leftovers)",
+    "uninstallSelected": "Uninstall selected",
+    "empty": "No apps match your search."
+  },
+  "files": {
+    "title": "Files",
+    "subtitle": "Files you may not need anymore, grouped. The colors tell you how safe it is to remove them.",
+    "safeSection": "Safe to remove",
+    "checkSection": "Worth a look",
+    "selected": "Selected {size}",
+    "details": "Details",
+    "size": "Size",
+    "modified": "Last modified",
+    "pickGroup": "Select a group to see what is inside."
+  },
+  "leftovers": {
+    "title": "Leftovers",
+    "subtitle": "Folders and registry entries left by programs that are no longer installed."
+  },
+  "map": {
+    "title": "Space map",
+    "subtitle": "Each block is as big as the space it uses.",
+    "onlyApps": "Apps only",
+    "onlyFiles": "Files only",
+    "everything": "Everything"
+  },
+  "quarantine": {
+    "title": "Quarantine",
+    "subtitle": "Removed items are kept here for {days} days, then deleted for good.",
+    "removedOn": "removed {when}",
+    "expires": "deleted in {days} days"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "quarantineDays": "Keep removed items for",
+    "days": "{days} days",
+    "restorePoint": "Create a restore point before uninstalling",
+    "about": "Easy Uninstaller {version}"
+  },
+  "categories": {
+    "apps": "Apps",
+    "games": "Games",
+    "personal": "Personal files",
+    "system": "Windows",
+    "reclaimable": "Reclaimable"
+  }
+}

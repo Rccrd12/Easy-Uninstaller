@@ -1,0 +1,65 @@
+/* Design tokens. Every color and radius used by the UI lives here, so a dark
+   theme can later be added by redefining these variables only. */
+:root {
+  --font: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --bg: #f6f7f9;
+  --bg-nav: #eef1f5;
+  --surface: #ffffff;
+  --border: #e3e5e8;
+  --border-strong: #d1d1d1;
+  --text: #1b1b1b;
+  --text-muted: #5f6368;
+  --accent: #0f6cbd;
+  --accent-soft: #e8f1fb;
+  --danger: #c42b1c;
+
+  --safe-bg: #dff6dd;   --safe-fg: #0e700e;
+  --check-bg: #fff4ce;  --check-fg: #835b00;
+  --keep-bg: #fde7e9;   --keep-fg: #a4262c;
+
+  --cat-apps: #0f6cbd;
+  --cat-games: #8764b8;
+  --cat-personal: #498205;
+  --cat-system: #8a8f98;
+  --cat-reclaimable: #ca5010;
+
+  --radius-sm: 6px;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #app { height: 100%; }
+body {
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+h1 { font-size: 24px; font-weight: 600; }
+button { font-family: inherit; font-size: 13px; cursor: pointer; }
+input { font-family: inherit; }
+
+.muted { color: var(--text-muted); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+
+.btn { border: none; border-radius: var(--radius-sm); padding: 8px 16px; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-ghost { background: var(--surface); border: 1px solid var(--border-strong); color: var(--text); }
+.btn:hover { filter: brightness(0.96); }
+.btn:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+.tag-safe { background: var(--safe-bg); color: var(--safe-fg); }
+.tag-check { background: var(--check-bg); color: var(--check-fg); }
+.tag-keep { background: var(--keep-bg); color: var(--keep-fg); }
+.tag-info { background: var(--accent-soft); color: var(--accent); }
+
+.sample-banner {
+  font-size: 13px; padding: 8px 12px; border-radius: var(--radius-sm);
+  background: var(--check-bg); color: var(--check-fg); border: 1px solid #f1d675;
+  font-weight: 600; margin-bottom: 12px; display: block;
+}
