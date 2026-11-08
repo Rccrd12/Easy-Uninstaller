@@ -47,3 +47,13 @@ export function restoreSummary(r: RestoreReport): string[] {
   if (r.failedCount) lines.push(t("quarantine.restoreFailed", { count: fileCount(r.failedCount) }));
   return lines;
 }
+
+/** "1 item", "12 items": for quarantine entries that hold folders or registry keys. */
+export function itemCount(n: number): string {
+  return n === 1 ? t("common.itemsOne") : t("common.items", { count: n.toLocaleString(locale()) });
+}
+
+/** "1 leftover", "5 leftovers", in the chosen language. */
+export function leftoverCount(n: number): string {
+  return n === 1 ? t("leftovers.countOne") : t("leftovers.count", { count: n.toLocaleString(locale()) });
+}
