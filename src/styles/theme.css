@@ -1,21 +1,35 @@
-/* Design tokens. Every color and radius used by the UI lives here, so a dark
-   theme can later be added by redefining these variables only. */
+/* Design tokens. Every color and radius used by the UI lives here.
+   Light is the default; the dark theme redefines the same variables below.
+   `data-theme` on <html> is set by src/lib/theme.svelte.ts. */
 :root {
+  color-scheme: light;
   --font: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --bg: #f6f7f9;
   --bg-nav: #eef1f5;
   --surface: #ffffff;
+  --raised: #ffffff;
   --border: #e3e5e8;
   --border-strong: #d1d1d1;
   --text: #1b1b1b;
   --text-muted: #5f6368;
   --accent: #0f6cbd;
   --accent-soft: #e8f1fb;
+  --on-accent: #ffffff;
   --danger: #c42b1c;
+  --on-danger: #ffffff;
+  --track: #e6e8eb;
+  --hover: rgba(0, 0, 0, 0.04);
+  --hover-brightness: 0.96;
 
   --safe-bg: #dff6dd;   --safe-fg: #0e700e;
-  --check-bg: #fff4ce;  --check-fg: #835b00;
+  --check-bg: #fff4ce;  --check-fg: #835b00;  --check-border: #f1d675;
   --keep-bg: #fde7e9;   --keep-fg: #a4262c;
+  --tip-bg: #f3eefc;    --tip-border: #e3d8f7;
+
+  --tint-apps: #e8f1fb;
+  --tint-files: #fff4ce;
+  --tint-leftovers: #fdeee4;
+  --tint-map: #f0f1f3;
 
   --cat-apps: #0f6cbd;
   --cat-games: #8764b8;
@@ -26,6 +40,46 @@
   --radius-sm: 6px;
   --radius: 10px;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-up: 0 -4px 12px rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1f2023;
+  --bg-nav: #18191b;
+  --surface: #2b2c30;
+  --raised: #474950;
+  --border: #393a3f;
+  --border-strong: #4b4d53;
+  --text: #f1f1f2;
+  --text-muted: #a7aab0;
+  --accent: #62aef0;
+  --accent-soft: #1e3550;
+  --on-accent: #0a1a2b;
+  --danger: #e5534b;
+  --on-danger: #1f0a08;
+  --track: #3a3c42;
+  --hover: rgba(255, 255, 255, 0.06);
+  --hover-brightness: 1.1;
+
+  --safe-bg: #1d3a1f;   --safe-fg: #8fdc8a;
+  --check-bg: #3b3115;  --check-fg: #f3cd5a;  --check-border: #6a5619;
+  --keep-bg: #45222a;   --keep-fg: #ff9ca3;
+  --tip-bg: #2c2640;    --tip-border: #40365e;
+
+  --tint-apps: #1e3550;
+  --tint-files: #3b3115;
+  --tint-leftovers: #43291c;
+  --tint-map: #34363b;
+
+  --cat-apps: #2b7fd0;
+  --cat-games: #8f6fc4;
+  --cat-personal: #4f8a12;
+  --cat-system: #6c717a;
+  --cat-reclaimable: #d4621f;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-up: 0 -4px 12px rgba(0, 0, 0, 0.35);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -39,17 +93,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 h1 { font-size: 24px; font-weight: 600; }
-button { font-family: inherit; font-size: 13px; cursor: pointer; }
-input { font-family: inherit; }
+button { font-family: inherit; font-size: 13px; cursor: pointer; color: var(--text); }
+input, select { font-family: inherit; color: var(--text); }
+select { background: var(--surface); }
 
 .muted { color: var(--text-muted); }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 
 .btn { border: none; border-radius: var(--radius-sm); padding: 8px 16px; }
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-danger { background: var(--danger); color: #fff; }
+.btn-primary { background: var(--accent); color: var(--on-accent); }
+.btn-danger { background: var(--danger); color: var(--on-danger); }
 .btn-ghost { background: var(--surface); border: 1px solid var(--border-strong); color: var(--text); }
-.btn:hover { filter: brightness(0.96); }
+.btn:hover { filter: brightness(var(--hover-brightness)); }
 .btn:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
@@ -60,6 +115,6 @@ input { font-family: inherit; }
 
 .sample-banner {
   font-size: 13px; padding: 8px 12px; border-radius: var(--radius-sm);
-  background: var(--check-bg); color: var(--check-fg); border: 1px solid #f1d675;
+  background: var(--check-bg); color: var(--check-fg); border: 1px solid var(--check-border);
   font-weight: 600; margin-bottom: 12px; display: block;
 }
