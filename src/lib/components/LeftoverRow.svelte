@@ -3,18 +3,19 @@
   import { t } from "../i18n/index.svelte";
   import type { LeftoverItem } from "../types";
 
-  let { item, checked, onToggle }: { item: LeftoverItem; checked: boolean; onToggle: () => void } = $props();
+  /** Without `onToggle` the row only shows the item, with no checkbox. */
+  let { item, checked = false, onToggle }: { item: LeftoverItem; checked?: boolean; onToggle?: () => void } = $props();
 
   const icons: Record<LeftoverItem["kind"], string> = { folder: "📂", registry: "🔑", shortcut: "🔗" };
 </script>
 
-<label class="row" class:on={checked} title={item.path}>
-  <input type="checkbox" {checked} onchange={onToggle} />
+<label class="row" class:on={checked} class:readonly={!onToggle} title={item.path}>
+  {#if onToggle}<input type="checkbox" {checked} onchange={onToggle} />{/if}
   <span class="kind" aria-hidden="true">{icons[item.kind]}</span>
   <span class="info">
     <span class="reason">
       {t(`leftovers.reasons.${item.reason}`)}
-      {#if item.safety === "check"}<span class="tag tag-check">{t("common.check")}</span>{/if}
+      {#if item.safety === "check" && !item.unowned}<span class="tag tag-check">{t("common.check")}</span>{/if}
       {#if item.needsAdmin}<span class="shield" title={t("common.needsAdmin")} aria-label={t("common.needsAdmin")}>🛡️</span>{/if}
     </span>
     <span class="muted path">{item.path}</span>
@@ -24,6 +25,7 @@
 
 <style>
   .row { display: flex; align-items: center; gap: 11px; padding: 9px 4px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .row.readonly { cursor: default; }
   .row:last-child { border-bottom: none; }
   .row input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
   .kind { font-size: 18px; flex: none; }

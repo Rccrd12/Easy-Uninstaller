@@ -40,6 +40,15 @@ export function relativeTime(unixSecs: number, nowMs: number = Date.now()): stri
   return rtf.format(Math.round(diff / 86400), "day");
 }
 
+/** "3 months ago", "2 years ago": for things left untouched a long time. */
+export function longAgo(unixSecs: number, nowMs: number = Date.now()): string {
+  const rtf = new Intl.RelativeTimeFormat(locale(), { numeric: "auto" });
+  const days = (unixSecs - nowMs / 1000) / 86400;
+  if (Math.abs(days) >= 365) return rtf.format(Math.round(days / 365), "year");
+  if (Math.abs(days) >= 30) return rtf.format(Math.round(days / 30), "month");
+  return rtf.format(Math.round(days), "day");
+}
+
 /** What happened when files were put back, one sentence per case that applies. */
 export function restoreSummary(r: RestoreReport): string[] {
   const lines = [t("quarantine.restored", { count: fileCount(r.restoredCount) })];

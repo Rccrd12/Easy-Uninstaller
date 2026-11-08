@@ -1,8 +1,9 @@
 <script lang="ts">
+  import StatusIcon from "../components/StatusIcon.svelte";
   import LeftoverRow from "../components/LeftoverRow.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
   import { listLeftovers, QUARANTINE_DAYS, quarantineLeftovers, restoreQuarantine, usesSampleData } from "../api";
-  import { formatBytes, leftoverCount, restoreSummary } from "../format";
+  import { formatBytes, leftoverCount, longAgo, restoreSummary } from "../format";
   import { t } from "../i18n/index.svelte";
   import type { LeftoverItem, MoveReport } from "../types";
 
@@ -23,7 +24,7 @@
       .then((l) => {
         items = l;
         // Safe ones are ticked; the user's own app settings are left for them to decide.
-        picked = new Set(l.filter((i) => i.safety === "safe").map((i) => i.id));
+        picked = new Set(l.filter(preselected).map((i) => i.id));
       })
       .catch((e) => (error = String(e)))
       .finally(() => (loading = false));
@@ -31,22 +32,38 @@
 
   $effect(() => load());
 
-  /** Broken shortcuts and broken app-list entries get a group each; the rest are grouped by app. */
-  const groups = $derived.by(() => {
-    const out = new Map<string, { title: string; items: LeftoverItem[] }>();
-    for (const item of items) {
-      const special = item.reason === "brokenShortcut" || item.reason === "brokenEntry";
+  type Group = { key: string; title: string; items: LeftoverItem[]; size: number; modifiedAt: number | null };
+
+  /**
+   * Broken shortcuts and broken app-list entries get a group each; the rest are grouped
+   * by app. Folders no installed app owns (`unowned`) are grouped by name, apart.
+   */
+  function grouped(list: LeftoverItem[]): Group[] {
+    const out = new Map<string, Group>();
+    for (const item of list) {
+      const special = !item.unowned && (item.reason === "brokenShortcut" || item.reason === "brokenEntry");
       const key = special ? `#${item.reason}` : (item.appName ?? "");
       const title = special
         ? t(`leftovers.groups.${item.reason}`)
-        : item.appName
-          ? t("leftovers.from", { app: item.appName })
-          : t("leftovers.title");
-      if (!out.has(key)) out.set(key, { title, items: [] });
-      out.get(key)!.items.push(item);
+        : item.unowned
+          ? (item.appName ?? t("leftovers.title"))
+          : item.appName
+            ? t("leftovers.from", { app: item.appName })
+            : t("leftovers.title");
+      if (!out.has(key)) out.set(key, { key, title, items: [], size: 0, modifiedAt: null });
+      const g = out.get(key)!;
+      g.items.push(item);
+      g.size += item.sizeBytes;
+      if (item.modifiedAt !== null) g.modifiedAt = Math.max(g.modifiedAt ?? 0, item.modifiedAt);
     }
-    return [...out.values()].map((g) => ({ ...g, size: g.items.reduce((s, i) => s + i.sizeBytes, 0) }));
-  });
+    return [...out.values()];
+  }
+
+  const groups = $derived(grouped(items.filter((i) => !i.unowned)));
+  const maybeGroups = $derived(grouped(items.filter((i) => i.unowned)));
+
+  /** Ticked at first: only what surely belonged to an uninstalled app and is safe. */
+  const preselected = (i: LeftoverItem) => i.safety === "safe" && !i.unowned;
 
   const pickedItems = $derived(items.filter((i) => picked.has(i.id)));
   const pickedBytes = $derived(pickedItems.reduce((s, i) => s + i.sizeBytes, 0));
@@ -95,7 +112,7 @@
     listLeftovers().then(
       (l) => {
         items = l;
-        picked = new Set(l.filter((i) => before.has(i.id) || i.safety === "safe").map((i) => i.id));
+        picked = new Set(l.filter((i) => before.has(i.id) || preselected(i)).map((i) => i.id));
       },
       () => {},
     );
@@ -156,13 +173,14 @@
     </div>
   </div>
 {:else}
-  {#each groups as group (group.title)}
+  {#snippet groupCard(group: Group)}
     {@const all = group.items.every((i) => picked.has(i.id))}
     <div class="card group">
       <div class="group-head">
         <input type="checkbox" checked={all} indeterminate={!all && group.items.some((i) => picked.has(i.id))} onchange={() => toggleGroup(group.items)} aria-label={group.title} />
         <b>{group.title}</b>
         <span class="muted">· {leftoverCount(group.items.length)}</span>
+        {#if group.modifiedAt}<span class="muted">· {t("leftovers.lastChange", { when: longAgo(group.modifiedAt) })}</span>{/if}
         <span class="grow"></span>
         <span class="group-size" class:muted={!group.size}>{group.size ? formatBytes(group.size) : "—"}</span>
       </div>
@@ -170,7 +188,19 @@
         <LeftoverRow {item} checked={picked.has(item.id)} onToggle={() => toggle(item.id)} />
       {/each}
     </div>
+  {/snippet}
+  {#each groups as group (group.key)}
+    {@render groupCard(group)}
   {/each}
+  {#if maybeGroups.length}
+    <div class="maybe">
+      <h2>{t("leftovers.maybeTitle")} <span class="tag tag-check">{t("common.check")}</span></h2>
+      <p class="muted">{t("leftovers.maybeText")}</p>
+    </div>
+    {#each maybeGroups as group (group.key)}
+      {@render groupCard(group)}
+    {/each}
+  {/if}
   <div class="footer">
     <b>{t("leftovers.selected", { size: formatBytes(pickedBytes) })}</b>
     {#if pickedAdmin}<span class="muted small">· 🛡️ {t("uninstall.adminLeftovers", { count: leftoverCount(pickedAdmin) })}</span>{/if}
@@ -184,7 +214,7 @@
 {#if notice}
   {@const n = notice}
   <div class="card toast" class:error={n.kind === "error"} role="status" aria-live="polite">
-    <span class="toast-icon" aria-hidden="true">{n.kind === "error" ? "⚠️" : "✅"}</span>
+    <StatusIcon kind={n.kind === "error" ? "warn" : "ok"} />
     <div class="toast-text">
       {#each n.kind === "moved" ? movedLines(n.report) : n.lines as line, i (i)}<p>{line}</p>{/each}
     </div>
@@ -204,6 +234,9 @@
   .group { padding: 6px 14px 4px; margin-bottom: 10px; }
   .group-head { display: flex; align-items: center; gap: 8px; padding: 8px 4px; border-bottom: 1px solid var(--border); font-size: 14px; }
   .group-head input { width: 18px; height: 18px; accent-color: var(--accent); margin-right: 3px; }
+  .maybe { margin: 20px 0 10px; }
+  .maybe h2 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+  .maybe p { font-size: 13px; line-height: 1.45; max-width: 760px; }
   .group-size { font-weight: 600; font-size: 13.5px; }
   .small { font-size: 12px; }
   .footer { position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 12px 0; background: var(--bg); }
@@ -217,7 +250,6 @@
 
   .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
   .toast.error { border-left-color: var(--danger); }
-  .toast-icon { font-size: 18px; }
   .toast-text { flex: 1; font-size: 13px; line-height: 1.4; }
   .toast-text p + p { color: var(--text-muted); margin-top: 2px; }
   .toast .btn { flex: none; }
