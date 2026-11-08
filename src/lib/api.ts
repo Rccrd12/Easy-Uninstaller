@@ -102,7 +102,7 @@ function scanFilesNative(notify: (p: ScanProgress) => void): Promise<FileGroup[]
 
 /** Browser fallback: plays the scan steps quickly so the progress view can be designed. */
 async function sampleScan(notify: (p: ScanProgress) => void): Promise<FileGroup[]> {
-  const steps = ["caches", "downloads", "personal", "duplicates"] as const;
+  const steps = ["caches", "downloads", "personal", "duplicates", "appFolders"] as const;
   for (const [i, step] of steps.entries()) {
     for (let n = 0; n < 4; n++) {
       notify({ step, stepIndex: i + 1, stepCount: steps.length, filesChecked: n * 1250 });

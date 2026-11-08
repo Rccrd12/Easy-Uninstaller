@@ -3,6 +3,7 @@
 
 mod apps;
 mod disk;
+mod explain;
 mod files;
 mod quarantine;
 mod restore_point;
