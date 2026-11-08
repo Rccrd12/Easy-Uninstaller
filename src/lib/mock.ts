@@ -1,7 +1,7 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { FileGroup, InstalledApp, LeftoverItem, QuarantineItem, SpaceBlock } from "./types";
+import type { FileGroup, FileItem, InstalledApp, LeftoverItem, QuarantineItem, SpaceBlock } from "./types";
 
 export const sampleApps: InstalledApp[] = [
   { id: "photoshop", name: "Adobe Photoshop 2025", publisher: "Adobe", sizeBytes: 6.8 * GB, source: "win32", installedOn: "2025-01-14", lastUsed: "3 months ago", preinstalled: false, bloatware: false, iconColor: "#e3008c" },
@@ -12,12 +12,43 @@ export const sampleApps: InstalledApp[] = [
   { id: "vlc", name: "VLC media player", publisher: "VideoLAN", sizeBytes: 160 * MB, source: "win32", installedOn: "2023-11-10", lastUsed: "1 month ago", preinstalled: false, bloatware: false, iconColor: "#f18a00" },
 ];
 
+const U = "C:\\Users\\you";
+const fileGroup = (id: string, key: string, safety: FileGroup["safety"], itemCount: number, items: FileItem[]): FileGroup => ({
+  id,
+  titleKey: `files.groups.${key}.title`,
+  descriptionKey: `files.groups.${key}.description`,
+  safety,
+  sizeBytes: items.reduce((s, i) => s + i.sizeBytes, 0),
+  itemCount,
+  items,
+});
+const item = (path: string, sizeBytes: number, lastUsed: string | null = null, duplicateOf: string | null = null): FileItem => ({ path, sizeBytes, lastUsed, duplicateOf });
+
 export const sampleFileGroups: FileGroup[] = [
-  { id: "temp", title: "Temporary files and caches", description: "Windows and your browsers recreate them on their own", safety: "safe", sizeBytes: 3.1 * GB, itemCount: 4821 },
-  { id: "installers", title: "Installers already used", description: ".exe/.msi files of programs already installed", safety: "safe", sizeBytes: 2.7 * GB, itemCount: 14 },
-  { id: "old-downloads", title: "Old downloads", description: "Not opened in over a year", safety: "check", sizeBytes: 4.2 * GB, itemCount: 212 },
-  { id: "duplicates", title: "Duplicates", description: "Identical copies: the original is always kept", safety: "check", sizeBytes: 1.3 * GB, itemCount: 38 },
-  { id: "unknown", title: "Unknown folders", description: "Large folders not linked to any installed app", safety: "check", sizeBytes: 3.8 * GB, itemCount: 3 },
+  fileGroup("temp", "temp", "safe", 4821, [
+    item(`${U}\\AppData\\Local\\Temp`, 1.6 * GB),
+    item(`${U}\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache`, 820 * MB),
+    item("C:\\Windows\\Temp", 410 * MB),
+    item(`${U}\\AppData\\Local\\NVIDIA\\DXCache`, 270 * MB),
+  ]),
+  fileGroup("installers", "installers", "safe", 3, [
+    item(`${U}\\Downloads\\Adobe_Photoshop_2025_Set-Up.exe`, 1.9 * GB, "2025-01-14"),
+    item(`${U}\\Downloads\\SpotifyFullSetup.exe`, 610 * MB, "2024-06-02"),
+    item(`${U}\\Downloads\\vlc-3.0.20-win64.exe`, 42 * MB, "2023-11-10"),
+  ]),
+  fileGroup("old-downloads", "oldDownloads", "check", 212, [
+    item(`${U}\\Downloads\\Wedding video raw.mp4`, 2.4 * GB, "2023-05-20"),
+    item(`${U}\\Downloads\\ubuntu-22.04-desktop-amd64.iso`, 1.2 * GB, "2023-02-11"),
+    item(`${U}\\Downloads\\Tax return 2022.pdf`, 3 * MB, "2023-04-30"),
+  ]),
+  fileGroup("duplicates", "duplicates", "check", 38, [
+    item(`${U}\\Desktop\\Holidays\\VID_20240802.mp4`, 920 * MB, "2024-09-02", `${U}\\Pictures\\Holidays 2024\\VID_20240802.mp4`),
+    item(`${U}\\Desktop\\presentation-final.pptx`, 210 * MB, "2025-03-12", `${U}\\Documents\\presentation-final.pptx`),
+  ]),
+  fileGroup("large-files", "largeFiles", "check", 2, [
+    item(`${U}\\Videos\\Game capture 2025-02-03.mp4`, 5.6 * GB, "2025-02-03"),
+    item(`${U}\\Documents\\VirtualBox VMs\\Windows 10.vdi`, 3.9 * GB, "2024-12-01"),
+  ]),
 ];
 
 export const sampleLeftovers: LeftoverItem[] = [

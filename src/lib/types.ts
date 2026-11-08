@@ -27,13 +27,36 @@ export interface InstalledApp {
 /** How safe it is to remove something. */
 export type Safety = "safe" | "check" | "personal";
 
+export interface FileItem {
+  path: string;
+  sizeBytes: number;
+  /** Last time the file was opened or changed, "YYYY-MM-DD"; null for folders. */
+  lastUsed: string | null;
+  /** For duplicates: the copy that is kept. */
+  duplicateOf: string | null;
+}
+
 export interface FileGroup {
   id: string;
-  title: string;
-  description: string;
+  /** i18n keys, translated by the UI. */
+  titleKey: string;
+  descriptionKey: string;
   safety: Safety;
   sizeBytes: number;
+  /** Number of files in the group. */
   itemCount: number;
+  /** Largest first, at most 200. Temp files are listed one folder per item. */
+  items: FileItem[];
+}
+
+export type ScanStep = "caches" | "downloads" | "personal" | "duplicates";
+
+export interface ScanProgress {
+  step: ScanStep;
+  /** 1-based. */
+  stepIndex: number;
+  stepCount: number;
+  filesChecked: number;
 }
 
 export interface LeftoverItem {

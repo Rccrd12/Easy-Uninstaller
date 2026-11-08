@@ -66,8 +66,50 @@
     "selected": "Selected {size}",
     "details": "Details",
     "size": "Size",
-    "modified": "Last modified",
-    "pickGroup": "Select a group to see what is inside."
+    "files": "Files",
+    "pickGroup": "Select a group to see what is inside.",
+    "groups": {
+      "temp": {
+        "title": "Temporary files and caches",
+        "description": "Windows, your browsers and apps recreate them on their own"
+      },
+      "installers": {
+        "title": "Installers already used",
+        "description": "Setup files in Downloads for programs you already installed"
+      },
+      "oldDownloads": {
+        "title": "Old downloads",
+        "description": "In your Downloads folder, not opened in over a year"
+      },
+      "duplicates": {
+        "title": "Duplicates",
+        "description": "Identical copies: the oldest one is always kept"
+      },
+      "largeFiles": {
+        "title": "Large files",
+        "description": "Files of 1 GB or more in your folders"
+      }
+    },
+    "scanning": "Looking for files you can remove…",
+    "scanNote": "We only look: nothing is changed or deleted.",
+    "steps": {
+      "caches": "Temporary files and caches",
+      "downloads": "Your Downloads folder",
+      "personal": "Your folders",
+      "duplicates": "Comparing files to find duplicates"
+    },
+    "stepOf": "Step {n} of {total}",
+    "checked": "{count} files checked",
+    "fileCount": "{count} files",
+    "fileCountOne": "1 file",
+    "largest": "Largest items",
+    "more": "and {count} more",
+    "copyOf": "Copy of {path}",
+    "lastUsed": "last used {date}",
+    "empty": "Nothing to clean up here: your files look tidy.",
+    "rescan": "Scan again",
+    "failed": "The scan could not finish: {error}",
+    "retry": "Try again"
   },
   "leftovers": {
     "title": "Leftovers",
