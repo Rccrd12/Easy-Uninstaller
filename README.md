@@ -32,9 +32,9 @@ without a way back.
 |---|---|---|
 | ![](docs/screenshots/home-dark.png) | ![](docs/screenshots/map-dark.png) | ![](docs/screenshots/settings-dark.png) |
 
-| Uninstall: leftovers found | Uninstall: done | Leftovers |
+| Uninstall: one click | Uninstall: done | Leftovers |
 |---|---|---|
-| ![](docs/screenshots/uninstall-leftovers.png) | ![](docs/screenshots/uninstall-done.png) | ![](docs/screenshots/leftovers.png) |
+| ![](docs/screenshots/uninstall-confirm.png) | ![](docs/screenshots/uninstall-done.png) | ![](docs/screenshots/leftovers.png) |
 
 The original design mockups are in [`docs/design`](docs/design).
 
@@ -44,8 +44,10 @@ The original design mockups are in [`docs/design`](docs/design).
 2. ✅ Installed apps: read Win32/MSI programs from the registry and Store apps (read only)
 3. ✅ File scan: temp files, caches, used installers, old downloads, duplicates, large files (read only)
 4. ✅ Quarantine and restore: files are moved, kept 7 days, restorable with one click; Windows restore points
-5. ✅ Uninstall + leftovers cleanup: the app's own uninstaller (MSI quietly), Store apps via
-   PackageManager, then leftover folders, registry keys and shortcuts moved to quarantine
+5. ✅ One-click uninstall: quiet when the installer allows it (MSI, Inno Setup, NSIS, Squirrel,
+   WiX bundles), else the app's own uninstaller; Store apps via PackageManager. Then the safe
+   leftover folders, registry keys and shortcuts go to quarantine on their own; personal
+   settings stay
 6. ✅ Space map with real data: apps, profile folders, app data, caches and Recycle Bin (read only)
 
 ## Development

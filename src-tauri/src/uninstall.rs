@@ -1,9 +1,11 @@
-//! Uninstalling apps.
+//! Uninstalling apps, without questions whenever possible.
 //!
-//! - Classic programs: their own uninstaller is run, exactly as "Apps and features"
-//!   would run it (`UninstallString`). Windows Installer (MSI) programs are removed
-//!   with `msiexec /x {code} /passive /norestart`: a progress bar, no questions, and
-//!   never a restart. Programs installed for all users are started as administrator.
+//! - Classic programs are removed quietly when the way is known: the program's own
+//!   `QuietUninstallString`, Windows Installer (MSI) with `msiexec /x {code} /passive
+//!   /norestart` (a progress bar, never a restart), and the silent switches of the
+//!   common installer makers (Inno Setup, NSIS, Squirrel, WiX bundles). Otherwise, or
+//!   when the quiet run fails, the app's own uninstaller opens as in "Apps and
+//!   features". Programs installed for all users are started as administrator.
 //! - Microsoft Store apps: removed by the Windows PackageManager.
 //!
 //! Before an uninstaller runs, what is needed to find its leftovers later (name,
@@ -97,22 +99,131 @@ fn msi_product_code(s: &str) -> Option<String> {
     ok.then(|| code.to_string())
 }
 
-/// What to run to uninstall a program, and whether it is an MSI removal.
-pub fn uninstall_command(
+/// How to uninstall a program: quietly when possible, else with its own window.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Plan {
+    /// Runs without questions; tried first.
+    pub quiet: Option<Command>,
+    /// The program's own uninstaller, as "Apps and features" runs it.
+    pub normal: Command,
+    /// Windows Installer: `normal` is already quiet and there is nothing else to try.
+    pub msi: bool,
+}
+
+/// Installer makers whose uninstallers have known silent switches.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Maker {
+    Nsis,
+    Other,
+}
+
+/// Whether a command line already has one of `switches` (any case).
+fn has_switch(params: &str, switches: &[&str]) -> bool {
+    params
+        .split_whitespace()
+        .any(|w| switches.iter().any(|s| w.eq_ignore_ascii_case(s)))
+}
+
+fn file_name(file: &str) -> String {
+    file.rsplit(['\\', '/'])
+        .next()
+        .unwrap_or(file)
+        .to_ascii_lowercase()
+}
+
+/// The silent version of a known uninstaller, or `None`.
+fn quiet_version(raw: &RawEntry, cmd: &Command, maker: &dyn Fn(&Path) -> Maker) -> Option<Command> {
+    let name = file_name(&cmd.file);
+    let with = |extra: &str| Command {
+        file: cmd.file.clone(),
+        params: format!("{} {extra}", cmd.params).trim().to_string(),
+    };
+    // Inno Setup: unins000.exe, registry key "<AppId>_is1".
+    let inno = raw.key_name.to_ascii_lowercase().ends_with("_is1")
+        || (name.starts_with("unins")
+            && name.len() == 12
+            && name[5..8].bytes().all(|b| b.is_ascii_digit()));
+    if inno {
+        if has_switch(&cmd.params, &["/VERYSILENT", "/SILENT"]) {
+            return Some(cmd.clone());
+        }
+        return Some(with("/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"));
+    }
+    // Squirrel (Discord, Teams classic, ...): Update.exe --uninstall.
+    if name == "update.exe" && has_switch(&cmd.params, &["--uninstall"]) {
+        if has_switch(&cmd.params, &["-s", "--silent"]) {
+            return Some(cmd.clone());
+        }
+        return Some(with("-s"));
+    }
+    // WiX bundles: cached setup.exe /uninstall.
+    if cmd.file.to_ascii_lowercase().contains("\\package cache\\")
+        && has_switch(&cmd.params, &["/uninstall"])
+    {
+        return Some(with("/quiet /norestart"));
+    }
+    // NSIS: /S, and _?= so that it runs in place and we can wait for it (otherwise
+    // it copies itself to a temporary folder and returns at once).
+    if maker(Path::new(&cmd.file)) == Maker::Nsis {
+        let dir = cmd.file.rsplit_once(['\\', '/'])?.0;
+        if cmd.params.contains("_?=") {
+            return None;
+        }
+        let silent = if has_switch(&cmd.params, &["/S"]) {
+            ""
+        } else {
+            "/S "
+        };
+        return Some(with(&format!("{silent}_?={dir}")));
+    }
+    None
+}
+
+/// How to uninstall a program. `exists` tells whether a file exists, `maker` which
+/// installer maker built a file.
+pub fn uninstall_plan(
     raw: &RawEntry,
     exists: &dyn Fn(&Path) -> bool,
-) -> Option<(Command, bool)> {
+    maker: &dyn Fn(&Path) -> Maker,
+) -> Option<Plan> {
     let s = raw.uninstall_string.as_deref()?.trim();
     if raw.windows_installer == Some(1) || s.to_ascii_lowercase().contains("msiexec") {
         if let Some(code) = msi_product_code(s).or_else(|| msi_product_code(&raw.key_name)) {
-            let cmd = Command {
+            let normal = Command {
                 file: "msiexec.exe".into(),
                 params: format!("/x {code} /passive /norestart"),
             };
-            return Some((cmd, true));
+            return Some(Plan {
+                quiet: None,
+                normal,
+                msi: true,
+            });
         }
     }
-    split_command(s, exists).map(|c| (c, false))
+    let normal = split_command(s, exists)?;
+    let quiet = raw
+        .quiet_uninstall_string
+        .as_deref()
+        .and_then(|q| split_command(q, exists))
+        .or_else(|| quiet_version(raw, &normal, maker));
+    Some(Plan {
+        quiet,
+        normal,
+        msi: false,
+    })
+}
+
+/// Which installer maker built `file`: NSIS programs carry its name in their manifest.
+pub fn maker_of(file: &Path) -> Maker {
+    use std::io::Read;
+    const HEAD: u64 = 1 << 20;
+    let mut head = Vec::new();
+    let read = std::fs::File::open(file).and_then(|f| f.take(HEAD).read_to_end(&mut head));
+    if read.is_ok() && head.windows(8).any(|w| w == b"Nullsoft") {
+        Maker::Nsis
+    } else {
+        Maker::Other
+    }
 }
 
 /// The folder of the program in a command line or an icon location
@@ -237,7 +348,7 @@ fn uninstall(app: &AppHandle, id: &str) -> Result<UninstallOutcome, String> {
         AppId::Registry(key) => key,
     };
     let raw = registry::read_raw(key).ok_or("notInstalled")?;
-    let (cmd, msi) = uninstall_command(&raw, &|p| p.is_file()).ok_or("noUninstaller")?;
+    let plan = uninstall_plan(&raw, &|p| p.is_file(), &maker_of).ok_or("noUninstaller")?;
     let hints = hints_from(&raw);
     if is_self(&hints) {
         return Err("itself".into());
@@ -245,25 +356,48 @@ fn uninstall(app: &AppHandle, id: &str) -> Result<UninstallOutcome, String> {
     app.state::<Pending>().set(id, hints);
 
     let admin = key.hive == Hive::Hklm;
-    let code = match elevated::shell_run(&cmd.file, &cmd.params, admin, elevated::main_window(app))
-    {
+    let window = elevated::main_window(app);
+    if let Some(quiet) = &plan.quiet {
+        let code = match elevated::shell_run(&quiet.file, &quiet.params, admin, window) {
+            Ok(code) => code,
+            Err(LaunchError::Declined) => return Ok(UninstallOutcome::Declined),
+            Err(LaunchError::Failed(_)) => None,
+        };
+        if gone_soon(key) {
+            return Ok(UninstallOutcome::Removed);
+        }
+        if code == Some(0) {
+            // Finished well but still listed: it may hand over to another process.
+            return Ok(UninstallOutcome::StillInstalled);
+        }
+        // The quiet run failed: open the app's own uninstaller instead.
+    }
+    let code = match elevated::shell_run(&plan.normal.file, &plan.normal.params, admin, window) {
         Ok(code) => code,
         Err(LaunchError::Declined) => return Ok(UninstallOutcome::Declined),
         Err(LaunchError::Failed(e)) => return Err(e),
     };
-    let start = Instant::now();
-    while start.elapsed() < SETTLE {
-        if !regkey::exists(key) {
-            return Ok(UninstallOutcome::Removed);
-        }
-        std::thread::sleep(Duration::from_millis(250));
+    if gone_soon(key) {
+        return Ok(UninstallOutcome::Removed);
     }
-    let cancelled = code == Some(ERROR_CANCELLED) || (msi && code == Some(MSI_USER_EXIT));
+    let cancelled = code == Some(ERROR_CANCELLED) || (plan.msi && code == Some(MSI_USER_EXIT));
     Ok(if cancelled {
         UninstallOutcome::Cancelled
     } else {
         UninstallOutcome::StillInstalled
     })
+}
+
+/// Waits a little for the app list entry to go.
+fn gone_soon(key: &RegKeyPath) -> bool {
+    let start = Instant::now();
+    while start.elapsed() < SETTLE {
+        if !regkey::exists(key) {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(250));
+    }
+    false
 }
 
 /// Whether the app is still in the app list (the UI asks while an uninstaller runs).
@@ -346,11 +480,12 @@ mod tests {
             windows_installer: Some(1),
             ..RawEntry::default()
         };
-        let (cmd, msi) = uninstall_command(&raw, &|_| false).unwrap();
-        assert!(msi);
-        assert_eq!(cmd.file, "msiexec.exe");
+        let plan = uninstall_plan(&raw, &|_| false, &|_| Maker::Other).unwrap();
+        assert!(plan.msi);
+        assert_eq!(plan.quiet, None);
+        assert_eq!(plan.normal.file, "msiexec.exe");
         assert_eq!(
-            cmd.params,
+            plan.normal.params,
             "/x {23170F69-40C1-2702-2201-000001000000} /passive /norestart"
         );
         assert_eq!(msi_product_code("{not-a-guid}"), None);
@@ -358,14 +493,118 @@ mod tests {
             msi_product_code("x{23170F69-40C1-2702-2201-00000100000}"),
             None
         );
+    }
 
-        let exe = RawEntry {
-            uninstall_string: Some(r#""C:\App\unins000.exe""#.into()),
+    fn quiet(key: &str, cmd: &str, quiet: Option<&str>, maker: Maker) -> Option<String> {
+        let raw = RawEntry {
+            key_name: key.into(),
+            uninstall_string: Some(cmd.into()),
+            quiet_uninstall_string: quiet.map(Into::into),
             ..RawEntry::default()
         };
-        let (cmd, msi) = uninstall_command(&exe, &|_| false).unwrap();
-        assert!(!msi);
-        assert_eq!(cmd.file, r"C:\App\unins000.exe");
+        let plan = uninstall_plan(&raw, &|_| false, &|_| maker).unwrap();
+        assert!(!plan.msi);
+        plan.quiet.map(|c| format!("{} | {}", c.file, c.params))
+    }
+
+    #[test]
+    fn quiet_uninstalls_for_known_installers() {
+        // The program's own quiet command wins.
+        assert_eq!(
+            quiet(
+                "App",
+                r#""C:\App\u.exe""#,
+                Some(r#""C:\App\u.exe" /quiet"#),
+                Maker::Other
+            ),
+            Some(r"C:\App\u.exe | /quiet".into())
+        );
+        // Inno Setup.
+        assert_eq!(
+            quiet(
+                "{X}_is1",
+                r#""C:\Program Files\Zoom\unins000.exe""#,
+                None,
+                Maker::Other
+            ),
+            Some(
+                r"C:\Program Files\Zoom\unins000.exe | /VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
+                    .into()
+            )
+        );
+        assert_eq!(
+            quiet(
+                "Zoom",
+                r#""C:\Zoom\unins001.exe" /SILENT"#,
+                None,
+                Maker::Other
+            ),
+            Some(r"C:\Zoom\unins001.exe | /SILENT".into())
+        );
+        // NSIS: runs in place so that it can be waited for.
+        assert_eq!(
+            quiet(
+                "VLC",
+                r#""C:\Program Files\VLC\uninstall.exe""#,
+                None,
+                Maker::Nsis
+            ),
+            Some(r"C:\Program Files\VLC\uninstall.exe | /S _?=C:\Program Files\VLC".into())
+        );
+        assert_eq!(
+            quiet("VLC", r#""C:\VLC\uninstall.exe" /S"#, None, Maker::Nsis),
+            Some(r"C:\VLC\uninstall.exe | /S _?=C:\VLC".into())
+        );
+        // Squirrel.
+        assert_eq!(
+            quiet(
+                "Discord",
+                r#""C:\Users\me\AppData\Local\Discord\Update.exe" --uninstall"#,
+                None,
+                Maker::Other
+            ),
+            Some(r"C:\Users\me\AppData\Local\Discord\Update.exe | --uninstall -s".into())
+        );
+        // WiX bundle.
+        assert_eq!(
+            quiet(
+                "{B}",
+                r#""C:\ProgramData\Package Cache\{B}\setup.exe" /uninstall"#,
+                None,
+                Maker::Other
+            ),
+            Some(
+                r"C:\ProgramData\Package Cache\{B}\setup.exe | /uninstall /quiet /norestart".into()
+            )
+        );
+        // Unknown (e.g. InstallShield scripts): only its own window.
+        assert_eq!(
+            quiet(
+                "{C}",
+                r#""C:\Program Files (x86)\InstallShield Installation Information\{C}\setup.exe" -runfromtemp -removeonly"#,
+                None,
+                Maker::Other
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn finds_nsis_programs() {
+        let dir = std::env::temp_dir().join(format!("eu-maker-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let nsis = dir.join("uninst.exe");
+        std::fs::write(
+            &nsis,
+            b"MZ....<description>Nullsoft Install System</description>",
+        )
+        .unwrap();
+        let other = dir.join("other.exe");
+        std::fs::write(&other, b"MZ....Inno").unwrap();
+        assert_eq!(maker_of(&nsis), Maker::Nsis);
+        assert_eq!(maker_of(&other), Maker::Other);
+        assert_eq!(maker_of(&dir.join("missing.exe")), Maker::Other);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
