@@ -45,7 +45,10 @@
     "used": "Used",
     "quickClean": "✨ Quick clean",
     "seeAll": "See everything",
-    "quickCleanHint": "Only what is safe, in one click."
+    "quickCleanHint": "Only what is safe, in one click.",
+    "calculating": "Calculating…",
+    "calculatingNote": "I'm looking at your files: it takes a minute or two.",
+    "appsInstalled": "{count} apps · {size}"
   },
   "apps": {
     "title": "Apps",

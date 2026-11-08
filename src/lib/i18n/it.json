@@ -45,7 +45,10 @@
     "quarantineTip": "File temporanei e cache vengono eliminati subito, perché le app li ricreano. Tutto il resto va in <b>Quarantena</b> per {days} giorni e puoi ripristinarlo con un clic.",
     "quickClean": "✨ Pulizia rapida",
     "seeAll": "Vedi tutto",
-    "quickCleanHint": "Solo le cose sicure, in un clic."
+    "quickCleanHint": "Solo le cose sicure, in un clic.",
+    "calculating": "Sto calcolando…",
+    "calculatingNote": "Sto guardando i tuoi file: ci vuole un minuto o due.",
+    "appsInstalled": "{count} app · {size}"
   },
   "apps": {
     "title": "App",
