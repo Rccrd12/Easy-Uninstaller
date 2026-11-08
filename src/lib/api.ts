@@ -19,9 +19,22 @@ export async function getSystemDisk(): Promise<DiskInfo> {
   return { mountPoint: "C:", totalBytes: 476 * GB, freeBytes: 64 * GB };
 }
 
-/** Sample until the registry + Store reader lands. */
-export async function listInstalledApps(): Promise<InstalledApp[]> {
-  return sampleApps;
+let appsCache: Promise<InstalledApp[]> | null = null;
+
+/**
+ * Real: implemented in src-tauri/src/apps.rs (registry + Microsoft Store).
+ * Reading sizes and icons takes a moment, so the result is kept until `refresh` is true.
+ */
+export function listInstalledApps(refresh = false): Promise<InstalledApp[]> {
+  if (!isTauri()) return Promise.resolve(sampleApps);
+  if (refresh || !appsCache) {
+    const pending = invoke<InstalledApp[]>("list_installed_apps");
+    pending.catch(() => {
+      if (appsCache === pending) appsCache = null;
+    });
+    appsCache = pending;
+  }
+  return appsCache;
 }
 
 // One file scan at a time: Home and Files share it, and the result is kept

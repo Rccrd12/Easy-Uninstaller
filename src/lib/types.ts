@@ -17,11 +17,16 @@ export interface InstalledApp {
   source: AppSource;
   /** ISO date, or null when Windows does not record it. */
   installedOn: string | null;
-  /** Human readable, approximate: Windows has no reliable "last used" value. */
+  /** Human readable, approximate. null when unknown: Windows has no reliable "last used" value. */
   lastUsed: string | null;
+  /** True only when we know the app was never opened. */
+  neverUsed: boolean;
   preinstalled: boolean;
   bloatware: boolean;
+  /** Background of the letter tile shown when there is no icon. */
   iconColor: string;
+  /** PNG data URL, or null to show the letter tile. */
+  icon: string | null;
 }
 
 /** How safe it is to remove something. */

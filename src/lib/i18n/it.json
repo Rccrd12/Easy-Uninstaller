@@ -56,7 +56,11 @@
     "selected": "{count} selezionate",
     "willFree": "libererai circa {size} (app + avanzi)",
     "uninstallSelected": "Disinstalla selezionate",
-    "empty": "Nessuna app corrisponde alla ricerca."
+    "empty": "Nessuna app corrisponde alla ricerca.",
+    "installedOn": "installata il {date}",
+    "loading": "Lettura delle app installate su questo PC…",
+    "error": "Impossibile leggere le app installate.",
+    "retry": "Riprova"
   },
   "files": {
     "title": "File",
