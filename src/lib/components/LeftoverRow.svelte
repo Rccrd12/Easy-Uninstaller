@@ -15,7 +15,7 @@
   <span class="info">
     <span class="reason">
       {t(`leftovers.reasons.${item.reason}`)}
-      {#if item.safety === "check"}<span class="tag tag-check">{t("common.check")}</span>{/if}
+      {#if item.safety === "check" && !item.unowned}<span class="tag tag-check">{t("common.check")}</span>{/if}
       {#if item.needsAdmin}<span class="shield" title={t("common.needsAdmin")} aria-label={t("common.needsAdmin")}>🛡️</span>{/if}
     </span>
     <span class="muted path">{item.path}</span>

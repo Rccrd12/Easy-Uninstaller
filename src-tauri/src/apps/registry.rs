@@ -153,9 +153,40 @@ pub fn uninstall_key(scope: &str, key_name: &str) -> Option<RegKeyPath> {
 pub fn list() -> Vec<Entry> {
     let entries = all_raw()
         .into_iter()
+        .filter(|(_, _, raw)| !launcher_gone(raw, &|p| p.exists()))
         .filter_map(|(scope, _, raw)| classify(scope, raw))
         .collect();
     dedup(entries)
+}
+
+/// True for a game or app of a launcher (Steam, Ubisoft Connect, Epic, ...) that
+/// the launcher already removed while leaving its entry in the app list. Such
+/// entries uninstall through a link like `steam://uninstall/359550`.
+/// - Steam: its library no longer has `appmanifest_<id>.acf`.
+/// - Others: the install folder is gone.
+pub fn launcher_gone(raw: &RawEntry, exists: &dyn Fn(&std::path::Path) -> bool) -> bool {
+    let launcher = raw
+        .uninstall_string
+        .as_deref()
+        .is_some_and(|s| s.contains("://"));
+    let location = raw
+        .install_location
+        .as_deref()
+        .map(|l| l.trim().trim_matches('"').trim_end_matches(['\\', '/']))
+        .unwrap_or("");
+    if !launcher || location.len() < 4 {
+        return false;
+    }
+    if let Some(id) = raw.key_name.strip_prefix("Steam App ") {
+        let lower = location.to_ascii_lowercase();
+        if let Some(i) = lower.find("\\steamapps\\common\\") {
+            if id.bytes().all(|b| b.is_ascii_digit()) && !id.is_empty() {
+                let manifest = format!("{}\\steamapps\\appmanifest_{id}.acf", &location[..i]);
+                return !exists(std::path::Path::new(&manifest));
+            }
+        }
+    }
+    !exists(std::path::Path::new(location))
 }
 
 /// Every program entry, hidden ones included, with its scope and key.
@@ -241,6 +272,41 @@ pub mod platform {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn launcher_entries_left_behind() {
+        let steam = RawEntry {
+            key_name: "Steam App 359550".into(),
+            uninstall_string: Some(
+                r#""C:\Program Files (x86)\Steam\steam.exe" steam://uninstall/359550"#.into(),
+            ),
+            install_location: Some(
+                r"D:\Games\SteamLibrary\steamapps\common\Rainbow Six Siege".into(),
+            ),
+            ..RawEntry::default()
+        };
+        let manifest = r"D:\Games\SteamLibrary\steamapps\appmanifest_359550.acf";
+        assert!(!launcher_gone(&steam, &|p| p.to_str() == Some(manifest)));
+        // Folder still there with a few files, but Steam dropped the game.
+        assert!(launcher_gone(&steam, &|p| p.to_str() != Some(manifest)));
+
+        let uplay = RawEntry {
+            key_name: "Uplay Install 635".into(),
+            uninstall_string: Some(r#""C:\Ubisoft\upc.exe" uplay://uninstall/635"#.into()),
+            install_location: Some(r"C:\Games\R6\".into()),
+            ..RawEntry::default()
+        };
+        assert!(launcher_gone(&uplay, &|_| false));
+        assert!(!launcher_gone(&uplay, &|_| true));
+
+        // Normal programs are never judged by their folder.
+        let normal = RawEntry {
+            uninstall_string: Some(r"C:\App\unins000.exe".into()),
+            install_location: Some(r"C:\App".into()),
+            ..RawEntry::default()
+        };
+        assert!(!launcher_gone(&normal, &|_| false));
+    }
 
     fn program(name: &str) -> RawEntry {
         RawEntry {

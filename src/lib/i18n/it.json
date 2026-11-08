@@ -267,11 +267,14 @@
     "searching": "Cerco gli avanzi…",
     "scanNote": "Guardiamo soltanto: non cambiamo né cancelliamo nulla.",
     "empty": "Nessun avanzo trovato: il tuo PC è in ordine.",
-    "historyNote": "Le app che disinstalli con Easy Uninstaller vengono ricordate, così quello che lasciano compare anche qui.",
+    "historyNote": "Cerco anche le cartelle lasciate da app disinstallate in passato, a mano o con altri programmi.",
     "rescan": "Cerca di nuovo",
     "failed": "La ricerca non è riuscita: {error}",
     "retry": "Riprova",
     "from": "Lasciati da {app}",
+    "maybeTitle": "Forse avanzi",
+    "maybeText": "Nessuna app installata usa queste cartelle e niente al loro interno è cambiato da almeno 6 mesi. Potrebbero comunque servire a qualcosa che usi: controlla prima di toglierle.",
+    "lastChange": "ultima modifica {when}",
     "groups": {
       "brokenShortcut": "Collegamenti che non portano a nulla",
       "brokenEntry": "Nell'elenco delle app, ma il programma non c'è più"

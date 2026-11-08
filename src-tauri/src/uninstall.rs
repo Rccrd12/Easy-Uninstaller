@@ -302,9 +302,16 @@ fn parse_id(id: &str) -> Option<AppId> {
     ok.then(|| AppId::Store(full.to_string()))
 }
 
+/// Whether a program is still installed: its entry is in the app list and, for
+/// launcher games, the launcher still has it.
+fn entry_present(key: &RegKeyPath) -> bool {
+    regkey::exists(key)
+        && !registry::read_raw(key).is_some_and(|r| registry::launcher_gone(&r, &|p| p.exists()))
+}
+
 fn installed(id: &AppId) -> bool {
     match id {
-        AppId::Registry(key) => regkey::exists(key),
+        AppId::Registry(key) => entry_present(key),
         AppId::Store(full) => apps::store_installed(full),
     }
 }
@@ -355,7 +362,12 @@ fn uninstall(app: &AppHandle, id: &str) -> Result<UninstallOutcome, String> {
     }
     app.state::<Pending>().set(id, hints);
 
-    let admin = key.hive == Hive::Hklm;
+    // Launchers (steam://uninstall/...) run as the user and ask for rights themselves.
+    let via_launcher = raw
+        .uninstall_string
+        .as_deref()
+        .is_some_and(|s| s.contains("://"));
+    let admin = key.hive == Hive::Hklm && !via_launcher;
     let window = elevated::main_window(app);
     if let Some(quiet) = &plan.quiet {
         let code = match elevated::shell_run(&quiet.file, &quiet.params, admin, window) {
@@ -392,7 +404,7 @@ fn uninstall(app: &AppHandle, id: &str) -> Result<UninstallOutcome, String> {
 fn gone_soon(key: &RegKeyPath) -> bool {
     let start = Instant::now();
     while start.elapsed() < SETTLE {
-        if !regkey::exists(key) {
+        if !entry_present(key) {
             return true;
         }
         std::thread::sleep(Duration::from_millis(250));
@@ -426,7 +438,12 @@ pub async fn find_app_leftovers(app: AppHandle, id: String) -> Result<Vec<Leftov
         }
         hints.uninstalled_at = now_secs();
         leftovers::remember(&app, &hints);
-        Ok(leftovers::search_app(&app, &hints))
+        // A launcher may leave the app's entry behind: it goes with the leftovers.
+        let stale = match &parsed {
+            AppId::Registry(key) if regkey::exists(key) => Some(key),
+            _ => None,
+        };
+        Ok(leftovers::search_app(&app, &hints, stale))
     })
     .await
     .map_err(|e| e.to_string())?

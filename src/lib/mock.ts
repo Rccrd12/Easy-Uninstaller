@@ -174,7 +174,14 @@ export function samplePreview(path: string): string | null {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-const leftover = (id: string, appName: string | null, kind: LeftoverItem["kind"], path: string, sizeBytes: number, reason: string, safety: LeftoverItem["safety"] = "safe", needsAdmin = false): LeftoverItem => ({ id, appName, kind, path, sizeBytes, reason, safety, needsAdmin });
+const leftover = (id: string, appName: string | null, kind: LeftoverItem["kind"], path: string, sizeBytes: number, reason: string, safety: LeftoverItem["safety"] = "safe", needsAdmin = false): LeftoverItem => ({ id, appName, kind, path, sizeBytes, reason, safety, needsAdmin, unowned: false, modifiedAt: null });
+
+/** A folder (or key) that no installed app owns, last changed `daysAgo` days ago. */
+const unowned = (id: string, appName: string, kind: LeftoverItem["kind"], path: string, sizeBytes: number, reason: string, daysAgo: number | null, needsAdmin = false): LeftoverItem => ({
+  ...leftover(id, appName, kind, path, sizeBytes, reason, "check", needsAdmin),
+  unowned: true,
+  modifiedAt: daysAgo === null ? null : Math.floor(Date.now() / 1000) - daysAgo * 86400,
+});
 
 /** What the browser fallback "finds" after uninstalling `app`. */
 export function sampleAppLeftovers(app: string): LeftoverItem[] {
@@ -196,6 +203,10 @@ export const sampleLeftovers: LeftoverItem[] = [
   leftover("l5", "Skype", "registry", "HKLM\\Software\\WOW6432Node\\Skype", 0, "registry", "safe", true),
   leftover("l6", "Old Game Launcher", "shortcut", `${U}\\Desktop\\Old Game Launcher.lnk`, 1400, "brokenShortcut"),
   leftover("l7", "Photo Studio 2019", "registry", "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PhotoStudio", 0, "brokenEntry", "safe", true),
+  unowned("u1", "FotoMagic", "folder", "C:\\Program Files\\FotoMagic", 1.4 * GB, "programFolder", 820, true),
+  unowned("u2", "FotoMagic", "folder", `${U}\\AppData\\Roaming\\FotoMagic`, 36 * MB, "userSettings", 790),
+  unowned("u3", "FotoMagic", "registry", "HKCU\\Software\\FotoMagic", 0, "registry", null),
+  unowned("u4", "TurboRecorder", "folder", `${U}\\AppData\\Local\\TurboRecorder`, 420 * MB, "localData", 400),
 ];
 
 const folder = (id: string, key: string | null, label: string | null, size: number, category: SpaceFolder["category"], path: string | null): SpaceFolder => ({
