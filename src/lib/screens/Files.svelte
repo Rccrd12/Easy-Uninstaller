@@ -1,13 +1,21 @@
 <script lang="ts">
   import SafetyTag from "../components/SafetyTag.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
-  import { listFileGroups, usesSampleData } from "../api";
-  import { formatBytes } from "../format";
+  import { keepFileGroups, listFileGroups, QUARANTINE_DAYS, quarantineFileGroups, restoreQuarantine, usesSampleData } from "../api";
+  import { fileCount, formatBytes, restoreSummary } from "../format";
   import { locale, t } from "../i18n/index.svelte";
-  import type { FileGroup, FileItem, ScanProgress } from "../types";
+  import type { FileGroup, FileItem, MoveReport, ScanProgress } from "../types";
 
   /** How many items the details panel lists. */
   const SHOWN_ITEMS = 8;
+  /** The order the scan returns groups in, used to put groups back after an undo. */
+  const GROUP_ORDER = ["temp", "installers", "old-downloads", "duplicates", "large-files"];
+
+  /** What the toast at the bottom says after a move or an undo. */
+  type Notice =
+    | { kind: "moved"; report: MoveReport; groups: FileGroup[] }
+    | { kind: "info"; lines: string[] }
+    | { kind: "error"; lines: string[] };
 
   let groups = $state<FileGroup[]>([]);
   let checked = $state<Set<string>>(new Set());
@@ -15,6 +23,9 @@
   let scanning = $state(true);
   let progress = $state<ScanProgress | null>(null);
   let error = $state<string | null>(null);
+  let moving = $state(false);
+  let undoing = $state(false);
+  let notice = $state<Notice | null>(null);
 
   const focused = $derived(groups.find((g) => g.id === focusedId) ?? null);
 
@@ -49,7 +60,56 @@
   }
 
   const count = (n: number) => n.toLocaleString(locale());
-  const fileCount = (n: number) => (n === 1 ? t("files.fileCountOne") : t("files.fileCount", { count: count(n) }));
+
+  /** Moves whole groups into quarantine. Nothing is deleted: the toast offers to undo. */
+  async function moveToQuarantine(ids: string[]) {
+    if (!ids.length || moving) return;
+    moving = true;
+    notice = null;
+    try {
+      const report = await quarantineFileGroups(ids);
+      if (report.movedCount === 0) {
+        notice = { kind: "info", lines: [t("files.nothingMoved")] };
+        return;
+      }
+      const moved = groups.filter((g) => ids.includes(g.id));
+      setGroups(groups.filter((g) => !ids.includes(g.id)));
+      notice = { kind: "moved", report, groups: moved };
+    } catch (e) {
+      notice = { kind: "error", lines: [t("files.moveFailed", { error: String(e) })] };
+    } finally {
+      moving = false;
+    }
+  }
+
+  async function undo(report: MoveReport, moved: FileGroup[]) {
+    undoing = true;
+    try {
+      const restored = await restoreQuarantine(report.entryIds);
+      const back = [...groups, ...moved].sort((a, b) => GROUP_ORDER.indexOf(a.id) - GROUP_ORDER.indexOf(b.id));
+      setGroups(back);
+      const clean = restored.renamedCount === 0 && restored.failedCount === 0;
+      notice = { kind: "info", lines: clean ? [t("files.undone")] : restoreSummary(restored) };
+    } catch (e) {
+      notice = { kind: "error", lines: [t("quarantine.failed", { error: String(e) })] };
+    } finally {
+      undoing = false;
+    }
+  }
+
+  /** Updates the list here and the scan result kept for the other screens. */
+  function setGroups(next: FileGroup[]) {
+    groups = next;
+    keepFileGroups(next);
+    checked = new Set([...checked].filter((id) => next.some((g) => g.id === id)));
+    if (!next.some((g) => g.id === focusedId)) focusedId = null;
+  }
+
+  function movedLines(r: MoveReport): string[] {
+    const lines = [t("files.moved", { count: fileCount(r.movedCount), size: formatBytes(r.movedBytes), days: QUARANTINE_DAYS })];
+    if (r.skippedCount) lines.push(t("files.movedSkipped", { count: fileCount(r.skippedCount) }));
+    return lines;
+  }
   const nameOf = (path: string) => path.split(/[\\/]/).pop() ?? path;
   const folderOf = (path: string) => path.slice(0, Math.max(path.length - nameOf(path).length - 1, 0));
   /** The last two parts of a path, which say the most in little room: "…\\Pictures\\photo.jpg". */
@@ -127,7 +187,9 @@
       <div class="footer">
         <b>{t("files.selected", { size: formatBytes(selectedBytes) })}</b>
         <span class="grow"></span>
-        <button class="btn btn-primary" disabled={selectedBytes === 0}>{t("common.moveToQuarantine")}</button>
+        <button class="btn btn-primary" disabled={selectedBytes === 0 || moving} onclick={() => moveToQuarantine([...checked])}>
+          {moving ? t("files.moving") : t("common.moveToQuarantine")}
+        </button>
       </div>
     {/if}
   </div>
@@ -157,12 +219,31 @@
         <div class="muted more">{t("files.more", { count: count(moreItems(focused)) })}</div>
       {/if}
       <div class="grow"></div>
-      <button class="btn btn-primary wide">{t("common.moveToQuarantine")} ({formatBytes(focused.sizeBytes)})</button>
+      {@const id = focused.id}
+      <button class="btn btn-primary wide" disabled={moving} onclick={() => moveToQuarantine([id])}>
+        {moving ? t("files.moving") : `${t("common.moveToQuarantine")} (${formatBytes(focused.sizeBytes)})`}
+      </button>
     {:else}
       <p class="muted">{t("files.pickGroup")}</p>
     {/if}
   </aside>
 </div>
+
+{#if notice}
+  {@const n = notice}
+  <div class="card toast" class:error={n.kind === "error"} role="status" aria-live="polite">
+    <span class="toast-icon" aria-hidden="true">{n.kind === "error" ? "⚠️" : "✅"}</span>
+    <div class="toast-text">
+      {#each n.kind === "moved" ? movedLines(n.report) : n.lines as line, i (i)}<p>{line}</p>{/each}
+    </div>
+    {#if n.kind === "moved"}
+      <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(n.report, n.groups)}>
+        {undoing ? t("files.undoing") : `↩ ${t("files.undo")}`}
+      </button>
+    {/if}
+    <button class="close" aria-label={t("common.close")} onclick={() => (notice = null)}>✕</button>
+  </div>
+{/if}
 
 <style>
   .layout { display: flex; gap: 18px; align-items: flex-start; }
@@ -179,7 +260,7 @@
   .desc { font-size: 12px; }
   .size { font-size: 14px; font-weight: 600; width: 76px; text-align: right; }
   .footer { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
-  .footer .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
   .grow { flex: 1; }
 
   .scan { padding: 22px 24px; margin-top: 8px; }
@@ -212,4 +293,12 @@
   .item-size { font-size: 12px; font-weight: 600; flex: none; }
   .more { font-size: 12px; margin-top: 6px; }
   .wide { width: 100%; padding: 10px; margin-top: 14px; }
+
+  .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14); border-left: 4px solid var(--safe-fg); z-index: 10; }
+  .toast.error { border-left-color: var(--danger); }
+  .toast-icon { font-size: 18px; }
+  .toast-text { flex: 1; font-size: 13px; line-height: 1.4; }
+  .toast-text p + p { color: var(--text-muted); margin-top: 2px; }
+  .toast .btn { flex: none; }
+  .close { border: none; background: none; color: var(--text-muted); font-size: 13px; padding: 4px; }
 </style>
