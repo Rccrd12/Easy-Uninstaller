@@ -8,7 +8,8 @@ interface Settings {
   restorePoint: boolean;
 }
 
-const defaults: Settings = { restorePoint: true };
+// Off by default: it needs administrator rights and System Restore is often off on new PCs.
+const defaults: Settings = { restorePoint: false };
 
 function load(): Settings {
   try {
