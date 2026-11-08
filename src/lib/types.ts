@@ -248,8 +248,16 @@ export interface FileSelection {
   paths: string[];
 }
 
-/** A file or folder never to show again. */
+/** What a hidden item is. A folder covers everything inside it. */
+export type HiddenKind = "file" | "folder" | "group" | "leftover";
+
+/** Something the user chose to hide. Mirrors `Exclusion` in src-tauri/src/review.rs. */
 export interface Exclusion {
+  /** A path for files and folders, an id for groups and leftovers. */
   path: string;
-  folder: boolean;
+  kind: HiddenKind;
+  /** Unix seconds; 0 until saved. */
+  hiddenAt: number;
+  /** An i18n key (groups) or an app name (leftovers), when the path says little. */
+  label: string | null;
 }

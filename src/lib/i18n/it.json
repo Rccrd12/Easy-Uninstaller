@@ -180,7 +180,7 @@
     "review": {
       "start": "Rivedi",
       "oneByOne": "Rivedi uno per uno",
-      "subtitle": "{files} · {size} · scegli tu cosa togliere, uno per uno o tutti insieme",
+      "subtitle": "{files} · {size} · scegli tu cosa togliere e cosa nascondere",
       "dupSubtitle": "{count} copie identiche · {size} · scegli tu cosa togliere, una per una o tutte insieme",
       "view": "Vista",
       "list": "Lista",
@@ -213,10 +213,8 @@
       "open": "Apri",
       "showInFolder": "Mostra nella cartella",
       "keepInstead": "Tieni questa invece",
-      "hideFile": "Non mostrarmi più questo file",
-      "hideFolder": "Ignora sempre la cartella “{folder}”",
-      "hidden": "Nascosto: {name}. Non verrà più mostrato né spostato.",
-      "hiddenHint": "Puoi mostrarlo di nuovo nelle Impostazioni.",
+      "hideFile": "Nascondi questo file",
+      "hideFolder": "Nascondi tutta la cartella “{folder}”",
       "folders": {
         "desktop": "Desktop",
         "documents": "Documenti",
@@ -224,14 +222,22 @@
         "music": "Musica",
         "pictures": "Immagini",
         "videos": "Video"
-      }
+      },
+      "hideSelected": "Nascondi ({count})"
     },
     "folderMoved": "“{name}” è in Quarantena ({size}). Puoi ripristinarla per {days} giorni.",
     "folderSkipped": "Non ho potuto spostare “{name}”: forse un'app la sta usando. Chiudi l'app e riprova.",
     "folderDeclined": "Windows non ha dato il permesso: “{name}” è rimasta dov'era.",
     "showAll": "Mostra tutti ({count})",
     "showLess": "Mostra meno",
-    "notListed": "e altri {count} non elencati qui"
+    "notListed": "e altri {count} non elencati qui",
+    "hide": "Nascondi",
+    "hideItem": "Nascondi {name}",
+    "groupMenu": "Altro per {name}",
+    "hideGroup": "Nascondi questo gruppo",
+    "hideGroupHint": "Non verrà più proposto. Non cancella niente.",
+    "hiddenLink": "Hai nascosto {count}.",
+    "hiddenLinkAction": "Vedi e mostra di nuovo"
   },
   "quick": {
     "title": "Pulizia rapida",
@@ -405,12 +411,9 @@
     "driveChosen": "Lo spazio su {system} si libera appena togli dei file.",
     "noOtherDrive": "Questo PC non ha altri dischi.",
     "saveFailed": "Non è stato possibile salvare la modifica: {error}",
-    "hidden": "File e cartelle nascosti",
-    "hiddenHint": "I file che hai chiesto di non vedere più. Non vengono mai mostrati né spostati.",
-    "hiddenNone": "Nessuno",
-    "hiddenCount": "Mostra {count}",
-    "hiddenClose": "Chiudi",
-    "showAgain": "Mostra di nuovo"
+    "hidden": "Elementi nascosti",
+    "hiddenHint": "File, cartelle, gruppi e avanzi che non vuoi più vedere",
+    "manage": "Gestisci"
   },
   "categories": {
     "apps": "App",
@@ -667,5 +670,35 @@
       "confirm": "Sposta in Quarantena",
       "confirmAnyway": "Spostala comunque"
     }
+  },
+  "hidden": {
+    "title": "Elementi nascosti",
+    "subtitle": "Cose che hai chiesto di non vedere più. Sono ancora sul PC: l'app semplicemente non te le propone.",
+    "count": "{count} elementi",
+    "countOne": "1 elemento",
+    "tabs": {
+      "all": "Tutti",
+      "file": "File",
+      "folder": "Cartelle",
+      "group": "Gruppi",
+      "leftover": "Avanzi"
+    },
+    "kinds": {
+      "file": "File",
+      "folder": "Cartella",
+      "group": "Gruppo",
+      "leftover": "Avanzo"
+    },
+    "folderNote": "e tutto quello che contiene",
+    "groupNote": "Gruppo intero della schermata File",
+    "showAgain": "Mostra di nuovo",
+    "showAll": "Mostra tutti di nuovo",
+    "note": "Mostrare di nuovo non sposta niente: torna semplicemente nella lista.",
+    "empty": "Non hai nascosto niente. Quando nascondi un file, una cartella o un gruppo, lo trovi qui.",
+    "done": "Nascosto: {name}. Resta dove si trova e non verrà più proposto.",
+    "doneMany": "Nascosti: {count}. Restano dove sono e non verranno più proposti.",
+    "shownAgain": "Di nuovo visibile.",
+    "shownAgainMany": "Di nuovo visibili: {count}.",
+    "failed": "Non è stato possibile salvare: {error}"
   }
 }

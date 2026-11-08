@@ -1,5 +1,6 @@
-//! Reviewing the files of a scan one by one, and the files and folders the user
-//! asked never to see again ("exclusions").
+//! Reviewing the files of a scan one by one, and what the user chose to hide
+//! ("exclusions"): files, folders, whole file groups and leftovers. Hiding never
+//! moves or deletes anything; the app only stops showing and suggesting it.
 //!
 //! Everything here works on the files the last scan found (`files::LastScan`):
 //! the UI sends back paths, and only paths the scan found are ever moved, opened
@@ -74,12 +75,63 @@ pub struct FileSelection {
     pub paths: Vec<String>,
 }
 
-/// A file or folder never to show again. Folders cover everything inside them.
+/// What a hidden item is.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum HiddenKind {
+    #[default]
+    File,
+    /// A folder and everything inside it.
+    Folder,
+    /// A whole file group, by id (e.g. `large-files`).
+    Group,
+    /// A leftover of an uninstalled app, by the leftovers screen's id.
+    Leftover,
+}
+
+/// Something never to show again.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Exclusion {
+    /// A path for files and folders, an id for groups and leftovers.
     pub path: String,
-    pub folder: bool,
+    #[serde(default)]
+    pub kind: HiddenKind,
+    /// Unix seconds; set when hidden.
+    #[serde(default)]
+    pub hidden_at: u64,
+    /// What to call it in Settings when the path says little (an i18n key for a
+    /// group, an app name for leftovers).
+    #[serde(default)]
+    pub label: Option<String>,
+    /// Written by test builds before kinds existed: `true` means a folder.
+    #[serde(default, skip_serializing)]
+    folder: bool,
+}
+
+impl Exclusion {
+    #[cfg(test)]
+    pub fn new(path: impl Into<String>, kind: HiddenKind, label: Option<String>) -> Self {
+        Exclusion {
+            path: path.into(),
+            kind,
+            hidden_at: 0,
+            label,
+            folder: false,
+        }
+    }
+
+    fn is_path(&self) -> bool {
+        matches!(self.kind, HiddenKind::File | HiddenKind::Folder)
+    }
+}
+
+/// Names one hidden item, to show it again.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HiddenKey {
+    pub path: String,
+    pub kind: HiddenKind,
 }
 
 /// The exclusion list and the file it is saved in.
@@ -120,6 +172,7 @@ fn current_sets(kept: &Kept) -> Vec<Vec<Seen>> {
 pub fn current_groups(kept: &Kept) -> Vec<FileGroup> {
     kept.groups
         .iter()
+        .filter(|g| !kept.hidden_groups.contains(&g.id))
         .filter_map(|g| {
             if g.id == DUPLICATES {
                 duplicates_group(kept, g)
@@ -220,6 +273,9 @@ fn sort_items(items: &mut Vec<FileItem>) {
 
 /// What moving a whole group takes; see [`LastScan::group`].
 pub fn movable(kept: &Kept, group_id: &str) -> Option<Vec<ScannedFile>> {
+    if kept.hidden_groups.iter().any(|g| g == group_id) {
+        return None;
+    }
     let files = kept.files.get(group_id)?;
     if group_id == DUPLICATES {
         let copies = current_sets(kept)
@@ -241,6 +297,9 @@ pub fn movable(kept: &Kept, group_id: &str) -> Option<Vec<ScannedFile>> {
 /// that group, and excluded ones, are ignored. For duplicates, any copy can be
 /// picked, but one copy of every set always stays (the oldest of those picked).
 pub fn pick(kept: &Kept, group_id: &str, paths: &[String]) -> Vec<ScannedFile> {
+    if kept.hidden_groups.iter().any(|g| g == group_id) {
+        return Vec::new();
+    }
     let wanted: HashSet<&Path> = paths.iter().map(Path::new).collect();
     let chosen =
         |f: &&ScannedFile| wanted.contains(f.path.as_path()) && !is_excluded(kept, &f.path);
@@ -323,15 +382,20 @@ fn can_open(path: &Path) -> bool {
         .is_some_and(|e| OPENABLE.iter().any(|x| e.eq_ignore_ascii_case(x)))
 }
 
-/// Adds an exclusion (or replaces one for the same path). Only absolute paths.
-fn add_to(list: &mut Vec<Exclusion>, exclusion: Exclusion) -> Result<(), String> {
-    let path = Path::new(&exclusion.path);
-    if exclusion.path.trim().is_empty() || !path.is_absolute() {
-        return Err("not an absolute path".into());
+/// Adds an exclusion (or replaces the one for the same item). Files and folders
+/// need an absolute path; groups and leftovers a non-empty id.
+fn add_to(list: &mut Vec<Exclusion>, mut exclusion: Exclusion, now: u64) -> Result<(), String> {
+    if exclusion.path.trim().is_empty()
+        || (exclusion.is_path() && !Path::new(&exclusion.path).is_absolute())
+    {
+        return Err("not a valid path or id".into());
     }
-    list.retain(|e| e.path != exclusion.path);
+    list.retain(|e| !(e.path == exclusion.path && e.kind == exclusion.kind));
     if list.len() >= MAX_EXCLUSIONS {
-        return Err("too many exclusions".into());
+        return Err("too many hidden items".into());
+    }
+    if exclusion.hidden_at == 0 {
+        exclusion.hidden_at = now;
     }
     list.push(exclusion);
     Ok(())
@@ -339,10 +403,14 @@ fn add_to(list: &mut Vec<Exclusion>, exclusion: Exclusion) -> Result<(), String>
 
 impl Exclusions {
     fn load(file: PathBuf) -> Self {
-        let list = fs::read(&file)
+        let mut list: Vec<Exclusion> = fs::read(&file)
             .ok()
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
             .unwrap_or_default();
+        for e in list.iter_mut().filter(|e| e.folder) {
+            e.kind = HiddenKind::Folder;
+            e.folder = false;
+        }
         Exclusions {
             file,
             list: Mutex::new(list),
@@ -371,7 +439,27 @@ impl Exclusions {
 
 fn apply(last: &LastScan, list: &[Exclusion]) {
     let mut kept = last.0.lock().unwrap_or_else(|e| e.into_inner());
-    kept.excluded = list.iter().map(|e| PathBuf::from(&e.path)).collect();
+    kept.excluded = list
+        .iter()
+        .filter(|e| e.is_path())
+        .map(|e| PathBuf::from(&e.path))
+        .collect();
+    kept.hidden_groups = list
+        .iter()
+        .filter(|e| e.kind == HiddenKind::Group)
+        .map(|e| e.path.clone())
+        .collect();
+}
+
+/// The leftovers the user hid, by id, for the leftovers screen to leave out.
+#[allow(dead_code)] // Used by the leftovers screen once it reads real leftovers.
+pub fn hidden_leftovers(app: &AppHandle) -> Vec<String> {
+    app.state::<Exclusions>()
+        .list()
+        .into_iter()
+        .filter(|e| e.kind == HiddenKind::Leftover)
+        .map(|e| e.path)
+        .collect()
 }
 
 /// Writes to a temporary file first, so a crash never leaves half a list.
@@ -472,23 +560,27 @@ pub fn list_exclusions(exclusions: tauri::State<'_, Exclusions>) -> Vec<Exclusio
     exclusions.list()
 }
 
+/// Hides items (all or none: one invalid item changes nothing).
 #[tauri::command]
-pub async fn add_exclusion(app: AppHandle, exclusion: Exclusion) -> Result<(), String> {
+pub async fn add_exclusions(app: AppHandle, items: Vec<Exclusion>) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let last = app.state::<LastScan>();
-        app.state::<Exclusions>()
-            .change(&last, |list| add_to(list, exclusion))
+        let now = now_secs();
+        app.state::<Exclusions>().change(&last, |list| {
+            items.into_iter().try_for_each(|e| add_to(list, e, now))
+        })
     })
     .await
     .map_err(|e| e.to_string())?
 }
 
+/// Shows items again. Nothing moves: they are simply listed again.
 #[tauri::command]
-pub async fn remove_exclusion(app: AppHandle, path: String) -> Result<(), String> {
+pub async fn remove_exclusions(app: AppHandle, items: Vec<HiddenKey>) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let last = app.state::<LastScan>();
         app.state::<Exclusions>().change(&last, |list| {
-            list.retain(|e| e.path != path);
+            list.retain(|e| !items.iter().any(|k| k.path == e.path && k.kind == e.kind));
             Ok(())
         })
     })
@@ -633,6 +725,8 @@ mod tests {
     use crate::files::Safety;
     use std::collections::HashMap;
 
+    const NOW: u64 = 1_800_000_000;
+
     /// A fresh folder of files, removed when dropped.
     struct Sandbox(PathBuf);
 
@@ -739,6 +833,7 @@ mod tests {
             files,
             duplicate_sets: vec![dups.clone()],
             excluded: Vec::new(),
+            hidden_groups: Vec::new(),
         };
         Fixture {
             s,
@@ -865,41 +960,61 @@ mod tests {
     }
 
     #[test]
+    fn hidden_groups_are_not_shown_or_moved() {
+        let mut f = fixture("hidden-group");
+        f.kept.hidden_groups.push("large-files".into());
+        assert!(current_groups(&f.kept)
+            .iter()
+            .all(|g| g.id != "large-files"));
+        assert!(movable(&f.kept, "large-files").is_none());
+        assert!(pick(&f.kept, "large-files", &paths(&f.large)).is_empty());
+        assert_eq!(current_groups(&f.kept).len(), 2);
+    }
+
+    #[test]
     fn saves_and_validates_exclusions() {
         let s = Sandbox::new("exclusions");
         let file = s.0.join("data").join(EXCLUSIONS_FILE);
         let last = LastScan::default();
         let ex = Exclusions::load(file.clone());
         let abs = s.0.join("Work").to_string_lossy().into_owned();
+        let items = vec![
+            Exclusion::new(abs.clone(), HiddenKind::Folder, None),
+            Exclusion::new(
+                "large-files",
+                HiddenKind::Group,
+                Some("files.groups.largeFiles.title".into()),
+            ),
+            Exclusion::new("zoom-1", HiddenKind::Leftover, Some("Zoom".into())),
+        ];
         ex.change(&last, |l| {
-            add_to(
-                l,
-                Exclusion {
-                    path: abs.clone(),
-                    folder: true,
-                },
-            )
+            items.into_iter().try_for_each(|e| add_to(l, e, NOW))
         })
         .unwrap();
-        assert!(ex
-            .change(&last, |l| add_to(
-                l,
-                Exclusion {
-                    path: "relative\\x".into(),
-                    folder: false
-                }
-            ))
-            .is_err());
-        assert_eq!(last.0.lock().unwrap().excluded, [PathBuf::from(&abs)]);
+        let bad = Exclusion::new("relative\\x", HiddenKind::File, None);
+        assert!(ex.change(&last, |l| add_to(l, bad, NOW)).is_err());
+        let bad = Exclusion::new(" ", HiddenKind::Group, None);
+        assert!(ex.change(&last, |l| add_to(l, bad, NOW)).is_err());
+        {
+            let kept = last.0.lock().unwrap();
+            assert_eq!(kept.excluded, [PathBuf::from(&abs)]);
+            assert_eq!(kept.hidden_groups, ["large-files"]);
+        }
+        assert!(ex.list().iter().all(|e| e.hidden_at == NOW));
 
-        let again = Exclusions::load(file);
+        let again = Exclusions::load(file.clone());
         assert_eq!(again.list(), ex.list(), "saved to disk");
         again
             .change(&last, |l| {
-                l.retain(|e| e.path != abs);
+                l.retain(|e| e.kind != HiddenKind::Folder);
                 Ok(())
             })
             .unwrap();
         assert!(last.0.lock().unwrap().excluded.is_empty());
+
+        // A list written by an older test build.
+        fs::write(&file, format!(r#"[{{"path":{abs:?},"folder":true}}]"#)).unwrap();
+        let old = Exclusions::load(file);
+        assert_eq!(old.list()[0].kind, HiddenKind::Folder);
     }
 }

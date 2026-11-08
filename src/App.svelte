@@ -7,6 +7,7 @@
   import SpaceMap from "./lib/screens/SpaceMap.svelte";
   import Quarantine from "./lib/screens/Quarantine.svelte";
   import Settings from "./lib/screens/Settings.svelte";
+  import Hidden from "./lib/screens/Hidden.svelte";
   import type { Screen } from "./lib/screens";
   import { loadQuarantine } from "./lib/settings.svelte";
 
@@ -18,15 +19,16 @@
 </script>
 
 <div class="shell">
-  <Sidebar current={screen} onNavigate={go} />
+  <Sidebar current={screen === "hidden" ? "settings" : screen} onNavigate={go} />
   <main>
     {#if screen === "home"}<Home onNavigate={go} />
     {:else if screen === "apps"}<Apps />
-    {:else if screen === "files"}<Files />
+    {:else if screen === "files"}<Files onNavigate={go} />
     {:else if screen === "leftovers"}<Leftovers />
     {:else if screen === "map"}<SpaceMap onNavigate={go} />
     {:else if screen === "quarantine"}<Quarantine />
-    {:else if screen === "settings"}<Settings />
+    {:else if screen === "settings"}<Settings onNavigate={go} />
+    {:else if screen === "hidden"}<Hidden onNavigate={go} />
     {/if}
   </main>
 </div>
