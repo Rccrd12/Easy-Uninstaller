@@ -24,7 +24,6 @@
     "greeting": "Hi there 👋",
     "subtitle": "Here is what you can do to free up space.",
     "canFree": "You can safely free",
-    "freeNow": "✨ Free up space now",
     "disk": "Drive {drive}",
     "diskUsage": "{used} used of {total} · {free} free",
     "apps": "Apps",
@@ -39,8 +38,11 @@
     "map": "Space map",
     "mapText": "See at a glance what takes up the most space.",
     "mapButton": "Open map",
-    "quarantineTip": "Nothing is deleted right away: everything goes to <b>Quarantine</b> for {days} days and you can restore it with one click.",
-    "used": "Used"
+    "quarantineTip": "Temporary files and caches are deleted right away, because apps recreate them. Everything else goes to <b>Quarantine</b> for {days} days and you can restore it with one click.",
+    "used": "Used",
+    "quickClean": "✨ Quick clean",
+    "seeAll": "See everything",
+    "quickCleanHint": "Only what is safe, in one click."
   },
   "apps": {
     "title": "Apps",
@@ -122,7 +124,38 @@
     "nothingMoved": "Nothing was moved: the files were in use or had changed since the scan. Try scanning again.",
     "undo": "Undo",
     "undoing": "Putting everything back…",
-    "undone": "Done: everything is back where it was."
+    "undone": "Done: everything is back where it was.",
+    "freeUp": "Free up {size}",
+    "deleteNow": "Delete ({size})",
+    "howRemoved": "Temporary files and caches are deleted right away. Everything else waits in Quarantine for {days} days.",
+    "deletedRightAway": "Deleted right away, not kept in Quarantine: Windows and apps recreate these files on their own.",
+    "deleted": "Deleted: {count}, {size}."
+  },
+  "quick": {
+    "title": "Quick clean",
+    "subtitle": "I only remove what is safe. Anything that needs a look is up to you, whenever you like.",
+    "scanning": "Looking for what is safe to remove…",
+    "freeNow": "Free space right away",
+    "freeNowNote": "temporary files and caches: deleted",
+    "freeNowDrive": "deleted, or moved to the Quarantine on drive {drive}",
+    "held": "In Quarantine for {days} days",
+    "heldNote": "you can restore it; after that it is deleted and the space comes back",
+    "heldTip": "Keep the Quarantine on another drive to free this right away too ›",
+    "free": "Free {size}",
+    "details": "Let me see the details first",
+    "cleaning": "Cleaning up…",
+    "cleaningNote": "Files in use are skipped and left as they are.",
+    "doneTitle": "Done! Space freed right away",
+    "freed": "on your disk, available now",
+    "nothingFreed": "nothing could be freed right away",
+    "heldDone": "{size} wait in Quarantine until {date}. You can restore them until then, from Quarantine or with Undo.",
+    "disk": "Drive {drive} now has {free} free (before: {before}).",
+    "diskNow": "Drive {drive} now has {free} free.",
+    "undo": "Undo",
+    "undoDeleted": "Temporary files and caches stay deleted: your apps recreate them when needed.",
+    "empty": "Nothing to clean up right now: nothing safe to remove was found.",
+    "seeFiles": "Check files",
+    "failed": "The cleanup could not finish: {error}"
   },
   "leftovers": {
     "title": "Leftovers",
@@ -218,7 +251,17 @@
       "declined": "Not created: permission was not given.",
       "disabled": "System Restore is turned off on this PC.",
       "failed": "The restore point could not be created."
-    }
+    },
+    "quarantineDaysHint": "Applies to what you remove from now on.",
+    "quarantineDrive": "Where to keep the Quarantine",
+    "quarantineDriveHint": "On another drive, the space on {drive} is freed right away. Items already in Quarantine stay where they are.",
+    "driveDefault": "Drive {drive} (with the app)",
+    "driveOption": "Drive {drive} ({label}) · {free} free",
+    "driveOptionNoLabel": "Drive {drive} · {free} free",
+    "driveMissing": "Drive {drive} (not connected)",
+    "driveChosen": "Space on {system} is freed as soon as you remove files.",
+    "noOtherDrive": "This PC has no other drive.",
+    "saveFailed": "Could not save the change: {error}"
   },
   "categories": {
     "apps": "Apps",

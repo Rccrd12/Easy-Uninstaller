@@ -1,6 +1,8 @@
 <script lang="ts">
+  import QuickClean from "../components/QuickClean.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
-  import { getSystemDisk, listFileGroups, listInstalledApps, listLeftovers, QUARANTINE_DAYS } from "../api";
+  import { getSystemDisk, listFileGroups, listInstalledApps, listLeftovers } from "../api";
+  import { quarantine } from "../settings.svelte";
   import { formatBytes } from "../format";
   import { t } from "../i18n/index.svelte";
   import type { Screen } from "../screens";
@@ -12,6 +14,14 @@
   let appsBytes = $state(0);
   let filesBytes = $state(0);
   let leftoversBytes = $state(0);
+  let quickClean = $state(false);
+
+  function refreshAfterClean(changed: boolean) {
+    quickClean = false;
+    if (!changed) return;
+    getSystemDisk().then((d) => (disk = d));
+    listFileGroups().then((g) => (filesBytes = g.reduce((s, x) => s + x.sizeBytes, 0)));
+  }
 
   $effect(() => {
     getSystemDisk().then((d) => (disk = d));
@@ -42,7 +52,11 @@
   <div>
     <div class="muted small">{t("home.canFree")}</div>
     <div class="big">{formatBytes(reclaimable)}</div>
-    <button class="btn btn-primary cta" onclick={() => onNavigate("files")}>{t("home.freeNow")}</button>
+    <div class="ctas">
+      <button class="btn btn-primary cta" onclick={() => (quickClean = true)}>{t("home.quickClean")}</button>
+      <button class="btn btn-ghost cta" onclick={() => onNavigate("files")}>{t("home.seeAll")}</button>
+    </div>
+    <div class="muted small hint">{t("home.quickCleanHint")}</div>
   </div>
   {#if disk}
     <div class="disk">
@@ -74,14 +88,24 @@
   {/each}
 </section>
 
-<div class="card tip"><span aria-hidden="true">🛡️</span><span>{@html t("home.quarantineTip", { days: QUARANTINE_DAYS })}</span></div>
+<div class="card tip"><span aria-hidden="true">🛡️</span><span>{@html t("home.quarantineTip", { days: quarantine.keepDays })}</span></div>
+
+{#if quickClean}
+  <QuickClean
+    onClose={refreshAfterClean}
+    onDetails={() => onNavigate("files")}
+    onSettings={() => onNavigate("settings")}
+  />
+{/if}
 
 <style>
   .sub { margin: 3px 0 10px; }
   .small { font-size: 13px; }
   .hero { display: flex; gap: 32px; align-items: center; padding: 22px 26px; margin-top: 4px; }
   .big { font-size: 40px; font-weight: 700; color: var(--accent); line-height: 1.1; }
-  .cta { margin-top: 12px; padding: 10px 18px; font-size: 14px; }
+  .ctas { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .cta { padding: 10px 18px; font-size: 14px; }
+  .hint { margin-top: 6px; font-size: 12px; }
   .disk { flex: 1; }
   .row { display: flex; justify-content: space-between; gap: 12px; }
   .bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; margin: 10px 0 8px; background: var(--track); }

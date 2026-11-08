@@ -1,0 +1,178 @@
+//! Removing what the file scan found, group by group.
+//!
+//! Most groups go to the quarantine (`quarantine.rs`), so they can be restored.
+//! The groups in [`DELETE_NOW_GROUPS`] hold only files that Windows and apps
+//! recreate on their own (temporary files and caches): keeping them in quarantine
+//! would give no space back, so they are deleted right away. This is the one place
+//! where Easy Uninstaller deletes files directly (the owner's decision), and only
+//! files the scan listed in those groups, still unchanged since the scan.
+
+use crate::files::{to_camel, LastScan, ScannedFile};
+use crate::quarantine::{unchanged_since_scan, MoveReport, Quarantine, Title};
+use std::fs;
+use std::io;
+use std::time::{SystemTime, UNIX_EPOCH};
+use tauri::{AppHandle, Manager};
+
+/// Groups deleted right away instead of going to the quarantine.
+/// Mirrored by `DELETE_NOW_GROUPS` in `src/lib/api.ts`.
+pub const DELETE_NOW_GROUPS: [&str; 1] = ["temp"];
+
+pub fn deletes_now(group_id: &str) -> bool {
+    DELETE_NOW_GROUPS.contains(&group_id)
+}
+
+/// Removes `files` of the group `group_id`: deleted right away for the groups in
+/// [`DELETE_NOW_GROUPS`], moved to a new quarantine entry otherwise.
+pub fn remove(
+    quarantine: &Quarantine,
+    group_id: &str,
+    files: &[ScannedFile],
+    now: u64,
+    report: &mut MoveReport,
+) -> io::Result<()> {
+    if deletes_now(group_id) {
+        delete(files, report);
+        Ok(())
+    } else {
+        let key = format!("files.groups.{}.title", to_camel(group_id));
+        quarantine
+            .add(Title::Key(key), files, now, report)
+            .map(|_| ())
+    }
+}
+
+/// Deletes the files that are still as the scan saw them. Files in use, changed
+/// or gone are left alone and counted as skipped.
+fn delete(files: &[ScannedFile], report: &mut MoveReport) {
+    for file in files {
+        if unchanged_since_scan(file) && fs::remove_file(&file.path).is_ok() {
+            report.deleted_count += 1;
+            report.deleted_bytes += file.size;
+            report.freed_bytes += file.size;
+        } else {
+            report.skipped_count += 1;
+        }
+    }
+}
+
+fn now_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs())
+}
+
+/// Removes whole groups of the last file scan (used by Quick clean and by the
+/// Files screen). Only group ids come from the UI: the files are the ones the
+/// scan itself found.
+#[tauri::command]
+pub async fn remove_file_groups(
+    app: AppHandle,
+    group_ids: Vec<String>,
+) -> Result<MoveReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let quarantine = app.state::<Quarantine>();
+        let last = app.state::<LastScan>();
+        let mut report = MoveReport::default();
+        for id in group_ids {
+            let Some(files) = last.group(&id) else {
+                continue;
+            };
+            remove(&quarantine, &id, &files, now_secs(), &mut report).map_err(|e| e.to_string())?;
+        }
+        Ok(report)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    struct Sandbox(PathBuf);
+
+    impl Sandbox {
+        fn new(name: &str) -> Self {
+            let dir = std::env::temp_dir()
+                .join(format!("easy-uninstaller-c-{name}-{}", std::process::id()));
+            let _ = fs::remove_dir_all(&dir);
+            fs::create_dir_all(&dir).unwrap();
+            Sandbox(dir)
+        }
+
+        fn file(&self, rel: &str, content: &str) -> ScannedFile {
+            let path = self.0.join("home").join(rel);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, content).unwrap();
+            let meta = fs::metadata(&path).unwrap();
+            ScannedFile {
+                path,
+                size: meta.len(),
+                modified: meta.modified().unwrap(),
+            }
+        }
+    }
+
+    impl Drop for Sandbox {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    const NOW: u64 = 1_800_000_000;
+
+    #[test]
+    fn deletes_temp_and_quarantines_the_rest() {
+        let s = Sandbox::new("mixed");
+        let q = Quarantine::new(s.0.join("q"));
+        let tmp = s.file("Temp/a.tmp", "aaaa");
+        let changed = s.file("Temp/b.tmp", "bb");
+        fs::write(&changed.path, "changed").unwrap();
+        let setup = s.file("Downloads/setup.exe", "123456");
+        let mut report = MoveReport::default();
+
+        remove(
+            &q,
+            "temp",
+            &[tmp.clone(), changed.clone()],
+            NOW,
+            &mut report,
+        )
+        .unwrap();
+        remove(
+            &q,
+            "installers",
+            std::slice::from_ref(&setup),
+            NOW,
+            &mut report,
+        )
+        .unwrap();
+
+        assert!(!tmp.path.exists(), "deleted");
+        assert!(changed.path.exists(), "changed since the scan: left alone");
+        assert!(!setup.path.exists());
+        assert_eq!((report.deleted_count, report.deleted_bytes), (1, 4));
+        assert_eq!((report.moved_count, report.moved_bytes), (1, 6));
+        assert_eq!(report.skipped_count, 1);
+        // Same drive: only the deleted file gave space back now.
+        assert_eq!(report.freed_bytes, 4);
+
+        let entries = q.list();
+        assert_eq!(entries.len(), 1, "temp files never reach the quarantine");
+        assert_eq!(
+            entries[0].title_key.as_deref(),
+            Some("files.groups.installers.title")
+        );
+        assert_eq!(report.entry_ids, [entries[0].id.clone()]);
+    }
+
+    #[test]
+    fn only_listed_groups_are_deleted() {
+        assert!(deletes_now("temp"));
+        for id in ["installers", "old-downloads", "duplicates", "large-files"] {
+            assert!(!deletes_now(id), "{id}");
+        }
+    }
+}

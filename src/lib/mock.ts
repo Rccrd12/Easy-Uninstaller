@@ -1,7 +1,7 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { FileGroup, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, SpaceFolder, SpaceUsage } from "./types";
+import type { DriveInfo, FileGroup, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage } from "./types";
 
 export const sampleApps: InstalledApp[] = [
   { id: "photoshop", name: "Adobe Photoshop 2025", publisher: "Adobe", sizeBytes: 6.8 * GB, source: "win32", installedOn: "2025-01-14", lastUsed: "3 months ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#e3008c", icon: null },
@@ -117,3 +117,8 @@ export const sampleQuarantine: QuarantineEntry[] = [
     items: [{ originalPath: `${U}\\AppData\\Local\\Discord\\app-1.0.9187\\Discord.exe`, sizeBytes: 160 * MB }],
   },
 ];
+
+/** Changed by `setQuarantineSettings` in the browser fallback. */
+export const sampleQuarantineSettings: QuarantineSettings = { keepDays: 7, drive: null };
+
+export const sampleDrives: DriveInfo[] = [{ mountPoint: "D:", label: "Data", totalBytes: 931 * GB, freeBytes: 612 * GB }];

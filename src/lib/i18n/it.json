@@ -24,7 +24,6 @@
     "greeting": "Ciao 👋",
     "subtitle": "Ecco cosa puoi fare per liberare spazio.",
     "canFree": "Puoi liberare in sicurezza",
-    "freeNow": "✨ Libera spazio ora",
     "disk": "Disco {drive}",
     "diskUsage": "{used} usati su {total} · {free} liberi",
     "used": "Usato",
@@ -40,7 +39,10 @@
     "map": "Mappa dello spazio",
     "mapText": "Guarda a colpo d'occhio cosa occupa più spazio.",
     "mapButton": "Apri la mappa",
-    "quarantineTip": "Niente viene cancellato subito: tutto passa dalla <b>Quarantena</b> per {days} giorni e puoi ripristinarlo con un clic."
+    "quarantineTip": "File temporanei e cache vengono eliminati subito, perché le app li ricreano. Tutto il resto va in <b>Quarantena</b> per {days} giorni e puoi ripristinarlo con un clic.",
+    "quickClean": "✨ Pulizia rapida",
+    "seeAll": "Vedi tutto",
+    "quickCleanHint": "Solo le cose sicure, in un clic."
   },
   "apps": {
     "title": "App",
@@ -122,7 +124,38 @@
     "nothingMoved": "Non è stato spostato nulla: i file erano in uso o modificati dopo la scansione. Prova a scansionare di nuovo.",
     "undo": "Annulla",
     "undoing": "Rimetto tutto a posto…",
-    "undone": "Fatto: tutto è tornato al suo posto."
+    "undone": "Fatto: tutto è tornato al suo posto.",
+    "freeUp": "Libera {size}",
+    "deleteNow": "Elimina ({size})",
+    "howRemoved": "File temporanei e cache vengono eliminati subito. Tutto il resto aspetta in Quarantena per {days} giorni.",
+    "deletedRightAway": "Eliminati subito, non tenuti in Quarantena: Windows e le app ricreano questi file da soli.",
+    "deleted": "Eliminati: {count}, {size}."
+  },
+  "quick": {
+    "title": "Pulizia rapida",
+    "subtitle": "Tolgo solo le cose sicure. Tutto quello da controllare lo decidi tu, con calma.",
+    "scanning": "Cerco quello che si può togliere in sicurezza…",
+    "freeNow": "Spazio libero subito",
+    "freeNowNote": "file temporanei e cache: eliminati",
+    "freeNowDrive": "eliminati, o spostati nella Quarantena sul disco {drive}",
+    "held": "In quarantena per {days} giorni",
+    "heldNote": "puoi ripristinarli, poi vengono eliminati e lo spazio torna libero",
+    "heldTip": "Tieni la Quarantena su un altro disco per liberare subito anche questo ›",
+    "free": "Libera {size}",
+    "details": "Prima voglio vedere i dettagli",
+    "cleaning": "Pulizia in corso…",
+    "cleaningNote": "I file in uso vengono saltati e lasciati come sono.",
+    "doneTitle": "Fatto! Spazio liberato subito",
+    "freed": "sul tuo disco, disponibili da ora",
+    "nothingFreed": "non è stato possibile liberare spazio subito",
+    "heldDone": "{size} aspettano in Quarantena fino al {date}. Fino ad allora puoi ripristinarli, dalla Quarantena o con Annulla.",
+    "disk": "Il disco {drive} ora ha {free} liberi (prima: {before}).",
+    "diskNow": "Il disco {drive} ora ha {free} liberi.",
+    "undo": "Annulla",
+    "undoDeleted": "File temporanei e cache restano eliminati: le app li ricreano quando servono.",
+    "empty": "Niente da pulire adesso: non ho trovato niente da togliere in sicurezza.",
+    "seeFiles": "Controlla i file",
+    "failed": "La pulizia non è riuscita a finire: {error}"
   },
   "leftovers": {
     "title": "Avanzi",
@@ -218,7 +251,17 @@
       "declined": "Non creato: il permesso non è stato concesso.",
       "disabled": "Ripristino configurazione di sistema è disattivato su questo PC.",
       "failed": "Non è stato possibile creare il punto di ripristino."
-    }
+    },
+    "quarantineDaysHint": "Vale per quello che togli da adesso in poi.",
+    "quarantineDrive": "Dove tenere la Quarantena",
+    "quarantineDriveHint": "Su un altro disco, lo spazio su {drive} si libera subito. Quello che è già in Quarantena resta dov'è.",
+    "driveDefault": "Disco {drive} (con l'app)",
+    "driveOption": "Disco {drive} ({label}) · {free} liberi",
+    "driveOptionNoLabel": "Disco {drive} · {free} liberi",
+    "driveMissing": "Disco {drive} (non collegato)",
+    "driveChosen": "Lo spazio su {system} si libera appena togli dei file.",
+    "noOtherDrive": "Questo PC non ha altri dischi.",
+    "saveFailed": "Non è stato possibile salvare la modifica: {error}"
   },
   "categories": {
     "apps": "App",

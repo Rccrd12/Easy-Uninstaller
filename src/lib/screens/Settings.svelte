@@ -1,13 +1,32 @@
 <script lang="ts">
-  import { createRestorePoint, QUARANTINE_DAYS } from "../api";
+  import { createRestorePoint, KEEP_DAYS_CHOICES } from "../api";
+  import { formatBytes } from "../format";
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
-  import { saveSettings, settings } from "../settings.svelte";
+  import { quarantine, saveQuarantine, saveSettings, settings } from "../settings.svelte";
   import type { RestorePointOutcome } from "../types";
   import { getTheme, setTheme, themes } from "../theme.svelte";
 
   const version = "0.1.0";
 
   let restorePoint = $state<RestorePointOutcome | "creating" | null>(null);
+
+  let saving = $state(false);
+  let saveError = $state<string | null>(null);
+
+  /** The chosen drive, also when it is not connected right now (it is still the choice). */
+  const driveMissing = $derived(quarantine.drive !== null && !quarantine.drives.some((d) => d.mountPoint === quarantine.drive));
+
+  async function changeQuarantine(change: { keepDays?: number; drive?: string | null }) {
+    saving = true;
+    saveError = null;
+    try {
+      await saveQuarantine({ keepDays: quarantine.keepDays, drive: quarantine.drive, ...change });
+    } catch (e) {
+      saveError = String(e);
+    } finally {
+      saving = false;
+    }
+  }
 
   async function makeRestorePoint() {
     restorePoint = "creating";
@@ -37,9 +56,36 @@
       {/each}
     </div>
   </div>
-  <div class="row">
-    <span>{t("settings.quarantineDays")}</span>
-    <span class="muted">{t("settings.days", { days: QUARANTINE_DAYS })}</span>
+  <label class="row">
+    <span>
+      {t("settings.quarantineDays")}
+      <span class="muted hint">{t("settings.quarantineDaysHint")}</span>
+    </span>
+    <select value={quarantine.keepDays} disabled={saving} onchange={(e) => changeQuarantine({ keepDays: Number(e.currentTarget.value) })}>
+      {#each KEEP_DAYS_CHOICES as days (days)}<option value={days}>{t("settings.days", { days })}</option>{/each}
+    </select>
+  </label>
+  <div class="row column">
+    <label class="inner">
+      <span>
+        {t("settings.quarantineDrive")}
+        <span class="muted hint">{t("settings.quarantineDriveHint", { drive: quarantine.systemDrive })}</span>
+      </span>
+      <select value={quarantine.drive ?? ""} disabled={saving || (!quarantine.drives.length && !quarantine.drive)}
+              onchange={(e) => changeQuarantine({ drive: e.currentTarget.value || null })}>
+        <option value="">{t("settings.driveDefault", { drive: quarantine.systemDrive })}</option>
+        {#each quarantine.drives as d (d.mountPoint)}
+          <option value={d.mountPoint}>{t(d.label ? "settings.driveOption" : "settings.driveOptionNoLabel", { drive: d.mountPoint, label: d.label, free: formatBytes(d.freeBytes) })}</option>
+        {/each}
+        {#if driveMissing}<option value={quarantine.drive}>{t("settings.driveMissing", { drive: quarantine.drive ?? "" })}</option>{/if}
+      </select>
+    </label>
+    {#if !quarantine.drives.length && !quarantine.drive}
+      <span class="muted note">{t("settings.noOtherDrive")}</span>
+    {:else if quarantine.drive}
+      <span class="note ok">{t("settings.driveChosen", { drive: quarantine.drive, system: quarantine.systemDrive })}</span>
+    {/if}
+    {#if saveError}<span class="note bad" role="alert">{t("settings.saveFailed", { error: saveError })}</span>{/if}
   </div>
   <div class="row restore">
     <label class="restore-toggle">
@@ -67,7 +113,13 @@
   .row { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
   .row:last-child { border-bottom: none; }
   .row input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
-  .restore { flex-direction: column; align-items: stretch; gap: 10px; }
+  .restore, .column { flex-direction: column; align-items: stretch; gap: 8px; }
+  .inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .note { font-size: 12.5px; }
+  .note.ok { color: var(--safe-fg); font-weight: 600; }
+  .note.bad { color: var(--check-fg); font-weight: 600; }
+  label.row { gap: 16px; }
+  select { flex: none; max-width: 300px; }
   .restore-toggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
   .hint { display: block; font-size: 12px; margin-top: 2px; }
   .restore-now { display: flex; align-items: center; gap: 12px; }

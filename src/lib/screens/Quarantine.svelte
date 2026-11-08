@@ -1,6 +1,7 @@
 <script lang="ts">
   import SampleBanner from "../components/SampleBanner.svelte";
-  import { deleteQuarantine, listQuarantine, QUARANTINE_DAYS, restoreQuarantine, usesSampleData } from "../api";
+  import { deleteQuarantine, listQuarantine, restoreQuarantine, usesSampleData } from "../api";
+  import { quarantine } from "../settings.svelte";
   import { fileCount, formatBytes, relativeTime, restoreSummary } from "../format";
   import { locale, t } from "../i18n/index.svelte";
   import type { QuarantineEntry } from "../types";
@@ -93,7 +94,7 @@
 <div class="head">
   <div>
     <h1>{t("quarantine.title")}</h1>
-    <p class="muted sub">{t("quarantine.subtitle", { days: QUARANTINE_DAYS })}</p>
+    <p class="muted sub">{t("quarantine.subtitle", { days: quarantine.keepDays })}</p>
   </div>
   {#if entries.length}
     <div class="total">{t("quarantine.summary", { count: fileCount(totalFiles), size: formatBytes(totalBytes) })}</div>
@@ -116,7 +117,7 @@
 {:else if entries.length === 0}
   <div class="card message">
     <span class="big-icon" aria-hidden="true">🛡️</span>
-    <p>{t("quarantine.empty", { days: QUARANTINE_DAYS })}</p>
+    <p>{t("quarantine.empty", { days: quarantine.keepDays })}</p>
   </div>
 {:else}
   {#each entries as e (e.id)}
