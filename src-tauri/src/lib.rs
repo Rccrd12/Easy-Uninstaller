@@ -11,6 +11,7 @@ mod leftovers;
 mod quarantine;
 mod regkey;
 mod restore_point;
+mod review;
 mod space;
 mod uninstall;
 
@@ -26,7 +27,10 @@ pub fn run() {
         .manage(files::LastScan::default())
         .manage(leftovers::LastLeftovers::default())
         .manage(uninstall::Pending::default())
-        .setup(|app| quarantine::init(app.handle()))
+        .setup(|app| {
+            quarantine::init(app.handle())?;
+            review::init(app.handle())
+        })
         .invoke_handler(tauri::generate_handler![
             apps::list_installed_apps,
             cleanup::remove_file_groups,
@@ -40,6 +44,15 @@ pub fn run() {
             quarantine::restore_quarantine,
             quarantine::delete_quarantine,
             restore_point::create_restore_point,
+            review::current_file_groups,
+            review::review_file_group,
+            review::quarantine_file_selection,
+            review::list_exclusions,
+            review::add_exclusion,
+            review::remove_exclusion,
+            review::file_thumbnail,
+            review::open_scanned_file,
+            review::show_scanned_file,
             space::scan_space,
             uninstall::uninstall_app,
             uninstall::is_app_installed,

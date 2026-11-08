@@ -13,16 +13,55 @@ export const sampleApps: InstalledApp[] = [
 ];
 
 const U = "C:\\Users\\you";
-const fileGroup = (id: string, key: string, safety: FileGroup["safety"], itemCount: number, items: FileItem[]): FileGroup => ({
-  id,
-  titleKey: `files.groups.${key}.title`,
-  descriptionKey: `files.groups.${key}.description`,
-  safety,
-  sizeBytes: items.reduce((s, i) => s + i.sizeBytes, 0),
-  itemCount,
-  items,
-  reviewOnly: id === "unknown-folders",
-});
+const D = `${U}\\Downloads`;
+const P = `${U}\\Pictures`;
+
+/** A sample file on the pretend disk. `group` is the file group it belongs to. */
+export interface SampleFile {
+  group: string;
+  path: string;
+  sizeBytes: number;
+  lastUsed: string;
+  modified: string;
+}
+const file = (group: string, path: string, sizeBytes: number, modified: string, lastUsed = modified): SampleFile => ({ group, path, sizeBytes, lastUsed, modified });
+
+/** Files of the sample file groups, so the review can be tried in the browser. */
+export const sampleFiles: SampleFile[] = [
+  file("installers", `${D}\\Adobe_Photoshop_2025_Set-Up.exe`, 1.9 * GB, "2025-01-14"),
+  file("installers", `${D}\\SpotifyFullSetup.exe`, 610 * MB, "2024-06-02"),
+  file("installers", `${D}\\vlc-3.0.20-win64.exe`, 42 * MB, "2023-11-10"),
+  file("old-downloads", `${D}\\Wedding video raw.mp4`, 2.4 * GB, "2023-05-20"),
+  file("old-downloads", `${D}\\ubuntu-22.04-desktop-amd64.iso`, 1.2 * GB, "2023-02-11"),
+  file("old-downloads", `${D}\\Vacation photos.zip`, 860 * MB, "2023-09-03"),
+  file("old-downloads", `${D}\\Concert 2023.mov`, 690 * MB, "2023-07-15"),
+  file("old-downloads", `${D}\\Driver_pack_2022.zip`, 410 * MB, "2022-10-01"),
+  file("old-downloads", `${D}\\Scanned receipts.pdf`, 12 * MB, "2023-03-28"),
+  file("old-downloads", `${D}\\IMG_2231.jpg`, 4.2 * MB, "2023-08-12"),
+  file("old-downloads", `${D}\\IMG_2232.jpg`, 3.9 * MB, "2023-08-12"),
+  file("old-downloads", `${D}\\Tax return 2022.pdf`, 3 * MB, "2023-04-30"),
+  file("old-downloads", `${D}\\Holiday map.png`, 2.1 * MB, "2023-06-30"),
+  file("old-downloads", `${D}\\Old resume.docx`, 0.3 * MB, "2022-11-18"),
+  file("large-files", `${U}\\Videos\\Game capture 2025-02-03.mp4`, 5.6 * GB, "2025-02-03"),
+  file("large-files", `${U}\\Documents\\VirtualBox VMs\\Windows 10.vdi`, 3.9 * GB, "2024-12-01"),
+  file("large-files", `${U}\\Videos\\Family videos 2019.mkv`, 2.2 * GB, "2020-01-06"),
+];
+
+/** Sets of identical files, oldest first (the copy kept by default). */
+export const sampleDuplicateSets: SampleFile[][] = [
+  [file("duplicates", `${P}\\Holidays 2024\\VID_20240802.mp4`, 920 * MB, "2024-08-02"), file("duplicates", `${D}\\WhatsApp\\VID_20240802.mp4`, 920 * MB, "2025-01-14")],
+  [
+    file("duplicates", `${U}\\Documents\\Work\\presentation-final.pptx`, 210 * MB, "2025-03-10"),
+    file("duplicates", `${D}\\presentation-final (1).pptx`, 210 * MB, "2025-03-12"),
+    file("duplicates", `${U}\\Desktop\\presentation-final.pptx`, 210 * MB, "2025-03-14"),
+  ],
+  [file("duplicates", `${U}\\Music\\Albums\\Live in Rome.flac`, 48 * MB, "2022-04-09"), file("duplicates", `${D}\\Live in Rome.flac`, 48 * MB, "2024-02-20")],
+  [file("duplicates", `${P}\\Wedding Luca\\Wedding_Luca_018.jpg`, 8.4 * MB, "2024-06-22"), file("duplicates", `${D}\\photos (3)\\Wedding_Luca_018.jpg`, 8.4 * MB, "2025-01-14")],
+  [file("duplicates", `${P}\\iPhone\\2023\\IMG_4471.HEIC`, 6.1 * MB, "2023-09-17"), file("duplicates", `${U}\\Desktop\\to sort\\IMG_4471.HEIC`, 6.1 * MB, "2025-01-14")],
+  [file("duplicates", `${P}\\Holidays 2024\\IMG_0912.jpg`, 5.2 * MB, "2024-08-03"), file("duplicates", `${U}\\Desktop\\IMG_0912.jpg`, 5.2 * MB, "2024-09-01")],
+  [file("duplicates", `${U}\\Documents\\Contracts\\rental-contract.pdf`, 2.3 * MB, "2023-01-30"), file("duplicates", `${D}\\rental-contract.pdf`, 2.3 * MB, "2023-02-02")],
+];
+
 const item = (path: string, sizeBytes: number, lastUsed: string | null = null, duplicateOf: string | null = null): FileItem => ({
   path,
   sizeBytes,
@@ -39,54 +78,96 @@ const binItem = (id: string, originalPath: string, sizeBytes: number): FileItem 
   originalPath,
 });
 
-export const sampleFileGroups: FileGroup[] = [
-  fileGroup("temp", "temp", "safe", 4821, [
-    folderItem(`${U}\\AppData\\Local\\Temp`, 1.6 * GB, "temp"),
-    folderItem(`${U}\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache`, 820 * MB, "browserCache"),
-    folderItem("C:\\Windows\\Temp", 410 * MB, "temp"),
-    folderItem(`${U}\\AppData\\Local\\NVIDIA\\DXCache`, 270 * MB, "shaderCache"),
-  ]),
-  fileGroup("recycle-bin", "recycleBin", "safe", 14, [
+/** Temp folders: listed by folder, like the real scan does. */
+export const sampleTempFolders: FileItem[] = [
+  folderItem(`${U}\\AppData\\Local\\Temp`, 1.6 * GB, "temp"),
+  folderItem(`${U}\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache`, 820 * MB, "browserCache"),
+  folderItem("C:\\Windows\\Temp", 410 * MB, "temp"),
+  folderItem(`${U}\\AppData\\Local\\NVIDIA\\DXCache`, 270 * MB, "shaderCache"),
+];
+
+/** Groups that are listed as found, not reviewed file by file (from "What is this?"). */
+const sampleExtraGroups: [id: string, key: string, safety: FileGroup["safety"], itemCount: number, items: FileItem[]][] = [
+  ["recycle-bin", "recycleBin", "safe", 14, [
     binItem("K2J9QX.zip", `${U}\\Downloads\\Old project`, 840 * MB),
     binItem("8DF1LA.mp4", `${U}\\Videos\\Screen recording 2025-03-02.mp4`, 310 * MB),
     binItem("Q7ZP02.psd", `${U}\\Desktop\\poster draft.psd`, 95 * MB),
-  ]),
-  fileGroup("crash-reports", "crashReports", "safe", 9, [
+  ]],
+  ["crash-reports", "crashReports", "safe", 9, [
     { ...item(`${U}\\AppData\\Local\\CrashDumps\\GameLauncher.exe.8812.dmp`, 410 * MB, "2025-06-14"), explainId: "crashDumps" },
     { ...item(`${U}\\AppData\\Local\\CrashDumps\\explorer.exe.4410.dmp`, 160 * MB, "2025-04-02"), explainId: "crashDumps" },
     { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\WER\\ReportArchive\\AppCrash_Spotify\\Report.wer`, 70 * MB, "2025-02-20"), explainId: "crashDumps" },
-  ]),
-  fileGroup("thumbnails", "thumbnails", "safe", 6, [
+  ]],
+  ["thumbnails", "thumbnails", "safe", 6, [
     { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\Explorer\\thumbcache_256.db`, 380 * MB, "2025-07-01"), explainId: "thumbCache" },
     { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\Explorer\\thumbcache_1280.db`, 210 * MB, "2025-07-01"), explainId: "thumbCache" },
-  ]),
-  fileGroup("installers", "installers", "safe", 3, [
-    item(`${U}\\Downloads\\Adobe_Photoshop_2025_Set-Up.exe`, 1.9 * GB, "2025-01-14"),
-    item(`${U}\\Downloads\\SpotifyFullSetup.exe`, 610 * MB, "2024-06-02"),
-    item(`${U}\\Downloads\\vlc-3.0.20-win64.exe`, 42 * MB, "2023-11-10"),
-  ]),
-  fileGroup("old-downloads", "oldDownloads", "check", 212, [
-    item(`${U}\\Downloads\\Wedding video raw.mp4`, 2.4 * GB, "2023-05-20"),
-    item(`${U}\\Downloads\\ubuntu-22.04-desktop-amd64.iso`, 1.2 * GB, "2023-02-11"),
-    item(`${U}\\Downloads\\Tax return 2022.pdf`, 3 * MB, "2023-04-30"),
-  ]),
-  fileGroup("duplicates", "duplicates", "check", 38, [
-    item(`${U}\\Desktop\\Holidays\\VID_20240802.mp4`, 920 * MB, "2024-09-02", `${U}\\Pictures\\Holidays 2024\\VID_20240802.mp4`),
-    item(`${U}\\Desktop\\presentation-final.pptx`, 210 * MB, "2025-03-12", `${U}\\Documents\\presentation-final.pptx`),
-  ]),
-  fileGroup("large-files", "largeFiles", "check", 2, [
-    item(`${U}\\Videos\\Game capture 2025-02-03.mp4`, 5.6 * GB, "2025-02-03"),
-    item(`${U}\\Documents\\VirtualBox VMs\\Windows 10.vdi`, 3.9 * GB, "2024-12-01"),
-  ]),
-  fileGroup("unknown-folders", "unknownFolders", "check", 6, [
+  ]],
+  ["unknown-folders", "unknownFolders", "check", 6, [
     folderItem("C:\\ProgramData\\Package Cache", 4.2 * GB, "packageCache"),
     folderItem(`${U}\\AppData\\Roaming\\Zoom`, 1.1 * GB, "zoom"),
     folderItem(`${U}\\AppData\\Local\\ABX_7731`, 820 * MB, null),
     folderItem(`${U}\\AppData\\Local\\Spotify`, 640 * MB, "spotify"),
     folderItem(`${U}\\AppData\\Local\\NVIDIA`, 450 * MB, "shaderCache"),
     folderItem(`${U}\\AppData\\Local\\npm-cache`, 380 * MB, "devCache"),
-  ]),
+  ]],
 ];
+
+/**
+ * Builds the sample groups from the sample files that `present` accepts,
+ * like src-tauri/src/review.rs rebuilds the real ones.
+ */
+export function buildSampleGroups(present: (path: string) => boolean): FileGroup[] {
+  const group = (id: string, key: string, safety: FileGroup["safety"], itemCount: number, items: FileItem[]): FileGroup => ({
+    id,
+    titleKey: `files.groups.${key}.title`,
+    descriptionKey: `files.groups.${key}.description`,
+    safety,
+    sizeBytes: items.reduce((s, i) => s + i.sizeBytes, 0),
+    itemCount,
+    items: [...items].sort((a, b) => b.sizeBytes - a.sizeBytes),
+    reviewOnly: id === "unknown-folders",
+  });
+  const files = (id: string): FileItem[] =>
+    sampleFiles.filter((f) => f.group === id && present(f.path)).map((f) => item(f.path, f.sizeBytes, f.lastUsed));
+  const temp = sampleTempFolders.filter((f) => present(f.path));
+  const copies: FileItem[] = sampleDuplicateSets.flatMap((set) => {
+    const left = set.filter((f) => present(f.path));
+    return left.slice(1).map((f) => item(f.path, f.sizeBytes, f.lastUsed, left[0].path));
+  });
+  const extra = (id: string): FileGroup => {
+    const [, key, safety, count, items] = sampleExtraGroups.find((g) => g[0] === id)!;
+    const left = items.filter((i) => present(i.path));
+    return group(id, key, safety, left.length === items.length ? count : left.length, left);
+  };
+  return [
+    group("temp", "temp", "safe", Math.round((4821 * temp.length) / sampleTempFolders.length), temp),
+    extra("recycle-bin"),
+    extra("crash-reports"),
+    extra("thumbnails"),
+    group("installers", "installers", "safe", files("installers").length, files("installers")),
+    group("old-downloads", "oldDownloads", "check", files("old-downloads").length, files("old-downloads")),
+    group("duplicates", "duplicates", "check", copies.length, copies),
+    group("large-files", "largeFiles", "check", files("large-files").length, files("large-files")),
+    extra("unknown-folders"),
+  ].filter((g) => g.itemCount > 0);
+}
+
+/**
+ * A pretend photo for image and video files, so the previews can be tried in the
+ * browser. Colors follow the file name, so each file keeps its own picture.
+ */
+export function samplePreview(path: string): string | null {
+  if (!/\.(jpe?g|png|heic|mp4|mov|mkv)$/i.test(path)) return null;
+  const name = path.split("\\").pop() ?? path;
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
+  const sky = `hsl(${h},70%,72%)`;
+  const sky2 = `hsl(${(h + 40) % 360},75%,88%)`;
+  const hill = `hsl(${(h + 120) % 360},40%,42%)`;
+  const hill2 = `hsl(${(h + 150) % 360},45%,55%)`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky}"/><stop offset="1" stop-color="${sky2}"/></linearGradient></defs><rect width="120" height="120" fill="url(#s)"/><circle cx="${30 + (h % 60)}" cy="34" r="12" fill="#fff6c8"/><path d="M0 84 Q30 60 62 80 T120 72 V120 H0Z" fill="${hill2}"/><path d="M0 100 Q40 80 80 98 T120 92 V120 H0Z" fill="${hill}"/></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
 
 const leftover = (id: string, appName: string | null, kind: LeftoverItem["kind"], path: string, sizeBytes: number, reason: string, safety: LeftoverItem["safety"] = "safe", needsAdmin = false): LeftoverItem => ({ id, appName, kind, path, sizeBytes, reason, safety, needsAdmin });
 

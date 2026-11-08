@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ExclusionList from "../components/ExclusionList.svelte";
   import { createRestorePoint, KEEP_DAYS_CHOICES } from "../api";
   import { formatBytes } from "../format";
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
@@ -87,6 +88,7 @@
     {/if}
     {#if saveError}<span class="note bad" role="alert">{t("settings.saveFailed", { error: saveError })}</span>{/if}
   </div>
+  <ExclusionList />
   <div class="row restore">
     <label class="restore-toggle">
       <span>
