@@ -2,6 +2,7 @@
   import ExplainCard from "../components/ExplainCard.svelte";
   import ExplainTag from "../components/ExplainTag.svelte";
   import FileReview from "../components/FileReview.svelte";
+  import StatusIcon from "../components/StatusIcon.svelte";
   import SafetyTag from "../components/SafetyTag.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
   import {
@@ -395,7 +396,7 @@
 {#if notice}
   {@const n = notice}
   <div class="card toast" class:error={n.kind === "error"} class:raised={reviewing !== null} role="status" aria-live="polite">
-    <span class="toast-icon" aria-hidden="true">{n.kind === "error" ? "⚠️" : "✅"}</span>
+    <StatusIcon kind={n.kind === "error" ? "warn" : "ok"} />
     <div class="toast-text">
       {#each n.kind === "moved" ? removedLines(n.report, quarantine.keepDays) : n.kind === "folderMoved" ? folderMovedLines(n.report, n.item) : n.lines as line, i (i)}<p>{line}</p>{/each}
     </div>
@@ -475,7 +476,6 @@
   .toast.error { border-left-color: var(--danger); }
   /* Above the review's sticky footer, so its buttons stay reachable. */
   .toast.raised { bottom: 96px; }
-  .toast-icon { font-size: 18px; }
   .toast-text { flex: 1; font-size: 13px; line-height: 1.4; }
   .toast-text p + p { color: var(--text-muted); margin-top: 2px; }
   .toast .btn { flex: none; }

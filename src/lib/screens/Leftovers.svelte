@@ -1,4 +1,5 @@
 <script lang="ts">
+  import StatusIcon from "../components/StatusIcon.svelte";
   import LeftoverRow from "../components/LeftoverRow.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
   import { listLeftovers, quarantineLeftovers, restoreQuarantine, usesSampleData } from "../api";
@@ -185,7 +186,7 @@
 {#if notice}
   {@const n = notice}
   <div class="card toast" class:error={n.kind === "error"} role="status" aria-live="polite">
-    <span class="toast-icon" aria-hidden="true">{n.kind === "error" ? "⚠️" : "✅"}</span>
+    <StatusIcon kind={n.kind === "error" ? "warn" : "ok"} />
     <div class="toast-text">
       {#each n.kind === "moved" ? movedLines(n.report) : n.lines as line, i (i)}<p>{line}</p>{/each}
     </div>
@@ -218,7 +219,6 @@
 
   .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
   .toast.error { border-left-color: var(--danger); }
-  .toast-icon { font-size: 18px; }
   .toast-text { flex: 1; font-size: 13px; line-height: 1.4; }
   .toast-text p + p { color: var(--text-muted); margin-top: 2px; }
   .toast .btn { flex: none; }
