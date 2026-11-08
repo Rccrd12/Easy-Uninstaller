@@ -43,7 +43,10 @@
     "map": "Mappa dello spazio",
     "mapText": "Guarda a colpo d'occhio cosa occupa più spazio.",
     "mapButton": "Apri la mappa",
-    "quarantineTip": "Niente viene cancellato subito: tutto passa dalla <b>Quarantena</b> per {days} giorni e puoi ripristinarlo con un clic."
+    "quarantineTip": "Niente viene cancellato subito: tutto passa dalla <b>Quarantena</b> per {days} giorni e puoi ripristinarlo con un clic.",
+    "calculating": "Sto calcolando…",
+    "calculatingNote": "Sto guardando i tuoi file: ci vuole un minuto o due.",
+    "appsInstalled": "{count} app · {size}"
   },
   "apps": {
     "title": "App",
