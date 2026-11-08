@@ -176,17 +176,29 @@ mod windows_icon {
         let mut bgra = read_bits(dc, color, w, h);
         if let Some(px) = bgra.as_mut() {
             // Old icons have no alpha channel: take transparency from the AND mask.
-            if px.chunks_exact(4).all(|p| p[3] == 0) {
+            if px.as_chunks::<4>().0.iter().all(|p| p[3] == 0) {
                 match read_bits(dc, mask, w, h) {
                     Some(m) => {
-                        for (p, m) in px.chunks_exact_mut(4).zip(m.chunks_exact(4)) {
+                        for (p, m) in px
+                            .as_chunks_mut::<4>()
+                            .0
+                            .iter_mut()
+                            .zip(m.as_chunks::<4>().0)
+                        {
                             p[3] = if m[0] == 0 { 255 } else { 0 };
                         }
                     }
-                    None => px.chunks_exact_mut(4).for_each(|p| p[3] = 255),
+                    None => px
+                        .as_chunks_mut::<4>()
+                        .0
+                        .iter_mut()
+                        .for_each(|p| p[3] = 255),
                 }
             }
-            px.chunks_exact_mut(4).for_each(|p| p.swap(0, 2)); // BGRA to RGBA
+            px.as_chunks_mut::<4>()
+                .0
+                .iter_mut()
+                .for_each(|p| p.swap(0, 2)); // BGRA to RGBA
         }
         // SAFETY: created above.
         let _ = unsafe { DeleteDC(dc) };
@@ -214,10 +226,16 @@ mod windows_icon {
         // SAFETY: created above.
         let _ = unsafe { DeleteDC(dc) };
         let mut px = pixels?;
-        if px.chunks_exact(4).all(|p| p[3] == 0) {
-            px.chunks_exact_mut(4).for_each(|p| p[3] = 255);
+        if px.as_chunks::<4>().0.iter().all(|p| p[3] == 0) {
+            px.as_chunks_mut::<4>()
+                .0
+                .iter_mut()
+                .for_each(|p| p[3] = 255);
         }
-        px.chunks_exact_mut(4).for_each(|p| p.swap(0, 2)); // BGRA to RGBA
+        px.as_chunks_mut::<4>()
+            .0
+            .iter_mut()
+            .for_each(|p| p.swap(0, 2)); // BGRA to RGBA
         Some((w as u32, h as u32, px))
     }
 
@@ -444,8 +462,8 @@ mod tests {
     fn png_has_valid_structure_and_compresses_flat_areas() {
         let (w, h) = (32u32, 32u32);
         let mut rgba = vec![0u8; (w * h * 4) as usize];
-        for p in rgba.chunks_exact_mut(4).skip(300).take(200) {
-            p.copy_from_slice(&[0x00, 0x67, 0xc0, 0xff]);
+        for p in rgba.as_chunks_mut::<4>().0.iter_mut().skip(300).take(200) {
+            *p = [0x00, 0x67, 0xc0, 0xff];
         }
         let png = encode_png(w, h, &rgba);
         assert!(png.starts_with(PNG_SIGNATURE));
