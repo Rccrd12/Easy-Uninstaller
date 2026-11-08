@@ -17,8 +17,8 @@
 
   /**
    * Uninstalls `apps` with one click: each app is removed (quietly when Windows
-   * allows it), its safe leftovers are found and, at the end, all of them go to
-   * Quarantine together. The user's own settings are left in place. A summary
+   * allows it), its leftovers are found and, at the end, all of them go to
+   * Quarantine together, the app's settings included. A summary
    * closes the dialog, with an undo for the cleanup. `onClose` gets the ids of the
    * apps removed.
    */
@@ -45,8 +45,6 @@
   let results = $state<Result[]>([]);
   /** Safe leftovers of the apps removed so far: they go to Quarantine at the end. */
   let toClean = $state<LeftoverItem[]>([]);
-  /** The user's own settings, left in place. */
-  let kept = $state(0);
   let undoing = $state(false);
   let showItems = $state(false);
   let pollTimer: ReturnType<typeof setTimeout> | undefined;
@@ -130,9 +128,8 @@
       step = { kind: "searching" };
       try {
         const items = await findAppLeftovers(app.id);
-        // Safe ones go; the user's own settings stay (they are in Leftovers if wanted).
-        toClean = [...toClean, ...items.filter((i) => i.safety === "safe")];
-        kept += items.filter((i) => i.safety !== "safe").length;
+        // All of it goes, the app's settings too: Quarantine keeps them, and the summary can undo.
+        toClean = [...toClean, ...items];
       } catch {
         // The app is gone; its leftovers can still be found later in Leftovers.
       }
@@ -198,6 +195,9 @@
       ? t("uninstall.allRemoved", { count: apps.length })
       : t("uninstall.someRemoved", { n: removedApps.length, total: apps.length });
   });
+
+  /** Whether the app's own settings (AppData\Roaming) were among the leftovers. */
+  const withSettings = $derived(toClean.some((i) => i.safety !== "safe"));
 
   /** The leftovers actually moved, to show on request. */
   const movedItems = $derived(step.kind === "done" && step.report && !step.undone ? toClean : []);
@@ -332,17 +332,16 @@
           <p>{t("uninstall.undone")}</p>
         {:else if step.report}
           <p>
-            {t("uninstall.movedNote", { count: leftoverCount(step.report.movedCount), days: QUARANTINE_DAYS })}
+            {t(withSettings ? "uninstall.movedNoteSettings" : "uninstall.movedNote", { count: leftoverCount(step.report.movedCount), days: QUARANTINE_DAYS })}
             {#if movedItems.length}
               <button class="link" onclick={() => (showItems = !showItems)}>{showItems ? t("quarantine.hideItems") : t("quarantine.showItems")}</button>
             {/if}
           </p>
           {#if step.report.declinedCount}<p>{t("uninstall.declinedNote", { count: leftoverCount(step.report.declinedCount) })}</p>{/if}
           {#if step.report.skippedCount}<p>{t("uninstall.skippedNote", { count: leftoverCount(step.report.skippedCount) })}</p>{/if}
-        {:else if removedApps.some((a) => a.source !== "store") && !step.cleanupError && !kept}
+        {:else if removedApps.some((a) => a.source !== "store") && !step.cleanupError}
           <p>{t("uninstall.noLeftovers")}</p>
         {/if}
-        {#if kept && !step.undone}<p>{t("uninstall.keptSettings")}</p>{/if}
         {#if step.cleanupError}<p class="warn-text" role="alert">⚠️ {step.cleanupError}</p>{/if}
       </div>
       {#if showItems && movedItems.length}
