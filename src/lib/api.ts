@@ -4,7 +4,7 @@
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GB } from "./format";
-import { sampleApps, sampleFileGroups, sampleLeftovers, sampleQuarantine, sampleSpace } from "./mock";
+import { sampleApps, sampleFileGroups, sampleLeftovers, sampleQuarantine, sampleSpaceUsage } from "./mock";
 import type {
   DiskInfo,
   FileGroup,
@@ -15,7 +15,8 @@ import type {
   RestorePointOutcome,
   RestoreReport,
   ScanProgress,
-  SpaceBlock,
+  SpaceProgress,
+  SpaceUsage,
 } from "./types";
 
 /** Matches `KEEP_DAYS` in src-tauri/src/quarantine.rs. */
@@ -116,9 +117,40 @@ export async function listLeftovers(): Promise<LeftoverItem[]> {
   return sampleLeftovers;
 }
 
-/** Sample until the space analyzer lands. */
-export async function getSpaceMap(): Promise<SpaceBlock[]> {
-  return sampleSpace;
+// One space scan at a time, kept until a new one is asked for (like the file scan).
+let spaceScan: Promise<SpaceUsage> | null = null;
+const spaceListeners = new Set<(p: SpaceProgress) => void>();
+
+/**
+ * Real: implemented in src-tauri/src/space.rs (read only). Measures the folders of the
+ * user profile, temporary files and the Recycle Bin; apps come from `listInstalledApps`.
+ */
+export function scanSpace(opts: { onProgress?: (p: SpaceProgress) => void; rescan?: boolean } = {}): Promise<SpaceUsage> {
+  const { onProgress, rescan = false } = opts;
+  if (onProgress) spaceListeners.add(onProgress);
+  if (!spaceScan || rescan) {
+    const notify = (p: SpaceProgress) => spaceListeners.forEach((l) => l(p));
+    const scan = isTauri() ? scanSpaceNative(notify) : sampleSpaceScan(notify);
+    spaceScan = scan;
+    scan.catch(() => spaceScan === scan && (spaceScan = null));
+  }
+  const done = () => onProgress && spaceListeners.delete(onProgress);
+  spaceScan.then(done, done);
+  return spaceScan;
+}
+
+function scanSpaceNative(notify: (p: SpaceProgress) => void): Promise<SpaceUsage> {
+  const onProgress = new Channel<SpaceProgress>();
+  onProgress.onmessage = notify;
+  return invoke<SpaceUsage>("scan_space", { onProgress });
+}
+
+async function sampleSpaceScan(notify: (p: SpaceProgress) => void): Promise<SpaceUsage> {
+  for (let n = 1; n <= 5; n++) {
+    notify({ filesChecked: n * 18_000 });
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  return sampleSpaceUsage;
 }
 
 /** Real: src-tauri/src/quarantine.rs. Expired entries are deleted for good before listing. */

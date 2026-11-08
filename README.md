@@ -7,7 +7,7 @@ without a way back.
 ![Home](docs/screenshots/home.png)
 
 > **Status: early skeleton.** The interface is in place. The disk usage, the list of
-> installed apps and the file scan are real; the other screens still show sample data.
+> installed apps, the file scan and the space map are real; the other screens still show sample data.
 > See the roadmap below.
 
 ## Principles
@@ -27,9 +27,9 @@ without a way back.
 |---|---|---|---|
 | ![](docs/screenshots/home.png) | ![](docs/screenshots/apps.png) | ![](docs/screenshots/files.png) | ![](docs/screenshots/map.png) |
 
-| Dark mode | Theme setting |
-|---|---|
-| ![](docs/screenshots/home-dark.png) | ![](docs/screenshots/settings-dark.png) |
+| Dark mode | Space map (dark) | Theme setting |
+|---|---|---|
+| ![](docs/screenshots/home-dark.png) | ![](docs/screenshots/map-dark.png) | ![](docs/screenshots/settings-dark.png) |
 
 The original design mockups are in [`docs/design`](docs/design).
 
@@ -40,7 +40,7 @@ The original design mockups are in [`docs/design`](docs/design).
 3. ✅ File scan: temp files, caches, used installers, old downloads, duplicates, large files (read only)
 4. ✅ Quarantine and restore: files are moved, kept 7 days, restorable with one click; Windows restore points
 5. ⬜ Uninstall + leftovers cleanup (after 2 and 4)
-6. ⬜ Space map with real data
+6. ✅ Space map with real data: apps, profile folders, app data, caches and Recycle Bin (read only)
 
 ## Development
 

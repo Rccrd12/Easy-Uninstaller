@@ -163,6 +163,11 @@ pub async fn scan_files(
     Ok(result.groups)
 }
 
+/// Temp and cache folders apps recreate on their own (also used by the space map).
+pub fn cache_dirs() -> Vec<PathBuf> {
+    platform::locations().caches
+}
+
 /// A file seen during the scan.
 #[derive(Debug, Clone)]
 struct Seen {

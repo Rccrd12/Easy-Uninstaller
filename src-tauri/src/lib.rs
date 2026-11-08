@@ -6,6 +6,7 @@ mod disk;
 mod files;
 mod quarantine;
 mod restore_point;
+mod space;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -20,7 +21,8 @@ pub fn run() {
             quarantine::list_quarantine,
             quarantine::restore_quarantine,
             quarantine::delete_quarantine,
-            restore_point::create_restore_point
+            restore_point::create_restore_point,
+            space::scan_space
         ])
         .run(tauri::generate_context!())
         .expect("error while running Easy Uninstaller");
