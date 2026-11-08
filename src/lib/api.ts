@@ -4,9 +4,22 @@
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import { GB } from "./format";
 import { sampleApps, sampleFileGroups, sampleLeftovers, sampleQuarantine, sampleSpace } from "./mock";
-import type { DiskInfo, FileGroup, InstalledApp, LeftoverItem, QuarantineItem, ScanProgress, SpaceBlock } from "./types";
+import type {
+  DiskInfo,
+  FileGroup,
+  InstalledApp,
+  LeftoverItem,
+  MoveReport,
+  QuarantineEntry,
+  RestorePointOutcome,
+  RestoreReport,
+  ScanProgress,
+  SpaceBlock,
+} from "./types";
 
+/** Matches `KEEP_DAYS` in src-tauri/src/quarantine.rs. */
 export const QUARANTINE_DAYS = 7;
+const DAY = 24 * 60 * 60;
 
 /** True in a plain browser, where every function returns sample data. */
 export function usesSampleData(): boolean {
@@ -61,6 +74,11 @@ export function listFileGroups(opts: { onProgress?: (p: ScanProgress) => void; r
   return fileScan;
 }
 
+/** Replaces the kept scan result after files were moved (or brought back), so every screen agrees. */
+export function keepFileGroups(groups: FileGroup[]): void {
+  fileScan = Promise.resolve(groups);
+}
+
 function scanFilesNative(notify: (p: ScanProgress) => void): Promise<FileGroup[]> {
   const onProgress = new Channel<ScanProgress>();
   onProgress.onmessage = notify;
@@ -89,7 +107,60 @@ export async function getSpaceMap(): Promise<SpaceBlock[]> {
   return sampleSpace;
 }
 
-/** Sample until quarantine lands. */
-export async function listQuarantine(): Promise<QuarantineItem[]> {
-  return sampleQuarantine;
+/** Real: src-tauri/src/quarantine.rs. Expired entries are deleted for good before listing. */
+export async function listQuarantine(): Promise<QuarantineEntry[]> {
+  if (isTauri()) return invoke<QuarantineEntry[]>("list_quarantine");
+  return [...sampleQuarantine].sort((a, b) => b.removedAt - a.removedAt);
+}
+
+/**
+ * Moves whole groups of the last file scan into quarantine (one entry per group).
+ * Only group ids are sent: Rust moves exactly the files its own scan found.
+ */
+export async function quarantineFileGroups(groupIds: string[]): Promise<MoveReport> {
+  if (isTauri()) return invoke<MoveReport>("quarantine_file_groups", { groupIds });
+  const now = Math.floor(Date.now() / 1000);
+  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, skippedCount: 0 };
+  for (const g of sampleFileGroups.filter((x) => groupIds.includes(x.id))) {
+    const id = `${now}-${g.id}-${sampleQuarantine.length}`;
+    sampleQuarantine.push({
+      id,
+      titleKey: g.titleKey,
+      title: null,
+      itemCount: g.itemCount,
+      sizeBytes: g.sizeBytes,
+      removedAt: now,
+      expiresAt: now + QUARANTINE_DAYS * DAY,
+      items: g.items.map((i) => ({ originalPath: i.path, sizeBytes: i.sizeBytes })),
+    });
+    report.entryIds.push(id);
+    report.movedCount += g.itemCount;
+    report.movedBytes += g.sizeBytes;
+  }
+  return report;
+}
+
+/** Puts the files of these entries back where they were. */
+export async function restoreQuarantine(ids: string[]): Promise<RestoreReport> {
+  if (isTauri()) return invoke<RestoreReport>("restore_quarantine", { ids });
+  const report: RestoreReport = { restoredCount: 0, renamedCount: 0, failedCount: 0 };
+  for (const id of ids) {
+    const i = sampleQuarantine.findIndex((e) => e.id === id);
+    if (i >= 0) report.restoredCount += sampleQuarantine.splice(i, 1)[0].itemCount;
+  }
+  return report;
+}
+
+/** Deletes an entry for good. */
+export async function deleteQuarantine(id: string): Promise<void> {
+  if (isTauri()) return invoke("delete_quarantine", { id });
+  const i = sampleQuarantine.findIndex((e) => e.id === id);
+  if (i >= 0) sampleQuarantine.splice(i, 1);
+}
+
+/** Real: src-tauri/src/restore_point.rs. Windows asks the user for permission. */
+export async function createRestorePoint(): Promise<RestorePointOutcome> {
+  if (isTauri()) return invoke<RestorePointOutcome>("create_restore_point");
+  await new Promise((r) => setTimeout(r, 1200));
+  return "created";
 }

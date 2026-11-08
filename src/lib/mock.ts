@@ -1,7 +1,7 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { FileGroup, FileItem, InstalledApp, LeftoverItem, QuarantineItem, SpaceBlock } from "./types";
+import type { FileGroup, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, SpaceBlock } from "./types";
 
 export const sampleApps: InstalledApp[] = [
   { id: "photoshop", name: "Adobe Photoshop 2025", publisher: "Adobe", sizeBytes: 6.8 * GB, source: "win32", installedOn: "2025-01-14", lastUsed: "3 months ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#e3008c", icon: null },
@@ -71,7 +71,32 @@ export const sampleSpace: SpaceBlock[] = [
   { id: "cache", label: "Caches and temp", sizeBytes: 3.1 * GB, category: "reclaimable" },
 ];
 
-export const sampleQuarantine: QuarantineItem[] = [
-  { id: "q1", label: "nv_cache_old", originalPath: "C:\\Users\\you\\AppData\\Local\\nv_cache_old", sizeBytes: 2.9 * GB, removedOn: "2 days ago", expiresInDays: 5 },
-  { id: "q2", label: "Discord leftovers", originalPath: "C:\\Users\\you\\AppData\\Local\\Discord", sizeBytes: 406 * MB, removedOn: "yesterday", expiresInDays: 6 },
+const DAY = 24 * 60 * 60;
+const daysAgo = (days: number) => Math.floor(Date.now() / 1000) - days * DAY;
+
+/** Changed by the browser fallbacks in api.ts, so moving and restoring can be tried. */
+export const sampleQuarantine: QuarantineEntry[] = [
+  {
+    id: "q1",
+    titleKey: "files.groups.temp.title",
+    title: null,
+    itemCount: 1312,
+    sizeBytes: 2.9 * GB,
+    removedAt: daysAgo(2),
+    expiresAt: daysAgo(2) + 7 * DAY,
+    items: [
+      { originalPath: `${U}\\AppData\\Local\\NVIDIA\\DXCache\\nv_cache_old.bin`, sizeBytes: 2.1 * GB },
+      { originalPath: `${U}\\AppData\\Local\\Temp\\setup-log-2025.txt`, sizeBytes: 0.8 * GB },
+    ],
+  },
+  {
+    id: "q2",
+    titleKey: null,
+    title: "Discord",
+    itemCount: 214,
+    sizeBytes: 406 * MB,
+    removedAt: daysAgo(1),
+    expiresAt: daysAgo(1) + 7 * DAY,
+    items: [{ originalPath: `${U}\\AppData\\Local\\Discord\\app-1.0.9187\\Discord.exe`, sizeBytes: 160 * MB }],
+  },
 ];
