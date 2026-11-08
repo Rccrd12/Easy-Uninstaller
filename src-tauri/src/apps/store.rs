@@ -98,6 +98,45 @@ pub fn list() -> Vec<Entry> {
 }
 
 #[cfg(windows)]
+pub fn is_installed(full_name: &str) -> bool {
+    use windows::core::HSTRING;
+    use windows::Management::Deployment::PackageManager;
+    PackageManager::new()
+        .and_then(|m| {
+            m.FindPackageByUserSecurityIdPackageFullName(&HSTRING::new(), &HSTRING::from(full_name))
+        })
+        .is_ok()
+}
+
+#[cfg(not(windows))]
+pub fn is_installed(_full_name: &str) -> bool {
+    false
+}
+
+/// Removes the package for the current user (no administrator rights needed).
+#[cfg(windows)]
+pub fn remove(full_name: &str) -> Result<(), String> {
+    use windows::core::HSTRING;
+    use windows::Management::Deployment::PackageManager;
+    let result = PackageManager::new()
+        .and_then(|m| m.RemovePackageAsync(&HSTRING::from(full_name)))
+        .and_then(|op| op.join())
+        .map_err(|e| e.message())?;
+    match result.ExtendedErrorCode() {
+        Ok(code) if code.is_err() => Err(result
+            .ErrorText()
+            .map(|t| t.to_string())
+            .unwrap_or_else(|_| code.message())),
+        _ => Ok(()),
+    }
+}
+
+#[cfg(not(windows))]
+pub fn remove(_full_name: &str) -> Result<(), String> {
+    Err("only available on Windows".into())
+}
+
+#[cfg(windows)]
 fn read_packages() -> windows::core::Result<Vec<Entry>> {
     use windows::core::HSTRING;
     use windows::Management::Deployment::{PackageManager, PackageTypes};
