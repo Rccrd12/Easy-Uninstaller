@@ -78,13 +78,18 @@ export const sampleFileGroups: FileGroup[] = [
     item(`${U}\\Videos\\Game capture 2025-02-03.mp4`, 5.6 * GB, "2025-02-03"),
     item(`${U}\\Documents\\VirtualBox VMs\\Windows 10.vdi`, 3.9 * GB, "2024-12-01"),
   ]),
-  fileGroup("unknown-folders", "unknownFolders", "check", 6, [
+  fileGroup("unknown-folders", "unknownFolders", "check", 11, [
     folderItem("C:\\ProgramData\\Package Cache", 4.2 * GB, "packageCache"),
     folderItem(`${U}\\AppData\\Roaming\\Zoom`, 1.1 * GB, "zoom"),
     folderItem(`${U}\\AppData\\Local\\ABX_7731`, 820 * MB, null),
     folderItem(`${U}\\AppData\\Local\\Spotify`, 640 * MB, "spotify"),
     folderItem(`${U}\\AppData\\Local\\NVIDIA`, 450 * MB, "shaderCache"),
     folderItem(`${U}\\AppData\\Local\\npm-cache`, 380 * MB, "devCache"),
+    folderItem(`${U}\\AppData\\Roaming\\anythingllm-desktop`, 360 * MB, null),
+    folderItem(`${U}\\AppData\\Roaming\\Code`, 350 * MB, "vscode"),
+    folderItem("C:\\ProgramData\\NVIDIA Corporation", 340 * MB, "gpuDrivers"),
+    folderItem(`${U}\\AppData\\Local\\Docker`, 330 * MB, "docker"),
+    folderItem(`${U}\\AppData\\Local\\uv`, 320 * MB, null),
   ]),
 ];
 

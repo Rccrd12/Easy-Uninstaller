@@ -8,6 +8,7 @@ import { sampleApps, sampleAppLeftovers, sampleFileGroups, sampleLeftovers, samp
 import type {
   DiskInfo,
   FileGroup,
+  FileItem,
   InstalledApp,
   LeftoverItem,
   MoveReport,
@@ -255,6 +256,31 @@ export async function quarantineFileGroups(groupIds: string[]): Promise<MoveRepo
     report.movedBytes += g.sizeBytes;
   }
   return report;
+}
+
+/**
+ * Real: src-tauri/src/app_folders.rs. Moves one folder of the "unknown folders" group into
+ * quarantine as one entry. Rust checks the path again; folders outside the user's
+ * profile (ProgramData) make Windows ask for permission.
+ */
+export async function quarantineAppFolder(item: FileItem): Promise<MoveReport> {
+  if (isTauri()) return invoke<MoveReport>("quarantine_app_folder", { path: item.path });
+  await sleep(700);
+  const now = Math.floor(Date.now() / 1000);
+  const id = `${now}-folder-${sampleQuarantine.length}`;
+  const name = item.path.split(/[\\/]/).pop() ?? item.path;
+  sampleQuarantine.push({
+    id,
+    titleKey: null,
+    title: name,
+    itemCount: 1,
+    sizeBytes: item.sizeBytes,
+    removedAt: now,
+    expiresAt: now + QUARANTINE_DAYS * DAY,
+    items: [{ originalPath: item.path, sizeBytes: item.sizeBytes, kind: "folder" }],
+    needsAdmin: !/\\AppData\\/i.test(item.path),
+  });
+  return { entryIds: [id], movedCount: 1, movedBytes: item.sizeBytes, skippedCount: 0, declinedCount: 0 };
 }
 
 /** Puts the files of these entries back where they were. */

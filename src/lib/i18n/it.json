@@ -129,7 +129,7 @@
         "title": "Cartelle sconosciute",
         "description": "Cartelle grandi in AppData e ProgramData: scopri cosa sono",
         "what": "Cartelle grandi che le app tengono in AppData e ProgramData. L'app spiega quelle che conosce: tocca una cartella per scoprire cos'è.",
-        "ifRemoved": "Qui guardi soltanto: niente viene spostato. Molte di queste cartelle sono di app che usi ancora."
+        "ifRemoved": "Puoi spostarle una alla volta, dopo aver letto cosa sono: il gruppo intero non si può selezionare, perché molte sono di app che usi ancora."
       }
     },
     "scanning": "Sto cercando i file che puoi togliere…",
@@ -165,8 +165,14 @@
     "folderCountOne": "1 cartella",
     "entryCount": "{count} elementi",
     "entryCountOne": "1 elemento",
-    "reviewOnly": "Qui guardi soltanto: tocca una cartella per scoprire cos'è.",
-    "wasIn": "era in {path}"
+    "reviewOnly": "Tocca una cartella per sapere cos'è e, se vuoi, spostarla in Quarantena.",
+    "wasIn": "era in {path}",
+    "folderMoved": "“{name}” è in Quarantena ({size}). Puoi ripristinarla per {days} giorni.",
+    "folderSkipped": "Non ho potuto spostare “{name}”: forse un'app la sta usando. Chiudi l'app e riprova.",
+    "folderDeclined": "Windows non ha dato il permesso: “{name}” è rimasta dov'era.",
+    "showAll": "Mostra tutti ({count})",
+    "showLess": "Mostra meno",
+    "notListed": "e altri {count} non elencati qui"
   },
   "leftovers": {
     "title": "Avanzi",
@@ -544,6 +550,18 @@
         "what": "Chocolatey o Scoop e i programmi che hanno installato.",
         "ifRemoved": "I programmi installati con loro smetterebbero di funzionare o non si aggiornerebbero più."
       }
+    },
+    "move": {
+      "title": "Sposta {name} in Quarantena",
+      "normalTitle": "Spostare “{name}” in Quarantena?",
+      "keepTitle": "Questa cartella è meglio tenerla",
+      "unknownTitle": "Non so cosa sia “{name}”",
+      "keepText": "Spostala solo se sei sicuro.",
+      "unknownText": "Se è di un'app che usi ancora, quell'app potrebbe smettere di funzionare o perdere le impostazioni.",
+      "restore": "Potrai ripristinarla dalla Quarantena per {days} giorni.",
+      "admin": "Windows ti chiederà il permesso.",
+      "confirm": "Sposta in Quarantena",
+      "confirmAnyway": "Spostala comunque"
     }
   }
 }

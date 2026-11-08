@@ -129,7 +129,7 @@
         "title": "Unknown folders",
         "description": "Big folders in AppData and ProgramData: find out what they are",
         "what": "Big folders apps keep in AppData and ProgramData. The app explains the ones it knows; tap a folder to find out what it is.",
-        "ifRemoved": "Here you only look: nothing is moved. Many of these folders belong to apps you still use."
+        "ifRemoved": "Move them one at a time, after reading what they are: the whole group cannot be selected, because many belong to apps you still use."
       }
     },
     "scanning": "Looking for files you can remove…",
@@ -165,8 +165,14 @@
     "folderCountOne": "1 folder",
     "entryCount": "{count} items",
     "entryCountOne": "1 item",
-    "reviewOnly": "Here you only look: tap a folder to find out what it is.",
-    "wasIn": "was in {path}"
+    "reviewOnly": "Tap a folder to find out what it is and, if you want, move it to Quarantine.",
+    "wasIn": "was in {path}",
+    "folderMoved": "“{name}” is in Quarantine ({size}). You can restore it for {days} days.",
+    "folderSkipped": "“{name}” could not be moved: an app may be using it. Close the app and try again.",
+    "folderDeclined": "Windows did not give permission: “{name}” stayed where it was.",
+    "showAll": "Show all ({count})",
+    "showLess": "Show fewer",
+    "notListed": "and {count} more not listed here"
   },
   "leftovers": {
     "title": "Leftovers",
@@ -544,6 +550,18 @@
         "what": "Chocolatey or Scoop and the programs they installed.",
         "ifRemoved": "Programs installed with them would stop working or could no longer be updated."
       }
+    },
+    "move": {
+      "title": "Move {name} to Quarantine",
+      "normalTitle": "Move “{name}” to Quarantine?",
+      "keepTitle": "This folder is better kept",
+      "unknownTitle": "I don't know what “{name}” is",
+      "keepText": "Move it only if you are sure.",
+      "unknownText": "If it belongs to an app you still use, that app may stop working or lose its settings.",
+      "restore": "You can restore it from Quarantine for {days} days.",
+      "admin": "Windows will ask for permission.",
+      "confirm": "Move to Quarantine",
+      "confirmAnyway": "Move it anyway"
     }
   }
 }
