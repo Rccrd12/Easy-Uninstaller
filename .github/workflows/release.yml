@@ -105,7 +105,7 @@ jobs:
           New-Item -ItemType Directory -Force release-files | Out-Null
           Copy-Item $built[0].FullName "release-files/$name"
           $hash = (Get-FileHash "release-files/$name" -Algorithm SHA256).Hash.ToLower()
-          Set-Content -Encoding ascii -NoNewline "release-files/$name.sha256" "$hash  $name`n"
+          Set-Content -Path "release-files/$name.sha256" -Value "$hash  $name`n" -Encoding ascii -NoNewline
           $size = "{0:N1} MB" -f ((Get-Item "release-files/$name").Length / 1MB)
           @"
           ## Download
@@ -116,7 +116,7 @@ jobs:
 
           SHA-256: ``$hash``
 
-          "@ -replace '(?m)^          ', '' | Set-Content -Encoding utf8 release-notes.md
+          "@ -replace '(?m)^          ', '' | Set-Content -Path release-notes.md -Encoding utf8
           "$name ($size), SHA-256 $hash" >> $env:GITHUB_STEP_SUMMARY
 
       - name: Create or update the draft release
