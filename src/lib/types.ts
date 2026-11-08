@@ -39,6 +39,10 @@ export interface FileItem {
   lastUsed: string | null;
   /** For duplicates: the copy that is kept. */
   duplicateOf: string | null;
+  /** A folder the app can explain: an id from src-tauri/src/known_folders.json. */
+  explainId: string | null;
+  /** For Recycle Bin items: where the file was before it was deleted. */
+  originalPath: string | null;
 }
 
 export interface FileGroup {
@@ -52,9 +56,11 @@ export interface FileGroup {
   itemCount: number;
   /** Largest first, at most 200. Temp files are listed one folder per item. */
   items: FileItem[];
+  /** Only shown and explained: it cannot be selected or moved as a whole. */
+  reviewOnly: boolean;
 }
 
-export type ScanStep = "caches" | "downloads" | "personal" | "duplicates";
+export type ScanStep = "caches" | "downloads" | "personal" | "duplicates" | "appFolders";
 
 export interface ScanProgress {
   step: ScanStep;

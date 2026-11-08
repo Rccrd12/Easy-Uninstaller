@@ -21,15 +21,44 @@ const fileGroup = (id: string, key: string, safety: FileGroup["safety"], itemCou
   sizeBytes: items.reduce((s, i) => s + i.sizeBytes, 0),
   itemCount,
   items,
+  reviewOnly: id === "unknown-folders",
 });
-const item = (path: string, sizeBytes: number, lastUsed: string | null = null, duplicateOf: string | null = null): FileItem => ({ path, sizeBytes, lastUsed, duplicateOf });
+const item = (path: string, sizeBytes: number, lastUsed: string | null = null, duplicateOf: string | null = null): FileItem => ({
+  path,
+  sizeBytes,
+  lastUsed,
+  duplicateOf,
+  explainId: null,
+  originalPath: null,
+});
+/** A folder the app knows (see src-tauri/src/known_folders.json), or null for one it does not. */
+const folderItem = (path: string, sizeBytes: number, explainId: string | null): FileItem => ({ ...item(path, sizeBytes), explainId });
+const binItem = (id: string, originalPath: string, sizeBytes: number): FileItem => ({
+  ...item(`C:\\$Recycle.Bin\\S-1-5-21-1004\\$R${id}`, sizeBytes),
+  explainId: "recycleBin",
+  originalPath,
+});
 
 export const sampleFileGroups: FileGroup[] = [
   fileGroup("temp", "temp", "safe", 4821, [
-    item(`${U}\\AppData\\Local\\Temp`, 1.6 * GB),
-    item(`${U}\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache`, 820 * MB),
-    item("C:\\Windows\\Temp", 410 * MB),
-    item(`${U}\\AppData\\Local\\NVIDIA\\DXCache`, 270 * MB),
+    folderItem(`${U}\\AppData\\Local\\Temp`, 1.6 * GB, "temp"),
+    folderItem(`${U}\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache`, 820 * MB, "browserCache"),
+    folderItem("C:\\Windows\\Temp", 410 * MB, "temp"),
+    folderItem(`${U}\\AppData\\Local\\NVIDIA\\DXCache`, 270 * MB, "shaderCache"),
+  ]),
+  fileGroup("recycle-bin", "recycleBin", "safe", 14, [
+    binItem("K2J9QX.zip", `${U}\\Downloads\\Old project`, 840 * MB),
+    binItem("8DF1LA.mp4", `${U}\\Videos\\Screen recording 2025-03-02.mp4`, 310 * MB),
+    binItem("Q7ZP02.psd", `${U}\\Desktop\\poster draft.psd`, 95 * MB),
+  ]),
+  fileGroup("crash-reports", "crashReports", "safe", 9, [
+    { ...item(`${U}\\AppData\\Local\\CrashDumps\\GameLauncher.exe.8812.dmp`, 410 * MB, "2025-06-14"), explainId: "crashDumps" },
+    { ...item(`${U}\\AppData\\Local\\CrashDumps\\explorer.exe.4410.dmp`, 160 * MB, "2025-04-02"), explainId: "crashDumps" },
+    { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\WER\\ReportArchive\\AppCrash_Spotify\\Report.wer`, 70 * MB, "2025-02-20"), explainId: "crashDumps" },
+  ]),
+  fileGroup("thumbnails", "thumbnails", "safe", 6, [
+    { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\Explorer\\thumbcache_256.db`, 380 * MB, "2025-07-01"), explainId: "thumbCache" },
+    { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\Explorer\\thumbcache_1280.db`, 210 * MB, "2025-07-01"), explainId: "thumbCache" },
   ]),
   fileGroup("installers", "installers", "safe", 3, [
     item(`${U}\\Downloads\\Adobe_Photoshop_2025_Set-Up.exe`, 1.9 * GB, "2025-01-14"),
@@ -48,6 +77,19 @@ export const sampleFileGroups: FileGroup[] = [
   fileGroup("large-files", "largeFiles", "check", 2, [
     item(`${U}\\Videos\\Game capture 2025-02-03.mp4`, 5.6 * GB, "2025-02-03"),
     item(`${U}\\Documents\\VirtualBox VMs\\Windows 10.vdi`, 3.9 * GB, "2024-12-01"),
+  ]),
+  fileGroup("unknown-folders", "unknownFolders", "check", 11, [
+    folderItem("C:\\ProgramData\\Package Cache", 4.2 * GB, "packageCache"),
+    folderItem(`${U}\\AppData\\Roaming\\Zoom`, 1.1 * GB, "zoom"),
+    folderItem(`${U}\\AppData\\Local\\ABX_7731`, 820 * MB, null),
+    folderItem(`${U}\\AppData\\Local\\Spotify`, 640 * MB, "spotify"),
+    folderItem(`${U}\\AppData\\Local\\NVIDIA`, 450 * MB, "shaderCache"),
+    folderItem(`${U}\\AppData\\Local\\npm-cache`, 380 * MB, "devCache"),
+    folderItem(`${U}\\AppData\\Roaming\\anythingllm-desktop`, 360 * MB, null),
+    folderItem(`${U}\\AppData\\Roaming\\Code`, 350 * MB, "vscode"),
+    folderItem("C:\\ProgramData\\NVIDIA Corporation", 340 * MB, "gpuDrivers"),
+    folderItem(`${U}\\AppData\\Local\\Docker`, 330 * MB, "docker"),
+    folderItem(`${U}\\AppData\\Local\\uv`, 320 * MB, null),
   ]),
 ];
 

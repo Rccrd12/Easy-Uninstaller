@@ -29,8 +29,10 @@
     // The file scan takes a while: the total says "calculating" until it is done.
     listFileGroups().then(
       (g) => {
-        filesBytes = g.reduce((s, x) => s + x.sizeBytes, 0);
-        safeFilesBytes = g.filter((x) => x.safety === "safe").reduce((s, x) => s + x.sizeBytes, 0);
+        // Review-only groups (unknown folders) are explained, not offered for removal.
+        const removable = g.filter((x) => !x.reviewOnly);
+        filesBytes = removable.reduce((s, x) => s + x.sizeBytes, 0);
+        safeFilesBytes = removable.filter((x) => x.safety === "safe").reduce((s, x) => s + x.sizeBytes, 0);
       },
       () => (filesBytes = 0),
     );
