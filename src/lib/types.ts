@@ -217,3 +217,47 @@ export interface RestoreReport {
 }
 
 export type RestorePointOutcome = "created" | "declined" | "disabled" | "failed";
+
+/** A file as the review lists it. Mirrors `ReviewFile` in src-tauri/src/review.rs. */
+export interface ReviewFile {
+  path: string;
+  sizeBytes: number;
+  /** "YYYY-MM-DD": the later of last opened and last changed. */
+  lastUsed: string;
+  /** "YYYY-MM-DD". */
+  modified: string;
+  /** A photo, video or document that "Open" may show; never a program. */
+  canOpen: boolean;
+}
+
+/** Every file of one group, for reviewing them one by one. Mirrors `GroupReview`. */
+export interface GroupReview {
+  groupId: string;
+  /** Files that can be moved: for duplicates, the extra copies. */
+  totalCount: number;
+  totalBytes: number;
+  /** Largest first, at most 2,000. Empty for duplicates. */
+  files: ReviewFile[];
+  /** Duplicates only: sets of identical files, each oldest first, most space first. */
+  duplicateSets: ReviewFile[][];
+}
+
+/** Some files of one group, picked by the user. */
+export interface FileSelection {
+  groupId: string;
+  paths: string[];
+}
+
+/** What a hidden item is. A folder covers everything inside it. */
+export type HiddenKind = "file" | "folder" | "group" | "leftover";
+
+/** Something the user chose to hide. Mirrors `Exclusion` in src-tauri/src/review.rs. */
+export interface Exclusion {
+  /** A path for files and folders, an id for groups and leftovers. */
+  path: string;
+  kind: HiddenKind;
+  /** Unix seconds; 0 until saved. */
+  hiddenAt: number;
+  /** An i18n key (groups) or an app name (leftovers), when the path says little. */
+  label: string | null;
+}

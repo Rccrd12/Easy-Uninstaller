@@ -1,12 +1,23 @@
 <script lang="ts">
-  import { createRestorePoint, KEEP_DAYS_CHOICES } from "../api";
+  import EyeOffIcon from "../components/EyeOffIcon.svelte";
+  import { createRestorePoint, KEEP_DAYS_CHOICES, listExclusions } from "../api";
   import { formatBytes } from "../format";
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
   import { quarantine, saveQuarantine, saveSettings, settings } from "../settings.svelte";
+  import type { Screen } from "../screens";
   import type { RestorePointOutcome } from "../types";
   import { getTheme, setTheme, themes } from "../theme.svelte";
   // Only this field ends up in the bundle; the release workflow keeps it in sync with the tag.
   import { version } from "../../../package.json";
+
+  let { onNavigate }: { onNavigate: (s: Screen) => void } = $props();
+
+  let hiddenCount = $state<number | null>(null);
+  $effect(() => {
+    listExclusions()
+      .then((l) => (hiddenCount = l.length))
+      .catch(() => (hiddenCount = null));
+  });
 
   let restorePoint = $state<RestorePointOutcome | "creating" | null>(null);
 
@@ -87,6 +98,15 @@
     {/if}
     {#if saveError}<span class="note bad" role="alert">{t("settings.saveFailed", { error: saveError })}</span>{/if}
   </div>
+  <button class="row hidden-row" onclick={() => onNavigate("hidden")}>
+    <span class="hidden-icon"><EyeOffIcon size={18} /></span>
+    <span class="grow">
+      {t("settings.hidden")}
+      <span class="muted hint">{t("settings.hiddenHint")}</span>
+    </span>
+    {#if hiddenCount}<span class="count">{hiddenCount}</span>{/if}
+    <span class="manage">{t("settings.manage")} ›</span>
+  </button>
   <div class="row restore">
     <label class="restore-toggle">
       <span>
@@ -132,5 +152,11 @@
   .segmented button { border: none; background: none; padding: 5px 14px; font-size: 12.5px; border-radius: 6px; }
   .segmented .on { background: var(--raised); font-weight: 600; box-shadow: var(--shadow); }
   select { font-family: inherit; padding: 4px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); }
+  .hidden-row { width: 100%; gap: 12px; border: none; border-bottom: 1px solid var(--border); background: none; text-align: left; font-size: inherit; color: inherit; }
+  .hidden-row:hover { background: var(--hover); }
+  .hidden-icon { display: flex; color: var(--text-muted); }
+  .grow { flex: 1; min-width: 0; }
+  .count { flex: none; font-size: 12px; font-weight: 600; background: var(--track); border-radius: 10px; padding: 1px 8px; }
+  .manage { flex: none; color: var(--accent); font-weight: 600; font-size: 13px; }
   .about { margin-top: 14px; font-size: 12px; }
 </style>

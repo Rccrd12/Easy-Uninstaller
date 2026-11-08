@@ -40,6 +40,13 @@ pub fn from_icon_location(_location: &str) -> Option<String> {
     None
 }
 
+/// A bitmap, such as a file thumbnail from Windows, as a PNG `data:` URL.
+#[cfg(windows)]
+pub fn from_bitmap(bitmap: windows::Win32::Graphics::Gdi::HBITMAP) -> Option<String> {
+    let (width, height, rgba) = windows_icon::bitmap_pixels(bitmap)?;
+    Some(png_data_url(&encode_png(width, height, &rgba)))
+}
+
 /// `"C:\App\app.exe",0` / `C:\App\app.ico` / `%SystemRoot%\x.dll,-12` to (path, index).
 pub fn parse_icon_location(raw: &str) -> Option<(String, i32)> {
     let raw = raw.trim();
@@ -184,6 +191,34 @@ mod windows_icon {
         // SAFETY: created above.
         let _ = unsafe { DeleteDC(dc) };
         bgra.map(|px| (w as u32, h as u32, px))
+    }
+
+    /// Any 32-bit bitmap up to 512 px as RGBA pixels; opaque when it has no alpha channel.
+    pub fn bitmap_pixels(bitmap: HBITMAP) -> Option<(u32, u32, Vec<u8>)> {
+        let mut bm = BITMAP::default();
+        // SAFETY: the buffer is a BITMAP of the size we pass.
+        let got = unsafe {
+            GetObjectW(
+                bitmap.into(),
+                std::mem::size_of::<BITMAP>() as i32,
+                Some(&mut bm as *mut BITMAP as *mut c_void),
+            )
+        };
+        let (w, h) = (bm.bmWidth, bm.bmHeight.abs());
+        if got == 0 || !(1..=512).contains(&w) || !(1..=512).contains(&h) {
+            return None;
+        }
+        // SAFETY: a memory DC compatible with the screen, deleted below.
+        let dc = unsafe { CreateCompatibleDC(None) };
+        let pixels = read_bits(dc, bitmap, w, h);
+        // SAFETY: created above.
+        let _ = unsafe { DeleteDC(dc) };
+        let mut px = pixels?;
+        if px.chunks_exact(4).all(|p| p[3] == 0) {
+            px.chunks_exact_mut(4).for_each(|p| p[3] = 255);
+        }
+        px.chunks_exact_mut(4).for_each(|p| p.swap(0, 2)); // BGRA to RGBA
+        Some((w as u32, h as u32, px))
     }
 
     /// The bitmap as top-down 32-bit BGRA rows.

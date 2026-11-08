@@ -41,8 +41,6 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 | **Dark mode** | **Space map, dark** |
 | ![Home screen in dark mode](docs/screenshots/home-dark.png) | ![Space map in dark mode](docs/screenshots/map-dark.png) |
 
-<sub>Screenshots use sample data.</sub>
-
 | **Uninstall: one click** | **Uninstall: done** |
 |---|---|
 | ![Uninstall confirmation](docs/screenshots/uninstall-confirm.png) | ![Uninstall done, leftovers moved to quarantine](docs/screenshots/uninstall-done.png) |
@@ -50,6 +48,10 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 | ![Leftovers screen](docs/screenshots/leftovers.png) | ![Built-in explanation of an unknown folder](docs/screenshots/files-explain.png) |
 | **Quick clean** | **Quarantine settings** |
 | ![Quick clean: only what is safe, in one click](docs/screenshots/quick-clean.png) | ![Quarantine duration and drive in Settings](docs/screenshots/settings-quarantine.png) |
+| **Review files one by one** | **Hidden items** |
+| ![Reviewing a group file by file, with previews](docs/screenshots/files-review.png) | ![Hidden files, folders and groups in Settings, with Show again](docs/screenshots/hidden-items.png) |
+
+<sub>Screenshots use sample data.</sub>
 
 ## Download and install
 
@@ -88,6 +90,10 @@ Safety is the first goal of this project, ahead of features and speed.
 - **Restore points for programs.** Before uninstalling programs, the app can create a
   Windows restore point (it asks for permission, since Windows requires administrator
   rights for this). It is off by default; turn it on in Settings.
+- **You choose file by file.** Any group can be reviewed one file at a time, with
+  previews; every duplicate set always keeps one copy. Files, folders, whole groups or
+  leftovers you want to keep can be hidden, and shown again from Settings: hiding never
+  moves or deletes anything.
 - **Personal files are never pre-selected.** Groups labelled *Check* or *Personal* are
   only removed if you tick them yourself.
 
@@ -110,7 +116,8 @@ maintainer privately for anything sensitive.
 9. ✅ "What is this?": built-in explanations (EN/IT) for common folders; new groups for old
    Recycle Bin items, error reports, thumbnail cache and big unknown folders
 10. ✅ Quick clean in one click; quarantine duration (3, 7 or 30 days) and drive in Settings
-11. ⬜ Signed installer and first stable release
+11. ✅ Review files one by one with previews; hide files, folders, groups or leftovers
+12. ⬜ Signed installer and first stable release
 
 ## Development
 
@@ -164,6 +171,7 @@ src-tauri/              backend (Rust)
   src/cleanup.rs        removes scanned files: some groups deleted, the rest to quarantine
   src/quarantine.rs     moves items to quarantine, restores and expires them
   src/elevated.rs       the few steps that need administrator rights
+  src/review.rs         reviewing files one by one, and the items the user hid
   src/restore_point.rs  Windows restore points
 docs/                   screenshots, design mockups, code signing notes
 ```
