@@ -14,5 +14,11 @@ export function formatBytes(bytes: number, loc: string = locale()): string {
   return `${value.toLocaleString(loc, { maximumFractionDigits: digits })} ${units[unit]}`;
 }
 
+/** Formats an ISO date (YYYY-MM-DD) as a short local date, e.g. "2 Jun 2024". */
+export function formatDate(iso: string, loc: string = locale()): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(loc, { day: "numeric", month: "short", year: "numeric" });
+}
+
 export const GB = 1024 ** 3;
 export const MB = 1024 ** 2;

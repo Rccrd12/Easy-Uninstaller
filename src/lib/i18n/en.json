@@ -56,7 +56,11 @@
     "selected": "{count} selected",
     "willFree": "you will free about {size} (app + leftovers)",
     "uninstallSelected": "Uninstall selected",
-    "empty": "No apps match your search."
+    "empty": "No apps match your search.",
+    "installedOn": "installed {date}",
+    "loading": "Reading the apps installed on this PC…",
+    "error": "Could not read the installed apps.",
+    "retry": "Try again"
   },
   "files": {
     "title": "Files",

@@ -8,15 +8,31 @@ import type { DiskInfo, FileGroup, InstalledApp, LeftoverItem, QuarantineItem, S
 
 export const QUARANTINE_DAYS = 7;
 
+/** True in a plain browser (npm run dev), where every screen shows sample data. */
+export const usesSampleData = (): boolean => !isTauri();
+
 /** Real: implemented in src-tauri/src/disk.rs. */
 export async function getSystemDisk(): Promise<DiskInfo> {
   if (isTauri()) return invoke<DiskInfo>("get_system_disk");
   return { mountPoint: "C:", totalBytes: 476 * GB, freeBytes: 64 * GB };
 }
 
-/** Sample until the registry + Store reader lands. */
-export async function listInstalledApps(): Promise<InstalledApp[]> {
-  return sampleApps;
+let appsCache: Promise<InstalledApp[]> | null = null;
+
+/**
+ * Real: implemented in src-tauri/src/apps.rs (registry + Microsoft Store).
+ * Reading sizes and icons takes a moment, so the result is kept until `refresh` is true.
+ */
+export function listInstalledApps(refresh = false): Promise<InstalledApp[]> {
+  if (!isTauri()) return Promise.resolve(sampleApps);
+  if (refresh || !appsCache) {
+    const pending = invoke<InstalledApp[]>("list_installed_apps");
+    pending.catch(() => {
+      if (appsCache === pending) appsCache = null;
+    });
+    appsCache = pending;
+  }
+  return appsCache;
 }
 
 /** Sample until the file scanner lands. */

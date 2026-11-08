@@ -6,8 +6,8 @@ without a way back.
 
 ![Home](docs/screenshots/home.png)
 
-> **Status: early skeleton.** The interface is in place, but apart from the disk
-> usage every screen still shows sample data. See the roadmap below.
+> **Status: early skeleton.** The interface is in place. The disk usage and the list of
+> installed apps are real; the other screens still show sample data. See the roadmap below.
 
 ## Principles
 
@@ -30,7 +30,7 @@ The original design mockups are in [`docs/design`](docs/design).
 ## Roadmap
 
 1. ✅ App skeleton: sidebar, screens, sample data, Windows CI build
-2. ⬜ Installed apps: read Win32/MSI programs from the registry and Store apps (read only)
+2. ✅ Installed apps: read Win32/MSI programs from the registry and Store apps (read only)
 3. ⬜ File scan: temp files, caches, used installers, old downloads, duplicates (read only)
 4. ⬜ Quarantine and restore
 5. ⬜ Uninstall + leftovers cleanup (after 2 and 4)
