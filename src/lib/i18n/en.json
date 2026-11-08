@@ -983,6 +983,13 @@
       },
       "parallel": "Questions at the same time",
       "parallelHint": "For “Ask for all”. More finish sooner, but use up your limits or credit faster."
+    },
+    "tag": {
+      "removable": "Can likely go",
+      "keep": "Better keep it",
+      "unknown": "Not sure",
+      "mark": "AI",
+      "title": "The AI says: {verdict}. {what}"
     }
   }
 }

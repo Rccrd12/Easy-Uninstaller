@@ -983,6 +983,13 @@
       },
       "parallel": "Domande insieme",
       "parallelHint": "Per “Chiedi per tutte”. Più sono, prima finisce, ma consumi prima limiti o credito."
+    },
+    "tag": {
+      "removable": "Si può togliere",
+      "keep": "Meglio tenerla",
+      "unknown": "Non è sicura",
+      "mark": "AI",
+      "title": "Secondo l'AI: {verdict}. {what}"
     }
   }
 }

@@ -321,6 +321,9 @@
     if (item.originalPath) return t("files.wasIn", { path: folderOf(item.originalPath) });
     // "C:\\Users\\you\\AppData\\Local" says less than "AppData\\Local" in a narrow panel.
     const folder = folderOf(item.path).replace(/^.*?[\\/](AppData[\\/])/i, "$1");
+    // What the AI said it is, beside where it is: the tag only says whether it can go.
+    const label = item.explainId === null ? answerFor(item.path)?.label : undefined;
+    if (label) return `${label} · ${folder}`;
     return item.lastUsed ? `${folder} · ${t("files.lastUsed", { date: dateOf(item.lastUsed) })}` : folder;
   }
 
@@ -494,8 +497,8 @@
               {#if canExplain}<ExplainTag explainId={item.explainId} answer={answerFor(item.path)} />{/if}
               <span class="item-size">{formatBytes(item.sizeBytes)}</span>
             </svelte:element>
-            <button class="hide-pill" disabled={moving} onclick={() => hideDetail(item)} aria-label={t("files.hideItem", { name: nameOf(item.originalPath ?? item.path) })}>
-              <EyeOffIcon size={14} /> {t("files.hide")}
+            <button class="hide-pill" disabled={moving} onclick={() => hideDetail(item)} aria-label={t("files.hideItem", { name: nameOf(item.originalPath ?? item.path) })} title={t("files.hide")}>
+              <EyeOffIcon size={14} />
             </button>
           </li>
         {/each}
@@ -605,7 +608,8 @@
   .message p { flex: 1; }
   .big-icon { font-size: 26px; }
 
-  .side { width: 330px; flex: none; padding: 18px; min-height: 420px; display: flex; flex-direction: column; position: sticky; top: 0; }
+  /* Wider on a wide window: the group rows need less room than the folder list. */
+  .side { width: clamp(330px, 30vw, 520px); flex: none; padding: 18px; min-height: 420px; display: flex; flex-direction: column; position: sticky; top: 0; }
   .label { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; color: var(--text-muted); text-transform: uppercase; }
   .side h3 { font-size: 17px; margin: 6px 0 4px; }
   .side h4 { font-size: 12.5px; margin-top: 10px; }
@@ -645,7 +649,7 @@
   .dots:hover { background: var(--hover); color: var(--text); }
   /* Over the size on hover, so the name keeps its room. */
   .items li { position: relative; }
-  .hide-pill { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 999px; padding: 3px 10px; font-size: 12px; opacity: 0; transition: opacity 0.12s; }
+  .hide-pill { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 999px; padding: 4px 6px; font-size: 12px; opacity: 0; transition: opacity 0.12s; }
   .items li:hover .hide-pill, .hide-pill:focus-visible { opacity: 1; }
   .hide-pill:hover { background: var(--hover); }
   .hidden-link { display: flex; align-items: center; gap: 8px; margin-top: 16px; border: none; background: none; padding: 6px 2px; font-size: 13px; color: var(--text-muted); text-align: left; }
