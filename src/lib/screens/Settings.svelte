@@ -7,10 +7,10 @@
   import type { Screen } from "../screens";
   import type { RestorePointOutcome } from "../types";
   import { getTheme, setTheme, themes } from "../theme.svelte";
+  // Only this field ends up in the bundle; the release workflow keeps it in sync with the tag.
+  import { version } from "../../../package.json";
 
   let { onNavigate }: { onNavigate: (s: Screen) => void } = $props();
-
-  const version = "0.1.0";
 
   let hiddenCount = $state<number | null>(null);
   $effect(() => {

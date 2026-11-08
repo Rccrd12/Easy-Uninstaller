@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A lightweight, simple app to uninstall apps and free up space on Windows"
 edition = "2021"
 rust-version = "1.80"
-license = "UNLICENSED"
+license = "MIT"
 
 [lib]
 name = "easy_uninstaller_lib"

@@ -1,0 +1,143 @@
+name: Release
+
+# Builds the Windows installer for a version tag (v1.2.3) and attaches it, with its
+# SHA-256 checksum, to a DRAFT GitHub release. Nothing is public until a maintainer
+# reviews the draft and presses "Publish release".
+#
+#   git tag v0.2.0 && git push origin v0.2.0
+#
+# To rebuild an existing tag (for example after fixing this workflow), run it by hand
+# from the Actions tab and type the tag. Pull requests that change this file run it as a
+# dry run: everything except creating the release.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build, e.g. v0.2.0"
+        required: true
+        type: string
+  pull_request:
+    paths: [".github/workflows/release.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build installer and draft the release
+    runs-on: windows-latest
+    env:
+      DRY_RUN: ${{ github.event_name == 'pull_request' }}
+      TAG: ${{ inputs.tag || (github.event_name == 'push' && github.ref_name) || '' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG && format('refs/tags/{0}', env.TAG) || '' }}
+
+      - name: Check that the tag matches the app version
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:DRY_RUN -eq "true") {
+            $env:TAG = "v" + (Get-Content package.json -Raw | ConvertFrom-Json).version
+            "TAG=$env:TAG" >> $env:GITHUB_ENV
+            Write-Host "Dry run for $($env:TAG), the release will not be created."
+          }
+          if ($env:TAG -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
+            throw "Tag '$env:TAG' is not a version tag like v1.2.3 or v1.2.3-beta.1"
+          }
+          $version = $env:TAG.Substring(1)
+          $found = [ordered]@{
+            "package.json"              = (Get-Content package.json -Raw | ConvertFrom-Json).version
+            "src-tauri/tauri.conf.json" = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+            "src-tauri/Cargo.toml"      = (Select-String -Path src-tauri/Cargo.toml -Pattern '^version = "(.+)"' |
+                                            Select-Object -First 1).Matches[0].Groups[1].Value
+          }
+          $wrong = $found.GetEnumerator() | Where-Object { $_.Value -ne $version }
+          if ($wrong) {
+            $wrong | ForEach-Object { Write-Host "::error file=$($_.Key)::version is $($_.Value), tag is $version" }
+            throw "Set version $version in every file above before tagging."
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "prerelease=$($version.Contains('-').ToString().ToLower())" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Check frontend types
+        run: npm run check
+
+      - name: Test Rust
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Build installer
+        run: npm run tauri build
+
+      # Code signing goes here once a certificate is available; see docs/code-signing.md.
+      # The installer must be signed before the checksum below is computed.
+
+      - name: Collect installer and checksum
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $built = Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe
+          if ($built.Count -ne 1) { throw "Expected one installer, found $($built.Count)" }
+          $name = "EasyUninstaller-$version-setup.exe"
+          New-Item -ItemType Directory -Force release-files | Out-Null
+          Copy-Item $built[0].FullName "release-files/$name"
+          $hash = (Get-FileHash "release-files/$name" -Algorithm SHA256).Hash.ToLower()
+          Set-Content -Path "release-files/$name.sha256" -Value "$hash  $name`n" -Encoding ascii -NoNewline
+          $size = "{0:N1} MB" -f ((Get-Item "release-files/$name").Length / 1MB)
+          @"
+          ## Download
+
+          **[$name](https://github.com/${{ github.repository }}/releases/download/$env:TAG/$name)** ($size, Windows 10 and 11, 64-bit)
+
+          The installer is not code-signed yet, so Windows SmartScreen may show *"Windows protected your PC"*: click **More info**, then **Run anyway**.
+
+          SHA-256: ``$hash``
+
+          "@ -replace '(?m)^          ', '' | Set-Content -Path release-notes.md -Encoding utf8
+          "$name ($size), SHA-256 $hash" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Create or update the draft release
+        if: env.DRY_RUN != 'true'
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem release-files | ForEach-Object { $_.FullName }
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $env:TAG exists: replacing its files"
+            gh release upload $env:TAG @files --clobber
+          } else {
+            $flags = @("--draft", "--verify-tag", "--title", "Easy Uninstaller $env:TAG",
+                       "--notes-file", "release-notes.md", "--generate-notes")
+            if ("${{ steps.version.outputs.prerelease }}" -eq "true") { $flags += "--prerelease" }
+            gh release create $env:TAG @files @flags
+          }
+          if ($LASTEXITCODE -ne 0) { throw "gh failed with exit code $LASTEXITCODE" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: easy-uninstaller-${{ steps.version.outputs.version }}
+          path: release-files/*
+          if-no-files-found: error
