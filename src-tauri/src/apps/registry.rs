@@ -3,6 +3,7 @@
 #![cfg_attr(not(windows), allow(dead_code))]
 
 use super::AppSource;
+use crate::regkey::RegKeyPath;
 
 /// Values read from one `...\CurrentVersion\Uninstall\<key>` subkey.
 #[derive(Debug, Default, Clone)]
@@ -121,56 +122,118 @@ pub fn dedup(entries: Vec<Entry>) -> Vec<Entry> {
     out
 }
 
-/// All visible programs from the three places Windows keeps them.
-#[cfg(windows)]
-pub fn list() -> Vec<Entry> {
-    use winreg::enums::{
-        HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_32KEY, KEY_WOW64_64KEY,
-    };
-    use winreg::RegKey;
+/// The three places Windows keeps the list of programs, as `(scope, key)`.
+/// The scope is part of an app id (`reg:<scope>:<key>`).
+pub const SCOPES: [(&str, &str); 3] = [
+    (
+        "hklm",
+        r"HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+    ),
+    (
+        "hklm32",
+        r"HKLM\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+    ),
+    (
+        "hkcu",
+        r"HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+    ),
+];
 
-    const UNINSTALL: &str = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
-    let scopes = [
-        ("hklm", HKEY_LOCAL_MACHINE, KEY_WOW64_64KEY),
-        ("hklm32", HKEY_LOCAL_MACHINE, KEY_WOW64_32KEY),
-        ("hkcu", HKEY_CURRENT_USER, 0),
-    ];
-    let mut entries = Vec::new();
-    for (scope, hive, view) in scopes {
-        let Ok(root) = RegKey::predef(hive).open_subkey_with_flags(UNINSTALL, KEY_READ | view)
-        else {
-            continue;
-        };
-        for key_name in root.enum_keys().flatten() {
-            let Ok(key) = root.open_subkey_with_flags(&key_name, KEY_READ | view) else {
-                continue;
-            };
-            let text = |name: &str| key.get_value::<String, _>(name).ok();
-            let number = |name: &str| key.get_value::<u32, _>(name).ok();
-            let raw = RawEntry {
-                display_name: text("DisplayName"),
-                publisher: text("Publisher"),
-                display_version: text("DisplayVersion"),
-                estimated_size: number("EstimatedSize"),
-                install_date: text("InstallDate"),
-                install_location: text("InstallLocation"),
-                display_icon: text("DisplayIcon"),
-                uninstall_string: text("UninstallString"),
-                system_component: number("SystemComponent"),
-                windows_installer: number("WindowsInstaller"),
-                parent_key_name: text("ParentKeyName"),
-                release_type: text("ReleaseType"),
-                key_name,
-            };
-            entries.extend(classify(scope, raw));
-        }
+/// The registry key of one program, from the scope and key name in its id.
+pub fn uninstall_key(scope: &str, key_name: &str) -> Option<RegKeyPath> {
+    if key_name.is_empty() || key_name.contains('\\') || key_name == ".." {
+        return None;
     }
+    let (_, root) = SCOPES.iter().find(|(s, _)| *s == scope)?;
+    RegKeyPath::parse(&format!("{root}\\{key_name}"))
+}
+
+/// All visible programs from the three places Windows keeps them.
+pub fn list() -> Vec<Entry> {
+    let entries = all_raw()
+        .into_iter()
+        .filter_map(|(scope, _, raw)| classify(scope, raw))
+        .collect();
     dedup(entries)
 }
 
+/// Every program entry, hidden ones included, with its scope and key.
+#[cfg(windows)]
+pub fn all_raw() -> Vec<(&'static str, RegKeyPath, RawEntry)> {
+    let mut out = Vec::new();
+    for (scope, root) in SCOPES {
+        let Some(root) = RegKeyPath::parse(root) else {
+            continue;
+        };
+        for key_name in platform::subkeys(&root) {
+            let key = RegKeyPath::new(root.hive, &format!("{}\\{key_name}", root.path));
+            if let Some(raw) = read_raw(&key) {
+                out.push((scope, key, raw));
+            }
+        }
+    }
+    out
+}
+
 #[cfg(not(windows))]
-pub fn list() -> Vec<Entry> {
+pub fn all_raw() -> Vec<(&'static str, RegKeyPath, RawEntry)> {
     Vec::new()
+}
+
+/// Reads one program entry, or `None` when it is gone.
+#[cfg(windows)]
+pub fn read_raw(key: &RegKeyPath) -> Option<RawEntry> {
+    platform::read(key)
+}
+
+#[cfg(not(windows))]
+pub fn read_raw(_key: &RegKeyPath) -> Option<RawEntry> {
+    None
+}
+
+#[cfg(windows)]
+pub mod platform {
+    use super::RawEntry;
+    use crate::regkey::{Hive, RegKeyPath};
+    use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_64KEY};
+    use winreg::RegKey;
+
+    pub fn open(key: &RegKeyPath) -> Option<RegKey> {
+        let hive = match key.hive {
+            Hive::Hkcu => HKEY_CURRENT_USER,
+            Hive::Hklm => HKEY_LOCAL_MACHINE,
+        };
+        RegKey::predef(hive)
+            .open_subkey_with_flags(&key.path, KEY_READ | KEY_WOW64_64KEY)
+            .ok()
+    }
+
+    pub fn subkeys(key: &RegKeyPath) -> Vec<String> {
+        open(key)
+            .map(|k| k.enum_keys().flatten().collect())
+            .unwrap_or_default()
+    }
+
+    pub fn read(key: &RegKeyPath) -> Option<RawEntry> {
+        let k = open(key)?;
+        let text = |name: &str| k.get_value::<String, _>(name).ok();
+        let number = |name: &str| k.get_value::<u32, _>(name).ok();
+        Some(RawEntry {
+            display_name: text("DisplayName"),
+            publisher: text("Publisher"),
+            display_version: text("DisplayVersion"),
+            estimated_size: number("EstimatedSize"),
+            install_date: text("InstallDate"),
+            install_location: text("InstallLocation"),
+            display_icon: text("DisplayIcon"),
+            uninstall_string: text("UninstallString"),
+            system_component: number("SystemComponent"),
+            windows_installer: number("WindowsInstaller"),
+            parent_key_name: text("ParentKeyName"),
+            release_type: text("ReleaseType"),
+            key_name: key.name().to_string(),
+        })
+    }
 }
 
 #[cfg(test)]
@@ -275,6 +338,23 @@ mod tests {
         assert_eq!(parse_install_date("20241399"), None);
         assert_eq!(parse_install_date("yesterday"), None);
         assert_eq!(parse_install_date(""), None);
+    }
+
+    #[test]
+    fn uninstall_keys_from_ids() {
+        assert_eq!(
+            uninstall_key("hklm32", "VLC media player")
+                .unwrap()
+                .to_string(),
+            r"HKLM\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\VLC media player"
+        );
+        assert_eq!(
+            uninstall_key("hkcu", "{GUID}").unwrap().to_string(),
+            r"HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\{GUID}"
+        );
+        assert_eq!(uninstall_key("hkcr", "x"), None);
+        assert_eq!(uninstall_key("hkcu", r"..\..\Run"), None);
+        assert_eq!(uninstall_key("hkcu", ""), None);
     }
 
     #[test]
