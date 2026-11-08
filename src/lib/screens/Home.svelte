@@ -27,10 +27,10 @@
   const lowSpace = $derived(disk ? disk.freeBytes / disk.totalBytes < 0.15 : false);
 
   const tiles = $derived([
-    { id: "apps" as Screen, icon: "📦", tint: "#e8f1fb", amount: appsBytes, primary: false },
-    { id: "files" as Screen, icon: "📁", tint: "#fff4ce", amount: filesBytes, primary: true },
-    { id: "leftovers" as Screen, icon: "🧹", tint: "#fdeee4", amount: leftoversBytes, primary: false },
-    { id: "map" as Screen, icon: "🗺️", tint: "#f0f1f3", amount: null, primary: false },
+    { id: "apps" as Screen, icon: "📦", tint: "var(--tint-apps)", amount: appsBytes, primary: false },
+    { id: "files" as Screen, icon: "📁", tint: "var(--tint-files)", amount: filesBytes, primary: true },
+    { id: "leftovers" as Screen, icon: "🧹", tint: "var(--tint-leftovers)", amount: leftoversBytes, primary: false },
+    { id: "map" as Screen, icon: "🗺️", tint: "var(--tint-map)", amount: null, primary: false },
   ]);
 </script>
 
@@ -84,7 +84,7 @@
   .cta { margin-top: 12px; padding: 10px 18px; font-size: 14px; }
   .disk { flex: 1; }
   .row { display: flex; justify-content: space-between; gap: 12px; }
-  .bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; margin: 10px 0 8px; background: #e6e8eb; }
+  .bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; margin: 10px 0 8px; background: var(--track); }
   .bar i { display: block; height: 100%; }
   .legend { display: flex; gap: 16px; flex-wrap: wrap; }
   .legend b { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
@@ -95,5 +95,5 @@
   .tile h3 { font-size: 16px; margin: 12px 0 4px; }
   .tile p { font-size: 12.5px; line-height: 1.45; flex: 1; }
   .amount { font-size: 20px; font-weight: 700; margin: 6px 0 10px; min-height: 26px; }
-  .tip { display: flex; gap: 10px; align-items: center; margin-top: 14px; padding: 12px 16px; font-size: 13px; background: #f3eefc; border-color: #e3d8f7; }
+  .tip { display: flex; gap: 10px; align-items: center; margin-top: 14px; padding: 12px 16px; font-size: 13px; background: var(--tip-bg); border-color: var(--tip-border); }
 </style>

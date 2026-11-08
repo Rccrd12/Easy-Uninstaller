@@ -294,7 +294,7 @@
   .more { font-size: 12px; margin-top: 6px; }
   .wide { width: 100%; padding: 10px; margin-top: 14px; }
 
-  .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14); border-left: 4px solid var(--safe-fg); z-index: 10; }
+  .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
   .toast.error { border-left-color: var(--danger); }
   .toast-icon { font-size: 18px; }
   .toast-text { flex: 1; font-size: 13px; line-height: 1.4; }

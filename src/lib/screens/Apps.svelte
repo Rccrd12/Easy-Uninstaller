@@ -131,10 +131,10 @@
 
 <style>
   .sub { margin: 3px 0 10px; }
-  .search { width: 100%; font-size: 14px; padding: 11px 16px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); }
+  .search { width: 100%; font-size: 14px; padding: 11px 16px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); }
   .chips { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
-  .chip { padding: 5px 13px; border-radius: 16px; background: var(--surface); border: 1px solid #d9d9d9; font-size: 12.5px; }
-  .chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .chip { padding: 5px 13px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border-strong); font-size: 12.5px; }
+  .chip.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   .row { display: flex; align-items: center; gap: 13px; padding: 10px 14px; margin-bottom: 6px; border-width: 2px; border-color: transparent; }
   .row.sel { border-color: var(--accent); }
   .row input { width: 18px; height: 18px; accent-color: var(--accent); }
@@ -145,9 +145,9 @@
   .name { font-size: 14.5px; font-weight: 600; }
   .meta { font-size: 12px; }
   .size { margin-left: auto; text-align: right; font-size: 13.5px; width: 100px; flex: none; }
-  .meter { height: 4px; background: #e5e5e5; border-radius: 2px; margin-top: 4px; }
+  .meter { height: 4px; background: var(--track); border-radius: 2px; margin-top: 4px; }
   .meter i { display: block; height: 4px; border-radius: 2px; background: var(--accent); }
-  .footer { position: sticky; bottom: 0; display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-top: 8px; box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05); }
+  .footer { position: sticky; bottom: 0; display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-top: 8px; box-shadow: var(--shadow-up); }
   .grow { flex: 1; }
   .empty { padding: 24px 0; text-align: center; }
   .spinner { display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }

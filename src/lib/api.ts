@@ -2,6 +2,7 @@
 // Inside the Tauri app calls go to Rust commands; in a plain browser
 // (npm run dev) they fall back to sample data so the UI can be designed fast.
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GB } from "./format";
 import { sampleApps, sampleFileGroups, sampleLeftovers, sampleQuarantine, sampleSpace } from "./mock";
 import type {
@@ -20,6 +21,19 @@ import type {
 /** Matches `KEEP_DAYS` in src-tauri/src/quarantine.rs. */
 export const QUARANTINE_DAYS = 7;
 const DAY = 24 * 60 * 60;
+
+/**
+ * Matches the window title bar to the chosen theme ("system" follows Windows).
+ * Nothing to do in a plain browser, where there is no native title bar.
+ */
+export async function setWindowTheme(theme: "system" | "light" | "dark"): Promise<void> {
+  if (!isTauri()) return;
+  await getCurrentWindow()
+    .setTheme(theme === "system" ? null : theme)
+    .catch(() => {
+      // Cosmetic only: the page colors already follow the choice.
+    });
+}
 
 /** True in a plain browser, where every function returns sample data. */
 export function usesSampleData(): boolean {

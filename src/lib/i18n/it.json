@@ -160,6 +160,13 @@
   "settings": {
     "title": "Impostazioni",
     "language": "Lingua",
+    "theme": "Tema",
+    "themeHint": "Sistema segue la modalità chiara o scura scelta in Windows.",
+    "themes": {
+      "system": "Sistema",
+      "light": "Chiaro",
+      "dark": "Scuro"
+    },
     "quarantineDays": "Conserva gli elementi rimossi per",
     "days": "{days} giorni",
     "restorePoint": "Crea un punto di ripristino prima di disinstallare",

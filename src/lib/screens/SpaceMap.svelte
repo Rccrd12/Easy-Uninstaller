@@ -60,9 +60,9 @@
 <style>
   .head { display: flex; align-items: flex-start; gap: 16px; }
   .sub { margin: 3px 0 10px; }
-  .tabs { margin-left: auto; display: inline-flex; background: #e6e8eb; border-radius: 8px; padding: 3px; }
+  .tabs { margin-left: auto; display: inline-flex; background: var(--track); border-radius: 8px; padding: 3px; }
   .tabs button { border: none; background: none; padding: 5px 14px; font-size: 12.5px; border-radius: 6px; }
-  .tabs .on { background: var(--surface); font-weight: 600; box-shadow: var(--shadow); }
+  .tabs .on { background: var(--raised); font-weight: 600; box-shadow: var(--shadow); }
   .legend { display: flex; gap: 14px; font-size: 12px; margin-bottom: 8px; flex-wrap: wrap; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; }
   .map { position: relative; height: calc(100vh - 230px); min-height: 300px; }

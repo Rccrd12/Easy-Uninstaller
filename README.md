@@ -19,12 +19,17 @@ without a way back.
   click. A restore point is created before uninstalling programs.
 - **Clear about risk.** Every file group is labelled *Safe*, *Check* or *Personal*.
 - **English and Italian.** Picked from the system language, changeable in Settings.
+- **Light and dark.** Follows the Windows mode by default, changeable in Settings.
 
 ## Screens
 
 | Home | Apps | Files | Space map |
 |---|---|---|---|
 | ![](docs/screenshots/home.png) | ![](docs/screenshots/apps.png) | ![](docs/screenshots/files.png) | ![](docs/screenshots/map.png) |
+
+| Dark mode | Theme setting |
+|---|---|
+| ![](docs/screenshots/home-dark.png) | ![](docs/screenshots/settings-dark.png) |
 
 The original design mockups are in [`docs/design`](docs/design).
 

@@ -3,6 +3,7 @@
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
   import { saveSettings, settings } from "../settings.svelte";
   import type { RestorePointOutcome } from "../types";
+  import { getTheme, setTheme, themes } from "../theme.svelte";
 
   const version = "0.1.0";
 
@@ -23,6 +24,19 @@
       {#each languages as lang (lang.code)}<option value={lang.code}>{lang.name}</option>{/each}
     </select>
   </label>
+  <div class="row theme">
+    <span id="theme-label">
+      {t("settings.theme")}
+      <span class="muted hint">{t("settings.themeHint")}</span>
+    </span>
+    <div class="segmented" role="radiogroup" aria-labelledby="theme-label">
+      {#each themes as theme (theme)}
+        <button role="radio" aria-checked={getTheme() === theme} class:on={getTheme() === theme} onclick={() => setTheme(theme)}>
+          {t(`settings.themes.${theme}`)}
+        </button>
+      {/each}
+    </div>
+  </div>
   <div class="row">
     <span>{t("settings.quarantineDays")}</span>
     <span class="muted">{t("settings.days", { days: QUARANTINE_DAYS })}</span>
@@ -61,6 +75,10 @@
   .status { font-size: 12.5px; }
   .status.ok { color: var(--safe-fg); font-weight: 600; }
   .status.bad { color: var(--check-fg); font-weight: 600; }
+  .theme { gap: 16px; }
+  .segmented { display: inline-flex; flex: none; background: var(--track); border-radius: 8px; padding: 3px; }
+  .segmented button { border: none; background: none; padding: 5px 14px; font-size: 12.5px; border-radius: 6px; }
+  .segmented .on { background: var(--raised); font-weight: 600; box-shadow: var(--shadow); }
   select { font-family: inherit; padding: 4px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); }
   .about { margin-top: 14px; font-size: 12px; }
 </style>
