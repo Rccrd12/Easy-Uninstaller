@@ -334,6 +334,7 @@ fn finds_broken_shortcuts_and_list_entries() {
             ),
             install_location: Some(pc.base.join("Program Files/Old Game").display().to_string()),
             msi: false,
+            gone: false,
         },
         ListEntry {
             key: key("Editor"),
@@ -345,6 +346,7 @@ fn finds_broken_shortcuts_and_list_entries() {
             // The uninstaller is gone but the program is still there: not broken.
             install_location: Some(pc.base.join("Program Files/Editor").display().to_string()),
             msi: false,
+            gone: false,
         },
         ListEntry {
             key: key("{GUID}"),
@@ -352,6 +354,16 @@ fn finds_broken_shortcuts_and_list_entries() {
             uninstall_string: "MsiExec.exe /X{GUID}".into(),
             install_location: None,
             msi: true,
+            gone: false,
+        },
+        ListEntry {
+            key: key("Steam App 359550"),
+            name: "Siege".into(),
+            uninstall_string: "steam.exe steam://uninstall/359550".into(),
+            install_location: None,
+            msi: false,
+            // Steam removed the game but left the entry.
+            gone: true,
         },
     ];
     let found = find_orphans(&pc.roots, &list);
@@ -360,6 +372,7 @@ fn finds_broken_shortcuts_and_list_entries() {
         [
             "Desktop/Old Game.lnk",
             r"HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\OldGame",
+            r"HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 359550",
         ]
     );
     assert!(found.iter().all(|f| f.app_name.is_some()));

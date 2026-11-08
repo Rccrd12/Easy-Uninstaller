@@ -797,6 +797,8 @@ pub struct ListEntry {
     pub uninstall_string: String,
     pub install_location: Option<String>,
     pub msi: bool,
+    /// Already removed by its launcher (see `registry::launcher_gone`).
+    pub gone: bool,
 }
 
 /// Leftovers that need no history: shortcuts that lead nowhere, and entries in
@@ -815,6 +817,10 @@ pub fn find_orphans(roots: &Roots, list: &[ListEntry]) -> Vec<Found> {
         }
     }
     for e in list {
+        if e.gone && registry_allowed(&e.key) {
+            out.push(stale_entry(&e.key, &e.name));
+            continue;
+        }
         if e.msi {
             continue;
         }
@@ -840,6 +846,17 @@ pub fn find_orphans(roots: &Roots, list: &[ListEntry]) -> Vec<Found> {
         }
     }
     out
+}
+
+/// An entry left in the app list by an app that is gone.
+fn stale_entry(key: &RegKeyPath, name: &str) -> Found {
+    Found {
+        target: Target::Registry(key.clone()),
+        app_name: Some(name.to_string()),
+        reason: "brokenEntry",
+        safety: Safety::Safe,
+        size: 0,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -903,9 +920,17 @@ pub fn remember(app: &AppHandle, hints: &AppHints) {
 }
 
 /// Leftovers of one app just uninstalled.
-pub fn search_app(app: &AppHandle, hints: &AppHints) -> Vec<LeftoverItem> {
+/// `stale`: the app's own entry in the app list, when its launcher left it there.
+pub fn search_app(
+    app: &AppHandle,
+    hints: &AppHints,
+    stale: Option<&RegKeyPath>,
+) -> Vec<LeftoverItem> {
     let roots = Roots::from_env();
-    let found = find_for_app(hints, &roots, &platform::in_use(), &platform::Registry);
+    let mut found = find_for_app(hints, &roots, &platform::in_use(), &platform::Registry);
+    if let Some(key) = stale.filter(|k| registry_allowed(k)) {
+        found.push(stale_entry(key, &hints.name));
+    }
     app.state::<LastLeftovers>().keep(&found, &roots)
 }
 
@@ -1011,6 +1036,9 @@ mod platform {
     pub fn in_use() -> InUse {
         let mut in_use = InUse::default();
         for (_, _, raw) in registry::all_raw() {
+            if registry::launcher_gone(&raw, &|p| p.exists()) {
+                continue; // Already removed by its launcher.
+            }
             let paths: Vec<PathBuf> =
                 [raw.display_icon.as_deref(), raw.uninstall_string.as_deref()]
                     .into_iter()
@@ -1038,12 +1066,14 @@ mod platform {
         registry::all_raw()
             .into_iter()
             .filter_map(|(_, key, raw)| {
+                let gone = registry::launcher_gone(&raw, &|p| p.exists());
                 Some(ListEntry {
                     key,
                     name: raw.display_name?,
                     uninstall_string: raw.uninstall_string?,
                     install_location: raw.install_location,
                     msi: raw.windows_installer == Some(1),
+                    gone,
                 })
             })
             .collect()
