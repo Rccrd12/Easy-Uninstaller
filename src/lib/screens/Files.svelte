@@ -453,7 +453,7 @@
         {@const left = unknown.length - answered.length}
         <div class="ai-bar">
           {#if ai.batch}
-            <p><span class="spinner" aria-hidden="true"></span>{t("ai.all.asking", { done: ai.batch.done + 1, total: ai.batch.total })}</p>
+            <p><span class="spinner" aria-hidden="true"></span>{t("ai.all.asking", { done: ai.batch.done, total: ai.batch.total })}</p>
             <button class="link" onclick={stopAskAll}>{t("ai.all.stop")}</button>
           {:else if confirmAll}
             <p>{t("ai.all.confirm", { count: left, service: serviceLabel(settings.ai.service, settings.ai.model) })}</p>

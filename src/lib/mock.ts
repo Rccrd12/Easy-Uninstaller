@@ -285,18 +285,19 @@ export const sampleDrives: DriveInfo[] = [{ mountPoint: "D:", label: "Data", tot
 // ── AI help ───────────────────────────────────────────────────────────────
 
 export const sampleAiServices: AiServiceStatus[] = [
-  { id: "claude-code", found: true, models: null, hasKey: false },
-  { id: "codex", found: true, models: null, hasKey: false },
-  { id: "antigravity-cli", found: false, models: null, hasKey: false },
-  { id: "anthropic", found: true, models: null, hasKey: false },
-  { id: "openai", found: true, models: null, hasKey: false },
-  { id: "google", found: true, models: null, hasKey: false },
-  { id: "openrouter", found: true, models: null, hasKey: false },
-  { id: "custom", found: true, models: null, hasKey: false },
-  { id: "ollama", found: true, models: 3, hasKey: false },
-  { id: "lmstudio", found: true, models: 2, hasKey: false },
-  { id: "unsloth", found: true, models: null, hasKey: false },
-  { id: "local-custom", found: false, models: null, hasKey: false },
+  { id: "claude-code", found: true, models: null, hasKey: false, canStart: false },
+  { id: "codex", found: true, models: null, hasKey: false, canStart: false },
+  { id: "antigravity-cli", found: false, models: null, hasKey: false, canStart: false },
+  { id: "anthropic", found: true, models: null, hasKey: false, canStart: false },
+  { id: "openai", found: true, models: null, hasKey: false, canStart: false },
+  { id: "google", found: true, models: null, hasKey: false, canStart: false },
+  { id: "openrouter", found: true, models: null, hasKey: false, canStart: false },
+  { id: "custom", found: true, models: null, hasKey: false, canStart: false },
+  { id: "ollama", found: true, models: 3, hasKey: false, canStart: false },
+  { id: "lmstudio", found: true, models: 2, hasKey: false, canStart: false },
+  // Installed but not running: the app starts it.
+  { id: "unsloth", found: false, models: null, hasKey: false, canStart: true },
+  { id: "local-custom", found: false, models: null, hasKey: false, canStart: false },
 ];
 
 const m = (id: string, label = id): AiModel => ({ id, label });

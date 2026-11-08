@@ -20,6 +20,7 @@ mod http;
 mod keys;
 mod prompt;
 mod services;
+mod unsloth;
 
 use crate::app_folders;
 use crate::explain::KnownFolders;
@@ -46,6 +47,13 @@ pub struct AiConfig {
     /// For "other service" and servers on this PC: their address.
     #[serde(default)]
     pub url: String,
+    /// Start Unsloth Studio when it is not running, and stop it after a while.
+    #[serde(default = "yes")]
+    pub auto_start: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -66,6 +74,8 @@ pub struct AiServiceStatus {
     pub models: Option<usize>,
     /// A key is saved for it.
     pub has_key: bool,
+    /// The app can start it when it is not running (Unsloth Studio, installed).
+    pub can_start: bool,
 }
 
 /// What the app checked on this PC, shown apart from the AI's answer.
@@ -146,17 +156,19 @@ impl Answers {
         Ok(f(store))
     }
 
+    /// Written while the store is locked, so questions answered at once do not
+    /// write the file over each other.
     fn save(&self, app: &AppHandle) -> Result<(), String> {
         let path = store_path(app)?;
-        let text = self
-            .with(app, |s| serde_json::to_vec(s))?
-            .map_err(|e| e.to_string())?;
-        if let Some(dir) = path.parent() {
-            std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-        }
-        let tmp = path.with_extension("json.tmp");
-        std::fs::write(&tmp, text).map_err(|e| e.to_string())?;
-        std::fs::rename(&tmp, &path).map_err(|e| e.to_string())
+        self.with(app, |s| {
+            let text = serde_json::to_vec(s).map_err(|e| e.to_string())?;
+            if let Some(dir) = path.parent() {
+                std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+            }
+            let tmp = path.with_extension("json.tmp");
+            std::fs::write(&tmp, text).map_err(|e| e.to_string())?;
+            std::fs::rename(&tmp, &path).map_err(|e| e.to_string())
+        })?
     }
 }
 
@@ -209,13 +221,28 @@ pub fn installed_match(names: &[&str], installed: &[String]) -> Option<String> {
         .cloned()
 }
 
+/// Starts Unsloth Studio first when it is the picked service and is not running.
+fn ensure_running(app: &AppHandle, config: &AiConfig) -> Result<(), String> {
+    if config.service == unsloth::ID {
+        unsloth::ensure(app, &config.url, config.auto_start)?;
+    }
+    Ok(())
+}
+
 /// One question to the picked service, blocking. Returns the raw answer text.
-fn send(config: &AiConfig, question: &str) -> Result<String, String> {
+fn send(app: &AppHandle, config: &AiConfig, question: &str) -> Result<String, String> {
     let service = services::find(&config.service).ok_or("ai.error.noService")?;
+    ensure_running(app, config)?;
+    let _busy = unsloth::busy();
     match service.kind {
         Kind::Cli => cli::ask(service.id, &config.model, question),
         _ => services::ask(service, &config.url, &config.model, question),
     }
+}
+
+/// The app is closing: the Unsloth Studio it started goes too.
+pub fn on_exit() {
+    unsloth::stop_owned();
 }
 
 /// The services and whether each can be used: programs installed, servers on
@@ -241,6 +268,7 @@ pub async fn ai_services(urls: HashMap<String, String>) -> Result<Vec<AiServiceS
                         found,
                         models,
                         has_key: keys::get(s.id).is_some(),
+                        can_start: s.id == unsloth::ID && unsloth::can_start(),
                     }
                 })
             })
@@ -255,9 +283,10 @@ pub async fn ai_services(urls: HashMap<String, String>) -> Result<Vec<AiServiceS
 }
 
 #[tauri::command]
-pub async fn ai_models(config: AiConfig) -> Result<Vec<AiModel>, String> {
+pub async fn ai_models(app: AppHandle, config: AiConfig) -> Result<Vec<AiModel>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let service = services::find(&config.service).ok_or("ai.error.noService")?;
+        ensure_running(&app, &config)?;
         match service.kind {
             Kind::Cli => cli::models(service.id),
             _ => services::models(service, &config.url),
@@ -282,10 +311,11 @@ pub fn ai_remove_key(service: String) -> Result<(), String> {
 
 /// Sends a tiny question; returns how long the answer took, in milliseconds.
 #[tauri::command]
-pub async fn ai_test(config: AiConfig) -> Result<u64, String> {
+pub async fn ai_test(app: AppHandle, config: AiConfig) -> Result<u64, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        ensure_running(&app, &config)?;
         let started = Instant::now();
-        let text = send(&config, prompt::TEST_QUESTION)?;
+        let text = send(&app, &config, prompt::TEST_QUESTION)?;
         prompt::answer_object(&text).ok_or("ai.error.badAnswer")?;
         Ok(started.elapsed().as_millis() as u64)
     })
@@ -321,7 +351,7 @@ pub async fn ai_ask(
         let shown = checked(&app, &path)?;
         let summary = prompt::summarize(&path, shown, &user_name());
         let question = prompt::question(&summary, &lang);
-        let text = send(&config, &question)?;
+        let text = send(&app, &config, &question)?;
         let reply = prompt::parse_reply(&text).ok_or("ai.error.badAnswer")?;
 
         let folder = path

@@ -19,6 +19,7 @@ use serde_json::{json, Value};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -85,9 +86,13 @@ fn exe(id: &str) -> Result<PathBuf, String> {
         .ok_or_else(|| "ai.error.notInstalled".to_string())
 }
 
-/// The empty folder the programs run in.
+/// An empty folder for one run, its own so several questions can run at once.
 fn work_dir() -> Result<PathBuf, String> {
-    let dir = std::env::temp_dir().join("easy-uninstaller-ai");
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let n = NEXT.fetch_add(1, Ordering::Relaxed);
+    let dir = std::env::temp_dir()
+        .join("easy-uninstaller-ai")
+        .join(format!("{}-{n}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir)
@@ -522,7 +527,7 @@ pub fn models(id: &str) -> Result<Vec<AiModel>, String> {
 }
 
 #[cfg(windows)]
-mod platform {
+pub(super) mod platform {
     use std::os::windows::process::CommandExt;
     use std::path::PathBuf;
     use std::process::{Child, Command};
@@ -563,7 +568,7 @@ mod platform {
 }
 
 #[cfg(not(windows))]
-mod platform {
+pub(super) mod platform {
     use std::path::PathBuf;
     use std::process::{Child, Command};
 

@@ -2,7 +2,7 @@
 // panel and Settings: which services exist, the answers kept on this PC, and the
 // setup window. Everything reaches Rust through api.ts.
 
-import { aiAsk, aiForgetAnswers, aiSavedAnswers } from "./api";
+import { aiAsk, aiForgetAnswers, aiSavedAnswers, onAiStart } from "./api";
 import { getLanguage, t } from "./i18n/index.svelte";
 import { saveSettings, settings } from "./settings.svelte";
 import type { AiAnswer, AiConfig, FileItem } from "./types";
@@ -58,8 +58,8 @@ export function recommendedModel(service: string): string | undefined {
 
 /** The service and model picked in Settings, as Rust takes them. */
 export function aiConfig(): AiConfig {
-  const { service, model, urls } = settings.ai;
-  return { service, model, url: urls[service] ?? "" };
+  const { service, model, urls, autoStart } = settings.ai;
+  return { service, model, url: urls[service] ?? "", autoStart };
 }
 
 /** The AI is on and has a service and a model. */
@@ -99,9 +99,16 @@ export const ai = $state({
   batch: null as { done: number; total: number } | null,
   /** The setup window, and what to do once the AI is set up. */
   setup: null as { then?: () => void } | null,
+  /** Seconds Unsloth Studio has been starting for, while the app starts it. */
+  starting: null as number | null,
 });
 
+onAiStart((s) => (ai.starting = s.state === "starting" ? s.seconds : null)).catch(() => {});
+
 const key = (path: string) => path.toLowerCase();
+
+/** Which "Ask for all" is running, so a stopped one does not go on. */
+let batchRun = 0;
 
 export function answerFor(path: string): AiAnswer | undefined {
   return ai.answers[key(path)];
@@ -127,25 +134,37 @@ export async function askAbout(item: FileItem): Promise<AiAnswer> {
   }
 }
 
-/** Asks about every folder in `items` with no answer yet, one at a time. Returns the failures. */
+/**
+ * Asks about every folder in `items` with no answer yet, `settings.ai.parallel`
+ * at a time. Returns the failures.
+ */
 export async function askAll(items: FileItem[]): Promise<number> {
   const todo = items.filter((i) => !answerFor(i.path));
+  const id = ++batchRun;
+  const running = () => batchRun === id && ai.batch !== null;
   let failed = 0;
+  let next = 0;
   ai.batch = { done: 0, total: todo.length };
-  for (const item of todo) {
-    if (!ai.batch) break; // stopped
-    try {
-      await askAbout(item);
-    } catch {
-      failed++;
+  const worker = async () => {
+    while (running() && next < todo.length) {
+      const item = todo[next++];
+      try {
+        await askAbout(item);
+      } catch {
+        failed++;
+      }
+      if (running() && ai.batch) ai.batch.done++;
     }
-    if (ai.batch) ai.batch.done++;
-  }
-  ai.batch = null;
+  };
+  const lanes = Math.max(1, Math.min(settings.ai.parallel || 1, todo.length));
+  await Promise.all(Array.from({ length: lanes }, worker));
+  if (batchRun === id) ai.batch = null;
   return failed;
 }
 
+/** Stops "Ask for all": the questions already sent still finish. */
 export function stopAskAll(): void {
+  batchRun++;
   ai.batch = null;
 }
 

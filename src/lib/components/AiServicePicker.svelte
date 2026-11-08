@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { aiModels, aiOpenPage, aiRemoveKey, aiServices, aiSetKey, aiTest } from "../api";
-  import { AI_SERVICES, aiConfig, aiErrorText, recommendedModel, serviceInfo, type AiKind, type AiServiceInfo } from "../ai.svelte";
+  import { ai, AI_SERVICES, aiConfig, aiErrorText, recommendedModel, serviceInfo, type AiKind, type AiServiceInfo } from "../ai.svelte";
   import { locale, t } from "../i18n/index.svelte";
   import { saveSettings, settings } from "../settings.svelte";
   import type { AiModel, AiServiceStatus } from "../types";
@@ -54,7 +54,7 @@
     const st = statuses[s.id];
     if (!st) return false;
     if (s.kind === "api") return s.id !== "custom" && st.hasKey;
-    return st.found;
+    return st.found || startsItself(s.id);
   }
 
   function select(id: string) {
@@ -137,13 +137,22 @@
     }
   }
 
+  /** Not running, but the app starts it when a question needs it (Unsloth Studio). */
+  const startsItself = (id: string) => !!status(id)?.canStart && settings.ai.autoStart;
+
+  function setAutoStart(on: boolean) {
+    settings.ai.autoStart = on;
+    saveSettings();
+    loadModels();
+  }
+
   function badge(s: AiServiceInfo): { text: string; tone: "ok" | "warn" | "off" } | null {
     const st = status(s.id);
     if (!st) return null;
     if (s.kind === "cli") return st.found ? { text: t("ai.picker.found"), tone: "ok" } : { text: t("ai.picker.notInstalled"), tone: "off" };
     if (s.kind === "api") return st.hasKey ? { text: t("ai.picker.keySaved"), tone: "ok" } : null;
     if (s.url === "required" && !(settings.ai.urls[s.id] ?? "").trim()) return null;
-    if (!st.found) return { text: t("ai.picker.off"), tone: "off" };
+    if (!st.found) return startsItself(s.id) ? { text: t("ai.picker.autoStarts"), tone: "ok" } : { text: t("ai.picker.off"), tone: "off" };
     if (s.needsKey && !st.hasKey) return { text: t("ai.picker.needsKey"), tone: "warn" };
     return { text: t("ai.picker.on"), tone: "ok" };
   }
@@ -220,10 +229,20 @@
         </div>
       {/if}
 
+      {#if status(info.id)?.canStart}
+        <label class="auto">
+          <input type="checkbox" checked={settings.ai.autoStart} onchange={(e) => setAutoStart(e.currentTarget.checked)} />
+          <span>
+            {t("ai.picker.autoStart")}
+            <span class="muted small">{t("ai.picker.autoStartHint")}</span>
+          </span>
+        </label>
+      {/if}
+
       <div class="field">
         <span class="field-label">{t("ai.picker.model")}</span>
         {#if loadingModels}
-          <span class="muted small">{t("ai.picker.loadingModels")}</span>
+          <span class="muted small">{ai.starting !== null && info.id === "unsloth" ? t("ai.picker.starting", { seconds: ai.starting }) : t("ai.picker.loadingModels")}</span>
         {:else if needsKeyFirst}
           <span class="muted small">{t("ai.picker.keyFirst")}</span>
         {:else if needsUrlFirst}
@@ -244,7 +263,7 @@
 
       <div class="test">
         <button class="btn btn-ghost" disabled={!settings.ai.model || test?.state === "running"} onclick={runTest}>
-          {test?.state === "running" ? t("ai.picker.testing") : t("ai.picker.test")}
+          {test?.state === "running" ? (ai.starting !== null && info.id === "unsloth" ? t("ai.picker.starting", { seconds: ai.starting }) : t("ai.picker.testing")) : t("ai.picker.test")}
         </button>
         {#if test?.state === "ok"}
           <span class="ok-text" role="status">✓ {t("ai.picker.works", { seconds: seconds(test.ms) })}</span>
@@ -292,6 +311,9 @@
   .key-row .btn { flex: none; padding: 6px 12px; }
   .saved { display: flex; gap: 10px; align-items: center; font-size: 12.5px; }
   .small { font-size: 11.5px; }
+  .auto { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; font-weight: 600; }
+  .auto input { width: 16px; height: 16px; margin-top: 1px; accent-color: var(--ai); flex: none; }
+  .auto .small { display: block; font-weight: 400; margin-top: 2px; line-height: 1.4; }
   .test { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
   .test .btn:disabled, .key-row .btn:disabled { opacity: 0.5; cursor: default; }
   .ok-text { color: var(--safe-fg); font-size: 12.5px; }

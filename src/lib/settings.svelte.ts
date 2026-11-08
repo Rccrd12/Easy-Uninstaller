@@ -19,6 +19,10 @@ export interface AiSettings {
   urls: Record<string, string>;
   /** Show what is sent before each question. */
   confirm: boolean;
+  /** Start Unsloth Studio when a question needs it, and stop it after a while. */
+  autoStart: boolean;
+  /** How many questions "Ask for all" sends at the same time. */
+  parallel: number;
 }
 
 interface Settings {
@@ -30,7 +34,7 @@ interface Settings {
 // Off by default: it needs administrator rights and System Restore is often off on new PCs.
 const defaults: Settings = {
   restorePoint: false,
-  ai: { mode: "off", service: "", model: "", modelLabel: "", urls: {}, confirm: true },
+  ai: { mode: "off", service: "", model: "", modelLabel: "", urls: {}, confirm: true, autoStart: true, parallel: 4 },
 };
 
 function load(): Settings {

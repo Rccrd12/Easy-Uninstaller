@@ -73,6 +73,11 @@ pub fn run() {
             uninstall::is_app_installed,
             uninstall::find_app_leftovers
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Easy Uninstaller");
+        .build(tauri::generate_context!())
+        .expect("error while building Easy Uninstaller")
+        .run(|_app, event| {
+            if let tauri::RunEvent::Exit = event {
+                ai::on_exit();
+            }
+        });
 }

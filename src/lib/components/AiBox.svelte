@@ -95,8 +95,13 @@
 {:else if asking}
   <div class="box">
     <span class="label">✨ {t("ai.box.title")}</span>
-    <p class="asking"><span class="spinner" aria-hidden="true"></span>{t("ai.box.asking", { service })}</p>
-    <p class="muted small">{t(isLocal ? "ai.box.askingLocal" : "ai.box.askingHint")}</p>
+    {#if ai.starting !== null && settings.ai.service === "unsloth"}
+      <p class="asking"><span class="spinner" aria-hidden="true"></span>{t("ai.picker.starting", { seconds: ai.starting })}</p>
+      <p class="muted small">{t("ai.box.startingHint")}</p>
+    {:else}
+      <p class="asking"><span class="spinner" aria-hidden="true"></span>{t("ai.box.asking", { service })}</p>
+      <p class="muted small">{t(isLocal ? "ai.box.askingLocal" : "ai.box.askingHint")}</p>
+    {/if}
   </div>
 {:else if preview}
   {@const s = preview.summary}

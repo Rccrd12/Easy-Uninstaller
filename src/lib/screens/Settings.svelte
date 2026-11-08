@@ -1,7 +1,7 @@
 <script lang="ts">
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
   import AiServicePicker from "../components/AiServicePicker.svelte";
-  import { aiStats, createRestorePoint, KEEP_DAYS_CHOICES, listExclusions } from "../api";
+  import { AI_PARALLEL_CHOICES, aiStats, createRestorePoint, KEEP_DAYS_CHOICES, listExclusions } from "../api";
   import { forgetAnswers, serviceInfo } from "../ai.svelte";
   import { formatBytes } from "../format";
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
@@ -185,6 +185,15 @@
         <span class="muted hint">{t("ai.settings.confirmHint")}</span>
       </span>
       <input type="checkbox" bind:checked={settings.ai.confirm} onchange={saveSettings} />
+    </label>
+    <label class="row">
+      <span>
+        {t("ai.settings.parallel")}
+        <span class="muted hint">{t("ai.settings.parallelHint")}</span>
+      </span>
+      <select value={settings.ai.parallel} onchange={(e) => { settings.ai.parallel = Number(e.currentTarget.value); saveSettings(); }}>
+        {#each AI_PARALLEL_CHOICES as n (n)}<option value={n}>{n}</option>{/each}
+      </select>
     </label>
   {/if}
   <div class="row">

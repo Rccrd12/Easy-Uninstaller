@@ -2,6 +2,7 @@
 // Inside the Tauri app calls go to Rust commands; in a plain browser
 // (npm run dev) they fall back to sample data so the UI can be designed fast.
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GB } from "./format";
 import {
@@ -28,6 +29,7 @@ import type {
   AiModel,
   AiPreview,
   AiServiceStatus,
+  AiStartStatus,
   AiStats,
   DiskInfo,
   Exclusion,
@@ -546,12 +548,37 @@ const lower = (p: string) => p.toLowerCase();
 export async function aiServices(urls: Record<string, string>): Promise<AiServiceStatus[]> {
   if (isTauri()) return invoke<AiServiceStatus[]>("ai_services", { urls });
   await sleep(500);
-  return sampleAiServices.map((s) => ({ ...s, hasKey: sampleKeys.has(s.id) }));
+  return sampleAiServices.map((s) => ({ ...s, hasKey: sampleKeys.has(s.id), ...(s.id === "unsloth" && sampleUnslothOn ? { found: true, models: 1 } : {}) }));
+}
+
+/** How many questions "Ask for all" may send at once. */
+export const AI_PARALLEL_CHOICES = [1, 2, 4, 8];
+
+const startListeners = new Set<(s: AiStartStatus) => void>();
+let sampleUnslothOn = false;
+
+/** Hears Unsloth Studio being started by the app. Returns a function that stops listening. */
+export async function onAiStart(cb: (s: AiStartStatus) => void): Promise<() => void> {
+  if (isTauri()) return listen<AiStartStatus>("ai-unsloth", (e) => cb(e.payload));
+  startListeners.add(cb);
+  return () => startListeners.delete(cb);
+}
+
+/** In the browser: Unsloth Studio "starts" in a few seconds, like the real one. */
+async function sampleEnsure(config: AiConfig): Promise<void> {
+  if (config.service !== "unsloth" || sampleUnslothOn || !config.autoStart || !sampleKeys.has("unsloth")) return;
+  for (let s = 0; s < 4; s++) {
+    startListeners.forEach((cb) => cb({ state: "starting", seconds: s }));
+    await sleep(1000);
+  }
+  sampleUnslothOn = true;
+  startListeners.forEach((cb) => cb({ state: "on", seconds: 0 }));
 }
 
 /** The models a service offers (installed ones, for a server on this PC). */
 export async function aiModels(config: AiConfig): Promise<AiModel[]> {
   if (isTauri()) return invoke<AiModel[]>("ai_models", { config });
+  await sampleEnsure(config);
   await sleep(400);
   const needsKey = ["anthropic", "openai", "google", "openrouter", "unsloth"].includes(config.service);
   if (needsKey && !sampleKeys.has(config.service)) throw "ai.error.noKey";
@@ -573,6 +600,7 @@ export async function aiRemoveKey(service: string): Promise<void> {
 /** Sends a tiny question; resolves with how long the answer took, in milliseconds. */
 export async function aiTest(config: AiConfig): Promise<number> {
   if (isTauri()) return invoke<number>("ai_test", { config });
+  await sampleEnsure(config);
   await sleep(1200);
   return config.service === "ollama" || config.service === "lmstudio" ? 14_000 : 6_000;
 }
@@ -588,6 +616,7 @@ export async function aiPreview(item: FileItem, lang: string): Promise<AiPreview
 /** Asks the AI about one unknown folder. The answer is kept on this PC. */
 export async function aiAsk(config: AiConfig, item: FileItem, lang: string): Promise<AiAnswer> {
   if (isTauri()) return invoke<AiAnswer>("ai_ask", { config, path: item.path, lang });
+  await sampleEnsure(config);
   await sleep(1600);
   const answer = sampleAiAnswer(item.path, lang, config.service, config.model);
   sampleAnswersByPath.set(lower(item.path), answer);

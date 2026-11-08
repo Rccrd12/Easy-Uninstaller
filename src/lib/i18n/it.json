@@ -779,7 +779,10 @@
       "badAddress": "Indirizzo non valido. Esempio: http://localhost:8000/v1",
       "notLocal": "L'indirizzo deve essere su questo PC (localhost o 127.0.0.1).",
       "needsHttps": "L'indirizzo deve iniziare con https://",
-      "other": "Qualcosa è andato storto: {error}"
+      "other": "Qualcosa è andato storto: {error}",
+      "unslothStart": "Non sono riuscito ad avviare Unsloth Studio.",
+      "unslothStopped": "Unsloth Studio si è chiuso durante l'avvio. Aprilo una volta dal suo collegamento per vedere perché.",
+      "unslothSlow": "Unsloth Studio non si è avviato entro 3 minuti. Aprilo una volta dal suo collegamento per vedere perché."
     },
     "verdict": {
       "removable": "Probabilmente si può togliere",
@@ -800,7 +803,8 @@
       "via": "Tramite {service}",
       "asking": "Chiedo a {service}…",
       "askingHint": "Di solito pochi secondi.",
-      "askingLocal": "Un modello sul PC può metterci un minuto, di più la prima volta."
+      "askingLocal": "Un modello sul PC può metterci un minuto, di più la prima volta.",
+      "startingHint": "Il primo avvio può richiedere un minuto."
     },
     "confirm": {
       "title": "Chiedo all'AI?",
@@ -845,7 +849,7 @@
       "forget": "Annulla risposte",
       "confirm": "Invierò a {service} nomi e numeri di {count} cartelle, mai il contenuto dei file.",
       "ask": "Chiedi per {count}",
-      "asking": "Chiedo all'AI: {done} di {total}…",
+      "asking": "Chiedo all'AI: {done} di {total} fatte…",
       "stop": "Ferma",
       "failed": "Per {count} non è arrivata una risposta. Apri una cartella per vedere perché."
     },
@@ -901,7 +905,11 @@
         "apiDirect": "🔒 La domanda va dal tuo PC al servizio, senza server nostri in mezzo.",
         "localPrivate": "🔒 Nessun dato esce dal PC.",
         "localFree": "💶 Gratis."
-      }
+      },
+      "autoStarts": "Si avvia da solo",
+      "starting": "Avvio Unsloth Studio… {seconds} s",
+      "autoStart": "Avvialo e chiudilo da solo",
+      "autoStartHint": "Lo avvio senza finestre quando serve una risposta e lo chiudo 5 minuti dopo l'ultima domanda. Chiudo solo quello avviato da me."
     },
     "setup": {
       "title": "Vuoi attivare l'aiuto AI?",
@@ -967,7 +975,9 @@
         "username": "Il tuo nome utente",
         "apps": "L'elenco delle tue app",
         "personal": "Documenti, Immagini, Desktop, Download"
-      }
+      },
+      "parallel": "Domande insieme",
+      "parallelHint": "Per “Chiedi per tutte”. Più sono, prima finisce, ma consumi prima limiti o credito."
     }
   }
 }

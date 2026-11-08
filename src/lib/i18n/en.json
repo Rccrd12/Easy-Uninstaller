@@ -779,7 +779,10 @@
       "badAddress": "That address is not valid. Example: http://localhost:8000/v1",
       "notLocal": "The address must be on this PC (localhost or 127.0.0.1).",
       "needsHttps": "The address must start with https://",
-      "other": "Something went wrong: {error}"
+      "other": "Something went wrong: {error}",
+      "unslothStart": "Unsloth Studio could not be started.",
+      "unslothStopped": "Unsloth Studio closed while starting. Open it once from its own shortcut to see why.",
+      "unslothSlow": "Unsloth Studio did not start within 3 minutes. Open it once from its own shortcut to see why."
     },
     "verdict": {
       "removable": "Probably removable",
@@ -800,7 +803,8 @@
       "via": "Through {service}",
       "asking": "Asking {service}…",
       "askingHint": "Usually a few seconds.",
-      "askingLocal": "A model on this PC can take a minute, more the first time."
+      "askingLocal": "A model on this PC can take a minute, more the first time.",
+      "startingHint": "The first start can take a minute."
     },
     "confirm": {
       "title": "Ask the AI?",
@@ -845,7 +849,7 @@
       "forget": "Clear answers",
       "confirm": "I will send to {service} the names and numbers of {count} folders, never what is inside the files.",
       "ask": "Ask for {count}",
-      "asking": "Asking the AI: {done} of {total}…",
+      "asking": "Asking the AI: {done} of {total} done…",
       "stop": "Stop",
       "failed": "{count} could not be answered. Open a folder to see why."
     },
@@ -901,7 +905,11 @@
         "apiDirect": "🔒 The question goes from your PC to the service, with no server of ours in between.",
         "localPrivate": "🔒 Nothing leaves this PC.",
         "localFree": "💶 Free."
-      }
+      },
+      "autoStarts": "Starts by itself",
+      "starting": "Starting Unsloth Studio… {seconds} s",
+      "autoStart": "Start and stop it by itself",
+      "autoStartHint": "Started with no window when a question needs it, and stopped 5 minutes after the last one. Only the one this app started is ever stopped."
     },
     "setup": {
       "title": "Turn on the AI help?",
@@ -967,7 +975,9 @@
         "username": "Your user name",
         "apps": "The list of your apps",
         "personal": "Documents, Pictures, Desktop, Downloads"
-      }
+      },
+      "parallel": "Questions at the same time",
+      "parallelHint": "For “Ask for all”. More finish sooner, but use up your limits or credit faster."
     }
   }
 }

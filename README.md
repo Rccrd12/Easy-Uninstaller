@@ -117,7 +117,11 @@ the app does not know. You choose where it runs and which model answers:
   never reads its login.
 - **An API key**: Claude (Anthropic), OpenAI, Google Gemini, OpenRouter or any
   OpenAI-compatible service. The key is kept in Windows Credential Manager.
-- **A model on this PC**: Ollama, LM Studio, Unsloth Studio or another local server.
+- **A model on this PC**: Ollama, LM Studio, Unsloth Studio or another local server. When
+  Unsloth Studio is installed but not running, the app starts it with no window when a question
+  needs it and stops it 5 minutes after the last one (it never stops one you opened yourself).
+
+*Ask for all* sends 4 questions at the same time by default (1, 2, 4 or 8 in Settings).
 
 What is sent: the folder's path with your user folder replaced by `%LOCALAPPDATA%` and the
 like, its size, file count, last-modified month and the names of some subfolders and files.

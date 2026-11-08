@@ -273,6 +273,8 @@ export interface AiConfig {
   model: string;
   /** For "other service" and servers on this PC: their address. */
   url: string;
+  /** Start Unsloth Studio when it is not running, and stop it after a while. */
+  autoStart: boolean;
 }
 
 export interface AiModel {
@@ -288,6 +290,15 @@ export interface AiServiceStatus {
   models: number | null;
   /** A key is saved in Windows' Credential Manager. */
   hasKey: boolean;
+  /** The app can start it when it is not running (Unsloth Studio, installed). */
+  canStart: boolean;
+}
+
+/** Unsloth Studio being started by the app. Mirrors `ai::unsloth::StartStatus`. */
+export interface AiStartStatus {
+  state: "starting" | "on" | "off";
+  /** How long the start has taken so far. */
+  seconds: number;
 }
 
 /** What is sent about one folder: names and numbers only. Mirrors `FolderSummary`. */
