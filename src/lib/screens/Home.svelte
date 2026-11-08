@@ -1,10 +1,12 @@
 <script lang="ts">
+  import QuickClean from "../components/QuickClean.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
-  import { getSystemDisk, listFileGroups, listInstalledApps, listLeftovers, QUARANTINE_DAYS, usesSampleData } from "../api";
+  import { getSystemDisk, listFileGroups, listInstalledApps, listLeftovers, usesSampleData } from "../api";
+  import { quarantine } from "../settings.svelte";
   import { formatBytes } from "../format";
   import { locale, t } from "../i18n/index.svelte";
   import type { Screen } from "../screens";
-  import type { DiskInfo } from "../types";
+  import type { DiskInfo, FileGroup } from "../types";
 
   let { onNavigate }: { onNavigate: (s: Screen) => void } = $props();
 
@@ -17,6 +19,22 @@
   let filesBytes = $state<number | null>(null);
   let safeFilesBytes = $state(0);
   let leftoversBytes = $state<number | null>(null);
+  let safeLeftoversBytes = $state(0);
+  let quickClean = $state(false);
+
+  function setFiles(groups: FileGroup[]) {
+    // Review-only groups (unknown folders) are explained, not offered for removal.
+    const removable = groups.filter((x) => !x.reviewOnly);
+    filesBytes = removable.reduce((s, x) => s + x.sizeBytes, 0);
+    safeFilesBytes = removable.filter((x) => x.safety === "safe").reduce((s, x) => s + x.sizeBytes, 0);
+  }
+
+  function refreshAfterClean(changed: boolean) {
+    quickClean = false;
+    if (!changed) return;
+    getSystemDisk().then((d) => (disk = d));
+    listFileGroups().then(setFiles);
+  }
 
   $effect(() => {
     getSystemDisk().then((d) => (disk = d));
@@ -27,25 +45,18 @@
       })
       .catch(() => (appsBytes = 0));
     // The file scan takes a while: the total says "calculating" until it is done.
-    listFileGroups().then(
-      (g) => {
-        // Review-only groups (unknown folders) are explained, not offered for removal.
-        const removable = g.filter((x) => !x.reviewOnly);
-        filesBytes = removable.reduce((s, x) => s + x.sizeBytes, 0);
-        safeFilesBytes = removable.filter((x) => x.safety === "safe").reduce((s, x) => s + x.sizeBytes, 0);
-      },
-      () => (filesBytes = 0),
-    );
+    listFileGroups().then(setFiles, () => (filesBytes = 0));
     listLeftovers()
       .then((l) => {
         leftoversBytes = l.reduce((s, x) => s + x.sizeBytes, 0);
+        safeLeftoversBytes = l.filter((x) => x.safety === "safe").reduce((s, x) => s + x.sizeBytes, 0);
       })
       .catch(() => (leftoversBytes = 0));
   });
 
   const calculating = $derived(filesBytes === null || leftoversBytes === null || appsBytes === null);
-  /** "Safe to free": safe file groups, leftovers and apps flagged as unused. */
-  const reclaimable = $derived((appsBytes ?? 0) + safeFilesBytes + (leftoversBytes ?? 0));
+  /** "Safe to free": safe file groups, safe leftovers and apps flagged as unused. */
+  const reclaimable = $derived((appsBytes ?? 0) + safeFilesBytes + safeLeftoversBytes);
 
   function tileAmount(id: Screen): string {
     if (id === "apps") {
@@ -82,7 +93,11 @@
     {:else}
       <div class="big">{formatBytes(reclaimable)}</div>
     {/if}
-    <button class="btn btn-primary cta" onclick={() => onNavigate("files")}>{t("home.freeNow")}</button>
+    <div class="ctas">
+      <button class="btn btn-primary cta" onclick={() => (quickClean = true)}>{t("home.quickClean")}</button>
+      <button class="btn btn-ghost cta" onclick={() => onNavigate("files")}>{t("home.seeAll")}</button>
+    </div>
+    <div class="muted small hint">{t("home.quickCleanHint")}</div>
   </div>
   {#if disk}
     <div class="disk">
@@ -114,7 +129,15 @@
   {/each}
 </section>
 
-<div class="card tip"><span aria-hidden="true">🛡️</span><span>{@html t("home.quarantineTip", { days: QUARANTINE_DAYS })}</span></div>
+<div class="card tip"><span aria-hidden="true">🛡️</span><span>{@html t("home.quarantineTip", { days: quarantine.keepDays })}</span></div>
+
+{#if quickClean}
+  <QuickClean
+    onClose={refreshAfterClean}
+    onDetails={() => onNavigate("files")}
+    onSettings={() => onNavigate("settings")}
+  />
+{/if}
 
 <style>
   .sub { margin: 3px 0 10px; }
@@ -123,7 +146,9 @@
   .big { font-size: 40px; font-weight: 700; color: var(--accent); line-height: 1.1; }
   .big.calc { font-size: 26px; color: var(--text-muted); }
   .amount.calc { font-size: 15px; font-weight: 600; color: var(--text-muted); }
-  .cta { margin-top: 12px; padding: 10px 18px; font-size: 14px; }
+  .ctas { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .cta { padding: 10px 18px; font-size: 14px; }
+  .hint { margin-top: 6px; font-size: 12px; }
   .disk { flex: 1; }
   .row { display: flex; justify-content: space-between; gap: 12px; }
   .bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; margin: 10px 0 8px; background: var(--track); }

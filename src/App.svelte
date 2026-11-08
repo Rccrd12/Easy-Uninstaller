@@ -8,9 +8,13 @@
   import Quarantine from "./lib/screens/Quarantine.svelte";
   import Settings from "./lib/screens/Settings.svelte";
   import type { Screen } from "./lib/screens";
+  import { loadQuarantine } from "./lib/settings.svelte";
 
   let screen = $state<Screen>("home");
   const go = (next: Screen) => (screen = next);
+
+  // Defaults stay in place if this fails; Settings shows the error when saving.
+  loadQuarantine().catch(() => {});
 </script>
 
 <div class="shell">

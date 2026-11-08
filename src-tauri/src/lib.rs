@@ -3,6 +3,7 @@
 
 mod app_folders;
 mod apps;
+mod cleanup;
 mod disk;
 mod elevated;
 mod explain;
@@ -30,11 +31,13 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_folders::quarantine_app_folder,
             apps::list_installed_apps,
+            cleanup::remove_file_groups,
             disk::get_system_disk,
             files::scan_files,
             leftovers::list_leftovers,
             leftovers::quarantine_leftovers,
-            quarantine::quarantine_file_groups,
+            quarantine::get_quarantine_options,
+            quarantine::set_quarantine_settings,
             quarantine::list_quarantine,
             quarantine::restore_quarantine,
             quarantine::delete_quarantine,

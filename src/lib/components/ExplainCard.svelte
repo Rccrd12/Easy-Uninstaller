@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { QUARANTINE_DAYS } from "../api";
+  import { quarantine } from "../settings.svelte";
   import { knownFolder } from "../explain";
   import { formatBytes } from "../format";
   import { t } from "../i18n/index.svelte";
@@ -70,7 +70,7 @@
       {:else if risk === "unknown"}
         <p>{t("explain.move.unknownText")}</p>
       {/if}
-      <p>{t("explain.move.restore", { days: QUARANTINE_DAYS })}{needsAdmin ? ` ${t("explain.move.admin")}` : ""}</p>
+      <p>{t("explain.move.restore", { days: quarantine.keepDays })}{needsAdmin ? ` ${t("explain.move.admin")}` : ""}</p>
       <div class="buttons">
         <button class="btn {risk === 'normal' ? 'btn-primary' : 'btn-danger'}" disabled={moving} onclick={onMove}>
           {moving ? t("files.moving") : t(risk === "normal" ? "explain.move.confirm" : "explain.move.confirmAnyway")}

@@ -1,10 +1,20 @@
 //! Quarantine: the only way Easy Uninstaller removes user files.
 //!
 //! Files are moved, never deleted, into a folder of the app
-//! (`%LOCALAPPDATA%\com.rccrd12.easyuninstaller\Quarantine`). Each move makes one
-//! *entry*: a subfolder with the files and a `manifest.json` that records where
-//! each file came from. An entry is kept for [`KEEP_DAYS`] days, then deleted for
-//! good; until then it can be restored to where it was, or deleted earlier on request.
+//! (`%LOCALAPPDATA%\com.rccrd12.easyuninstaller\Quarantine`), or into
+//! `<drive>\Easy Uninstaller Quarantine` when the user picked another drive in
+//! Settings (then moving a file off the system drive frees its space right away).
+//! Each move makes one *entry*: a subfolder with the files and a `manifest.json`
+//! that records where each file came from. An entry is kept for the number of days
+//! chosen in Settings (3, 7 or 30), then deleted for good; until then it can be
+//! restored to where it was, or deleted earlier on request.
+//!
+//! The only exception to "moved, never deleted" is temporary files and caches,
+//! which `cleanup.rs` deletes right away (the owner's decision: apps recreate them).
+//!
+//! Changing the drive only affects new entries: entries already made stay where
+//! they are, and every folder ever used is remembered so they are still listed,
+//! restored and expired.
 //!
 //! The manifest is written before any file is moved and lists everything that is
 //! about to move, so an interrupted move can still be restored: a listed file
@@ -16,7 +26,7 @@
 //! `HKLM`) can only be restored or deleted with those rights again: see `elevated.rs`.
 
 use crate::elevated::{self, Job};
-use crate::files::{to_camel, LastScan, ScannedFile};
+use crate::files::ScannedFile;
 use crate::regkey::{self, RegKeyPath};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -26,10 +36,16 @@ use std::sync::{Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 
-/// How long removed items are kept before they are deleted for good.
-pub const KEEP_DAYS: u64 = 7;
+/// How long removed items are kept, in days, until the user picks something else.
+pub const DEFAULT_KEEP_DAYS: u64 = 7;
+/// The choices offered in Settings.
+pub const KEEP_DAYS_CHOICES: [u64; 3] = [3, 7, 30];
 const DAY_SECS: u64 = 24 * 60 * 60;
 const MANIFEST: &str = "manifest.json";
+/// Stored in the default quarantine folder (a file, so never taken for an entry).
+const SETTINGS: &str = "settings.json";
+/// The quarantine folder on a drive picked by the user.
+const DRIVE_FOLDER: &str = "Easy Uninstaller Quarantine";
 /// How many files per entry are sent to the UI (largest first).
 const MAX_ITEMS: usize = 50;
 
@@ -144,13 +160,22 @@ pub struct QuarantineEntry {
     pub needs_admin: bool,
 }
 
+/// What removing files did. Filled by [`Quarantine::add`] and by `cleanup.rs`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct MoveReport {
     /// The entries created, one per group, so the UI can undo the move.
     pub entry_ids: Vec<String>,
+    /// Moved into quarantine.
     pub moved_count: u64,
     pub moved_bytes: u64,
+    /// Deleted right away (temporary files and caches only).
+    pub deleted_count: u64,
+    pub deleted_bytes: u64,
+    /// Space really given back to the drives the files were on: what was deleted,
+    /// plus what was moved to a quarantine on another drive. Files moved within
+    /// their drive only free their space when the entry expires or is deleted.
+    pub freed_bytes: u64,
     /// Files left in place: in use, changed since the scan, or gone.
     pub skipped_count: u64,
     /// Left in place because the user said no to the Windows permission prompt.
@@ -162,9 +187,42 @@ impl MoveReport {
         self.entry_ids.extend(other.entry_ids);
         self.moved_count += other.moved_count;
         self.moved_bytes += other.moved_bytes;
+        self.deleted_count += other.deleted_count;
+        self.deleted_bytes += other.deleted_bytes;
+        self.freed_bytes += other.freed_bytes;
         self.skipped_count += other.skipped_count;
         self.declined_count += other.declined_count;
     }
+}
+
+/// The quarantine choices the user makes in Settings.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct QuarantineSettings {
+    /// One of [`KEEP_DAYS_CHOICES`]. Applies to entries made from now on.
+    pub keep_days: u64,
+    /// The drive to keep the quarantine on (e.g. `"D:"`), or `None` for the
+    /// app's own folder on the system drive.
+    pub drive: Option<String>,
+}
+
+impl Default for QuarantineSettings {
+    fn default() -> Self {
+        QuarantineSettings {
+            keep_days: DEFAULT_KEEP_DAYS,
+            drive: None,
+        }
+    }
+}
+
+/// What is saved in [`SETTINGS`]: the choices, plus every other folder ever used.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", default)]
+struct Stored {
+    #[serde(flatten)]
+    settings: QuarantineSettings,
+    /// Folders on other drives that may still hold entries.
+    other_roots: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -195,25 +253,89 @@ pub enum Title {
     Text(String),
 }
 
-/// The quarantine folder. All changes go through one lock, so two moves or a
+/// The quarantine folders. All changes go through one lock, so two moves or a
 /// move and a restore never touch the same entry at once.
 pub struct Quarantine {
+    /// The default folder, in the app's data folder. Also holds [`SETTINGS`].
     root: PathBuf,
-    lock: Mutex<()>,
+    lock: Mutex<Stored>,
 }
 
 impl Quarantine {
+    /// `root` is the default folder; saved settings are read from it.
     pub fn new(root: PathBuf) -> Self {
+        let stored = fs::read(root.join(SETTINGS))
+            .ok()
+            .and_then(|text| serde_json::from_slice::<Stored>(&text).ok())
+            .map(|mut s| {
+                if !KEEP_DAYS_CHOICES.contains(&s.settings.keep_days) {
+                    s.settings.keep_days = DEFAULT_KEEP_DAYS;
+                }
+                s
+            })
+            .unwrap_or_default();
         Quarantine {
             root,
-            lock: Mutex::new(()),
+            lock: Mutex::new(stored),
         }
     }
 
-    fn guard(&self) -> MutexGuard<'_, ()> {
+    fn guard(&self) -> MutexGuard<'_, Stored> {
         // A panic while holding the lock leaves nothing half done that the
         // manifest does not describe, so the lock is safe to reuse.
         self.lock.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    pub fn settings(&self) -> QuarantineSettings {
+        self.guard().settings.clone()
+    }
+
+    /// Saves new choices. A drive is only accepted if its quarantine folder can be
+    /// created; the folder it replaces is remembered, so its entries stay visible.
+    pub fn set_settings(&self, new: QuarantineSettings) -> io::Result<()> {
+        if !KEEP_DAYS_CHOICES.contains(&new.keep_days) {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "bad keep_days"));
+        }
+        let mut stored = self.guard();
+        if let Some(drive) = &new.drive {
+            let root = drive_root(drive)?;
+            fs::create_dir_all(&root)?;
+            if !stored.other_roots.contains(&root) {
+                stored.other_roots.push(root);
+            }
+        }
+        let mut next = stored.clone();
+        next.settings = new;
+        fs::create_dir_all(&self.root)?;
+        let text = serde_json::to_vec_pretty(&next).map_err(io::Error::other)?;
+        let tmp = self.root.join("settings.tmp");
+        fs::write(&tmp, text)?;
+        fs::rename(tmp, self.root.join(SETTINGS))?;
+        *stored = next;
+        Ok(())
+    }
+
+    /// Every folder that may hold entries: the default one first.
+    fn roots(stored: &Stored, default: &Path) -> Vec<PathBuf> {
+        let mut roots = vec![default.to_path_buf()];
+        for r in &stored.other_roots {
+            if !roots.contains(r) {
+                roots.push(r.clone());
+            }
+        }
+        roots
+    }
+
+    /// Where new entries go: the chosen drive if its folder can be made (the
+    /// drive may be unplugged), otherwise the default folder.
+    fn target_root(&self, stored: &Stored) -> PathBuf {
+        stored
+            .settings
+            .drive
+            .as_deref()
+            .and_then(|d| drive_root(d).ok())
+            .filter(|r| fs::create_dir_all(r).is_ok())
+            .unwrap_or_else(|| self.root.clone())
     }
 
     /// Moves `items` into a new entry. Items that changed since the scan, are gone,
@@ -228,7 +350,7 @@ impl Quarantine {
         admin: bool,
         report: &mut MoveReport,
     ) -> io::Result<Option<String>> {
-        let _guard = self.guard();
+        let stored = self.guard();
         // Paths that are not valid Unicode cannot be written to the manifest.
         let (items, odd): (Vec<&Item>, Vec<&Item>) =
             items.iter().partition(|i| i.target.display().is_some());
@@ -237,7 +359,16 @@ impl Quarantine {
             return Ok(None);
         }
 
-        let (id, dir) = self.new_entry_dir(now, &title)?;
+        let roots = Self::roots(&stored, &self.root);
+        // Folders can only be moved within their drive (see `move_dir`), so an
+        // entry holding folders stays in the default folder, next to the apps.
+        let target = if items.iter().any(|i| matches!(i.target, Target::Folder(_))) {
+            fs::create_dir_all(&self.root)?;
+            self.root.clone()
+        } else {
+            self.target_root(&stored)
+        };
+        let (id, dir) = new_entry_dir(&target, &roots, now, &title)?;
         let (title_key, title) = match title {
             Title::Key(k) => (Some(k), None),
             Title::Text(t) => (None, Some(t)),
@@ -247,7 +378,7 @@ impl Quarantine {
             title_key,
             title,
             removed_at: now,
-            expires_at: now + KEEP_DAYS * DAY_SECS,
+            expires_at: now + stored.settings.keep_days * DAY_SECS,
             files: items
                 .iter()
                 .enumerate()
@@ -264,13 +395,17 @@ impl Quarantine {
         write_manifest(&dir, &manifest)?;
 
         let mut moved = Vec::new();
-        for (item, stored) in items.iter().zip(&manifest.files) {
-            if take(item, &dir.join(&stored.stored)).is_ok() {
-                report.moved_count += 1;
-                report.moved_bytes += stored.size;
-                moved.push(stored.clone());
-            } else {
-                report.skipped_count += 1;
+        for (item, entry) in items.iter().zip(&manifest.files) {
+            match take(item, &dir.join(&entry.stored)).ok() {
+                Some(crossed) => {
+                    report.moved_count += 1;
+                    report.moved_bytes += entry.size;
+                    if crossed {
+                        report.freed_bytes += entry.size;
+                    }
+                    moved.push(entry.clone());
+                }
+                None => report.skipped_count += 1,
             }
         }
 
@@ -287,7 +422,8 @@ impl Quarantine {
 
     /// True when the entry was made with administrator rights.
     pub fn needs_admin(&self, id: &str) -> bool {
-        self.entry_dir(id)
+        let stored = self.guard();
+        self.entry_dir(&stored, id)
             .and_then(|dir| read_manifest(&dir))
             .is_ok_and(|m| m.admin)
     }
@@ -295,11 +431,10 @@ impl Quarantine {
     /// Every entry, newest first. Folders without a readable manifest are not ours
     /// to show or touch, and are left alone.
     pub fn list(&self) -> Vec<QuarantineEntry> {
-        let _guard = self.guard();
-        let mut entries: Vec<QuarantineEntry> = self
-            .manifests()
+        let stored = self.guard();
+        let mut entries: Vec<QuarantineEntry> = manifests(&Self::roots(&stored, &self.root))
             .into_iter()
-            .map(|(id, m)| entry(id, m))
+            .map(|(_, id, m)| entry(id, m))
             .collect();
         entries.sort_by(|a, b| b.removed_at.cmp(&a.removed_at).then(b.id.cmp(&a.id)));
         entries
@@ -308,11 +443,11 @@ impl Quarantine {
     /// Deletes for good the entries whose time is up. Returns how many were deleted.
     /// Entries made with administrator rights are deleted only when `elevated`.
     pub fn purge_expired(&self, now: u64, elevated: bool) -> usize {
-        let _guard = self.guard();
-        self.manifests()
+        let stored = self.guard();
+        manifests(&Self::roots(&stored, &self.root))
             .into_iter()
-            .filter(|(_, m)| m.expires_at <= now && (elevated || !m.admin))
-            .filter(|(id, _)| fs::remove_dir_all(self.root.join(id)).is_ok())
+            .filter(|(_, _, m)| m.expires_at <= now && (elevated || !m.admin))
+            .filter(|(dir, _, _)| fs::remove_dir_all(dir).is_ok())
             .count()
     }
 
@@ -320,8 +455,8 @@ impl Quarantine {
     /// file's name, the file comes back next to it as "name (restored).ext".
     /// Files that cannot be put back stay in quarantine.
     pub fn restore(&self, id: &str, report: &mut RestoreReport) -> io::Result<()> {
-        let _guard = self.guard();
-        let dir = self.entry_dir(id)?;
+        let stored = self.guard();
+        let dir = self.entry_dir(&stored, id)?;
         let mut manifest = read_manifest(&dir)?;
         let mut left = Vec::new();
         for file in manifest.files {
@@ -356,60 +491,86 @@ impl Quarantine {
 
     /// Deletes an entry and its files for good.
     pub fn delete(&self, id: &str) -> io::Result<()> {
-        let _guard = self.guard();
-        let dir = self.entry_dir(id)?;
+        let stored = self.guard();
+        let dir = self.entry_dir(&stored, id)?;
         read_manifest(&dir)?; // Only our own entries.
         fs::remove_dir_all(dir)
     }
 
-    fn manifests(&self) -> Vec<(String, Manifest)> {
-        let Ok(dirs) = fs::read_dir(&self.root) else {
-            return Vec::new();
-        };
-        dirs.flatten()
-            .filter(|d| d.file_type().is_ok_and(|t| t.is_dir()))
-            .filter_map(|d| {
-                let id = d.file_name().into_string().ok().filter(|id| valid_id(id))?;
-                let manifest = read_manifest(&d.path()).ok()?;
-                Some((id, manifest))
-            })
-            .collect()
-    }
-
-    /// The folder of an existing entry. Ids come from the UI, so anything that is
-    /// not a plain entry name (like `..\..`) is refused.
-    fn entry_dir(&self, id: &str) -> io::Result<PathBuf> {
+    /// The folder of an existing entry, in whichever root holds it. Ids come from
+    /// the UI, so anything that is not a plain entry name (like `..\..`) is refused.
+    fn entry_dir(&self, stored: &Stored, id: &str) -> io::Result<PathBuf> {
         if !valid_id(id) {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, "bad entry id"));
         }
-        let dir = self.root.join(id);
-        if dir.is_dir() {
-            Ok(dir)
+        Self::roots(stored, &self.root)
+            .into_iter()
+            .map(|r| r.join(id))
+            .find(|d| d.is_dir())
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "entry not found"))
+    }
+}
+
+/// Every entry in `roots`, as (folder, id, manifest). Folders without a readable
+/// manifest are not ours, and are left alone.
+fn manifests(roots: &[PathBuf]) -> Vec<(PathBuf, String, Manifest)> {
+    let mut out = Vec::new();
+    for root in roots {
+        let Ok(dirs) = fs::read_dir(root) else {
+            continue; // Not made yet, or on a drive that is unplugged.
+        };
+        out.extend(
+            dirs.flatten()
+                .filter(|d| d.file_type().is_ok_and(|t| t.is_dir()))
+                .filter_map(|d| {
+                    let id = d.file_name().into_string().ok().filter(|id| valid_id(id))?;
+                    let manifest = read_manifest(&d.path()).ok()?;
+                    Some((d.path(), id, manifest))
+                }),
+        );
+    }
+    out
+}
+
+/// Makes a new entry folder in `target`, with an id no folder in `roots` has yet.
+fn new_entry_dir(
+    target: &Path,
+    roots: &[PathBuf],
+    now: u64,
+    title: &Title,
+) -> io::Result<(String, PathBuf)> {
+    fs::create_dir_all(target)?;
+    let slug = slug(match title {
+        Title::Key(k) => k.split('.').nth(2).unwrap_or(k),
+        Title::Text(t) => t,
+    });
+    for n in 0.. {
+        let id = if n == 0 {
+            format!("{now}-{slug}")
         } else {
-            Err(io::Error::new(io::ErrorKind::NotFound, "entry not found"))
+            format!("{now}-{slug}-{n}")
+        };
+        if roots.iter().any(|r| r.join(&id).exists()) {
+            continue;
+        }
+        let dir = target.join(&id);
+        match fs::create_dir(&dir) {
+            Ok(()) => return Ok((id, dir)),
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(e),
         }
     }
+    unreachable!()
+}
 
-    fn new_entry_dir(&self, now: u64, title: &Title) -> io::Result<(String, PathBuf)> {
-        fs::create_dir_all(&self.root)?;
-        let slug = slug(match title {
-            Title::Key(k) => k.split('.').nth(2).unwrap_or(k),
-            Title::Text(t) => t,
-        });
-        for n in 0.. {
-            let id = if n == 0 {
-                format!("{now}-{slug}")
-            } else {
-                format!("{now}-{slug}-{n}")
-            };
-            let dir = self.root.join(&id);
-            match fs::create_dir(&dir) {
-                Ok(()) => return Ok((id, dir)),
-                Err(e) if e.kind() == io::ErrorKind::AlreadyExists => continue,
-                Err(e) => return Err(e),
-            }
-        }
-        unreachable!()
+/// `"D:"` -> `D:\Easy Uninstaller Quarantine`. Only plain drive letters are
+/// accepted, since the value comes from the UI.
+fn drive_root(drive: &str) -> io::Result<PathBuf> {
+    let b = drive.trim_end_matches(['\\', '/']).as_bytes();
+    if b.len() == 2 && b[0].is_ascii_alphabetic() && b[1] == b':' {
+        Ok(PathBuf::from(format!("{}\\", &drive[..2])).join(DRIVE_FOLDER))
+    } else {
+        Err(io::Error::new(io::ErrorKind::InvalidInput, "bad drive"))
     }
 }
 
@@ -497,13 +658,14 @@ fn stored_name(index: usize, target: &Target) -> String {
 
 /// True when the file is still the regular file the scan saw: same size, same
 /// last change. Anything else is left alone.
-fn unchanged_since_scan(path: &Path, size: u64, modified: SystemTime) -> bool {
+pub fn unchanged_since_scan(path: &Path, size: u64, modified: SystemTime) -> bool {
     fs::symlink_metadata(path)
         .is_ok_and(|m| m.is_file() && m.len() == size && m.modified().is_ok_and(|t| t == modified))
 }
 
-/// Moves one item into the entry folder, at `to`.
-fn take(item: &Item, to: &Path) -> io::Result<()> {
+/// Moves one item into the entry folder, at `to`. Returns true when that gave
+/// space back to the item's drive right away (a file moved to another drive).
+fn take(item: &Item, to: &Path) -> io::Result<bool> {
     let gone = || io::Error::new(io::ErrorKind::NotFound, "changed or gone");
     match &item.target {
         Target::File(path) => {
@@ -521,7 +683,7 @@ fn take(item: &Item, to: &Path) -> io::Result<()> {
             if !fs::symlink_metadata(path).is_ok_and(|m| m.is_dir() && !is_link(&m)) {
                 return Err(gone());
             }
-            move_dir(path, to)
+            move_dir(path, to).map(|()| false)
         }
         Target::Registry(key) => {
             let tree = regkey::read(key)?;
@@ -534,7 +696,7 @@ fn take(item: &Item, to: &Path) -> io::Result<()> {
                 let _ = fs::remove_file(to);
                 return Err(e);
             }
-            Ok(())
+            Ok(false)
         }
     }
 }
@@ -611,7 +773,8 @@ fn free_name(path: &Path, folder: bool) -> PathBuf {
 /// Moves a file. Within a drive this is a rename (instant, nothing is copied).
 /// Across drives the file is copied, then the original removed; if the original
 /// cannot be removed the copy is dropped, so a file never ends up in two places.
-fn move_file(from: &Path, to: &Path) -> io::Result<()> {
+/// Returns true when the file changed drive (so its old drive got the space back).
+fn move_file(from: &Path, to: &Path) -> io::Result<bool> {
     if fs::symlink_metadata(to).is_ok() {
         return Err(io::Error::new(
             io::ErrorKind::AlreadyExists,
@@ -619,14 +782,17 @@ fn move_file(from: &Path, to: &Path) -> io::Result<()> {
         ));
     }
     match fs::rename(from, to) {
-        Ok(()) => Ok(()),
+        Ok(()) => Ok(false),
         Err(e) if crosses_drives(&e) => {
-            fs::copy(from, to)?;
+            if let Err(e) = fs::copy(from, to) {
+                let _ = fs::remove_file(to);
+                return Err(e);
+            }
             if let Err(e) = fs::remove_file(from) {
                 let _ = fs::remove_file(to);
                 return Err(e);
             }
-            Ok(())
+            Ok(true)
         }
         Err(e) => Err(e),
     }
@@ -680,32 +846,43 @@ pub fn init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// The quarantine folder, as passed to an elevated helper.
+/// The default quarantine folder, as passed to an elevated helper (which reads
+/// the settings saved in it, so it finds entries on other drives too).
 pub fn root_of(app: &AppHandle) -> PathBuf {
     app.state::<Quarantine>().root.clone()
 }
 
-/// Moves whole groups of the last file scan into quarantine, one entry per group.
+/// The quarantine choices, plus the drives it could be moved to.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct QuarantineOptions {
+    pub settings: QuarantineSettings,
+    /// The drive Windows is on, where the default quarantine folder is.
+    pub system_drive: String,
+    /// Other fixed drives, largest free space first.
+    pub drives: Vec<crate::disk::DriveInfo>,
+}
+
 #[tauri::command]
-pub async fn quarantine_file_groups(
+pub async fn get_quarantine_options(app: AppHandle) -> Result<QuarantineOptions, String> {
+    tauri::async_runtime::spawn_blocking(move || QuarantineOptions {
+        settings: app.state::<Quarantine>().settings(),
+        system_drive: crate::disk::system_drive(),
+        drives: crate::disk::other_drives(),
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn set_quarantine_settings(
     app: AppHandle,
-    group_ids: Vec<String>,
-) -> Result<MoveReport, String> {
+    settings: QuarantineSettings,
+) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let quarantine = app.state::<Quarantine>();
-        let last = app.state::<LastScan>();
-        let mut report = MoveReport::default();
-        for id in group_ids {
-            let Some(files) = last.group(&id) else {
-                continue;
-            };
-            let key = format!("files.groups.{}.title", to_camel(&id));
-            let items: Vec<Item> = files.iter().map(Item::from).collect();
-            quarantine
-                .add(Title::Key(key), &items, now_secs(), false, &mut report)
-                .map_err(|e| e.to_string())?;
-        }
-        Ok(report)
+        app.state::<Quarantine>()
+            .set_settings(settings)
+            .map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?
@@ -1078,6 +1255,153 @@ mod tests {
             assert!(q.restore(bad, &mut report).is_err(), "{bad}");
         }
         assert!(s.0.join("home").exists());
+    }
+
+    #[test]
+    fn keeps_for_the_chosen_days_and_remembers_it() {
+        let s = Sandbox::new("days");
+        let q = s.quarantine();
+        assert_eq!(q.settings(), QuarantineSettings::default());
+        for bad in [0, 5, 365] {
+            let bad = QuarantineSettings {
+                keep_days: bad,
+                drive: None,
+            };
+            assert!(q.set_settings(bad).is_err());
+        }
+        let month = QuarantineSettings {
+            keep_days: 30,
+            drive: None,
+        };
+        q.set_settings(month.clone()).unwrap();
+
+        let reopened = s.quarantine();
+        assert_eq!(reopened.settings(), month, "saved for the next start");
+        let mut report = MoveReport::default();
+        reopened
+            .add(
+                key("temp"),
+                &items(&[s.file("a.tmp", "a")]),
+                NOW,
+                false,
+                &mut report,
+            )
+            .unwrap();
+        let list = reopened.list();
+        assert_eq!(list.len(), 1, "the settings file is not an entry");
+        assert_eq!(list[0].expires_at, NOW + 30 * DAY_SECS);
+        assert_eq!(reopened.purge_expired(NOW + 29 * DAY_SECS, false), 0);
+    }
+
+    #[test]
+    fn refuses_drives_that_are_not_drive_letters() {
+        let s = Sandbox::new("drives");
+        let q = s.quarantine();
+        for bad in ["", "D", "..", r"C:\Windows", "/tmp", "DD:"] {
+            let settings = QuarantineSettings {
+                keep_days: 7,
+                drive: Some(bad.into()),
+            };
+            assert!(q.set_settings(settings).is_err(), "{bad}");
+        }
+        assert!(drive_root("D:").is_ok() && drive_root(r"e:\").is_ok());
+        assert_eq!(q.settings(), QuarantineSettings::default());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn drive_folder() {
+        assert_eq!(
+            drive_root("D:").unwrap(),
+            PathBuf::from(r"D:\Easy Uninstaller Quarantine")
+        );
+    }
+
+    #[test]
+    fn finds_entries_in_every_folder_used() {
+        let s = Sandbox::new("roots");
+        let q = s.quarantine();
+        let other = s.0.join("other-drive");
+        q.guard().other_roots.push(other.clone());
+        // An entry made while the quarantine was on the other drive.
+        let a = s.file("a.txt", "a");
+        let roots = vec![s.0.join("q"), other.clone()];
+        let (id, dir) = new_entry_dir(&other, &roots, NOW, &key("installers")).unwrap();
+        let stored = stored_name(0, &Target::File(a.path.clone()));
+        fs::rename(&a.path, dir.join(&stored)).unwrap();
+        let m = Manifest {
+            version: 1,
+            title_key: Some("files.groups.installers.title".into()),
+            title: None,
+            removed_at: NOW,
+            expires_at: NOW + DAY_SECS,
+            files: vec![StoredFile {
+                original: a.path.to_string_lossy().into_owned(),
+                stored,
+                size: 1,
+                kind: ItemKind::File,
+            }],
+            admin: false,
+        };
+        write_manifest(&dir, &m).unwrap();
+
+        // A new entry made in the same second in the default folder gets another id.
+        let mut report = MoveReport::default();
+        let id2 = q
+            .add(
+                key("installers"),
+                &items(&[s.file("b.txt", "b")]),
+                NOW,
+                false,
+                &mut report,
+            )
+            .unwrap()
+            .unwrap();
+        assert_ne!(id, id2, "ids never clash across folders");
+        assert!(s.0.join("q").join(&id2).is_dir());
+
+        let ids: Vec<String> = q.list().into_iter().map(|e| e.id).collect();
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&id));
+
+        let mut restored = RestoreReport::default();
+        q.restore(&id, &mut restored).unwrap();
+        assert_eq!(restored.restored_count, 1);
+        assert_eq!(fs::read_to_string(&a.path).unwrap(), "a");
+        assert!(!dir.exists());
+
+        // Unplugged drive: its folder is simply skipped.
+        fs::remove_dir_all(&other).unwrap();
+        assert_eq!(q.list().len(), 1);
+        assert_eq!(q.purge_expired(NOW + 30 * DAY_SECS, false), 1);
+    }
+
+    #[test]
+    fn folders_stay_in_the_default_folder_when_another_drive_is_chosen() {
+        let s = Sandbox::new("folder-root");
+        let q = s.quarantine();
+        let other = s.0.join("other-drive");
+        q.guard().settings.drive = Some("Z:".into());
+        q.guard().other_roots.push(other);
+        let a = s.file("AppData/Tool/x.ini", "x");
+        let folder = a.path.parent().unwrap().to_path_buf();
+        let mut report = MoveReport::default();
+        let id = q
+            .add(
+                Title::Text("Tool".into()),
+                &[Item {
+                    target: Target::Folder(folder),
+                    size: 1,
+                    modified: None,
+                }],
+                NOW,
+                false,
+                &mut report,
+            )
+            .unwrap()
+            .unwrap();
+        assert!(s.0.join("q").join(&id).is_dir());
+        assert_eq!(report.freed_bytes, 0);
     }
 
     #[test]
