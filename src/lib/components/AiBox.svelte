@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from "./Icon.svelte";
   import { aiPreview } from "../api";
   import { ai, aiErrorText, aiReady, answerFor, askAbout, forgetAnswers, openSetup, serviceInfo, serviceLabel } from "../ai.svelte";
   import { fileCount, formatBytes } from "../format";
@@ -66,7 +67,7 @@
 {#if answer}
   <div class="box">
     <div class="box-head">
-      <span class="label">✨ {t("ai.answer.title")}</span>
+      <span class="label"><Icon name="sparkle" /> {t("ai.answer.title")}</span>
       <span class="who">{serviceLabel(answer.service, answer.model)}</span>
     </div>
     <p class="what">{answer.what}</p>
@@ -77,24 +78,24 @@
       {#if answer.reason}<div class="reason">{answer.reason}</div>{/if}
     </div>
     {#if answer.overridden}
-      <p class="override">🛡️ {t("ai.answer.overridden", { app: answer.facts.installedApp ?? "" })}</p>
+      <p class="override"><Icon name="shield" /> {t("ai.answer.overridden", { app: answer.facts.installedApp ?? "" })}</p>
     {/if}
     <div class="label facts-label">{t("ai.answer.checked")}</div>
     <ul class="facts">
       {#if answer.facts.installedApp}
-        <li class="warn">⚠ {t("ai.answer.appInstalled", { app: answer.facts.installedApp })}</li>
+        <li class="warn"><Icon name="warning" /> {t("ai.answer.appInstalled", { app: answer.facts.installedApp })}</li>
       {:else}
-        <li>✓ {t("ai.answer.noApp")}</li>
+        <li><Icon name="check" /> {t("ai.answer.noApp")}</li>
       {/if}
-      {#if answer.facts.modified}<li>✓ {t("ai.answer.modified", { date: monthYear(answer.facts.modified) })}</li>{/if}
-      <li>✓ {t("ai.answer.notWindows")}</li>
+      {#if answer.facts.modified}<li><Icon name="check" /> {t("ai.answer.modified", { date: monthYear(answer.facts.modified) })}</li>{/if}
+      <li><Icon name="check" /> {t("ai.answer.notWindows")}</li>
     </ul>
   </div>
   <p class="muted foot">{t("ai.answer.mayBeWrong", { days: quarantine.keepDays })}</p>
-  <p class="muted foot">🔒 {t("ai.answer.sentOnly")} <button class="link" onclick={askAgain}>{t("ai.answer.askAgain")}</button></p>
+  <p class="muted foot"><Icon name="shieldCheck" /> {t("ai.answer.sentOnly")} <button class="link" onclick={askAgain}>{t("ai.answer.askAgain")}</button></p>
 {:else if asking}
   <div class="box">
-    <span class="label">✨ {t("ai.box.title")}</span>
+    <span class="label"><Icon name="sparkle" /> {t("ai.box.title")}</span>
     {#if ai.starting !== null && settings.ai.service === "unsloth"}
       <p class="asking"><span class="spinner" aria-hidden="true"></span>{t("ai.picker.starting", { seconds: ai.starting })}</p>
       <p class="muted small">{t("ai.box.startingHint")}</p>
@@ -106,7 +107,7 @@
 {:else if preview}
   {@const s = preview.summary}
   <div class="box">
-    <span class="label">✨ {t("ai.confirm.title")}</span>
+    <span class="label"><Icon name="sparkle" /> {t("ai.confirm.title")}</span>
     <p class="intro">{t("ai.confirm.intro", { service: serviceLabel(settings.ai.service, settings.ai.model) })}</p>
     <pre class="sent">{t("ai.confirm.folder")}: {s.path}
 {t("ai.confirm.size")}: {formatBytes(s.sizeBytes)}, {fileCount(s.fileCount)}{#if s.modified}
@@ -116,22 +117,22 @@
     <button class="link small" onclick={() => (showText = !showText)}>{showText ? t("ai.confirm.hideText") : t("ai.confirm.showText")}</button>
     {#if showText}<pre class="sent exact">{preview.question}</pre>{/if}
     <ul class="promises">
-      <li>🚫 {t("ai.confirm.never")}</li>
-      {#if isCli}<li>🔒 {t("ai.confirm.noTools", { service })}</li>{/if}
-      <li>💶 {t(isCli ? "ai.confirm.costCli" : isLocal ? "ai.confirm.costLocal" : "ai.confirm.costApi")}</li>
+      <li><Icon name="dismiss" /> {t("ai.confirm.never")}</li>
+      {#if isCli}<li><Icon name="shieldCheck" /> {t("ai.confirm.noTools", { service })}</li>{/if}
+      <li><Icon name="info" /> {t(isCli ? "ai.confirm.costCli" : isLocal ? "ai.confirm.costLocal" : "ai.confirm.costApi")}</li>
     </ul>
     <div class="buttons">
-      <button class="btn btn-ai" onclick={ask}>✨ {t("ai.box.ask")}</button>
+      <button class="btn btn-ai" onclick={ask}><Icon name="sparkle" /> {t("ai.box.ask")}</button>
       <button class="btn btn-ghost" onclick={() => (preview = null)}>{t("common.cancel")}</button>
     </div>
     <label class="dont-ask"><input type="checkbox" bind:checked={dontAsk} /> {t("ai.confirm.dontAsk")}</label>
   </div>
 {:else}
   <div class="box idle">
-    <span class="label">✨ {t("ai.box.title")}</span>
+    <span class="label"><Icon name="sparkle" /> {t("ai.box.title")}</span>
     <p class="small">{t(aiReady() ? "ai.box.hint" : "ai.box.hintOff")}</p>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
-    <button class="btn btn-ai" onclick={start}>✨ {error ? t("ai.box.retry") : t("ai.box.ask")}</button>
+    <button class="btn btn-ai" onclick={start}><Icon name="sparkle" /> {error ? t("ai.box.retry") : t("ai.box.ask")}</button>
     {#if aiReady()}<p class="muted small via">{t("ai.box.via", { service: serviceLabel(settings.ai.service, settings.ai.model) })}</p>{/if}
   </div>
 {/if}

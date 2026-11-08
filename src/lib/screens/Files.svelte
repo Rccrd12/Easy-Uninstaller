@@ -3,6 +3,7 @@
   import ExplainCard from "../components/ExplainCard.svelte";
   import ExplainTag from "../components/ExplainTag.svelte";
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
+  import Icon from "../components/Icon.svelte";
   import FileReview from "../components/FileReview.svelte";
   import StatusIcon from "../components/StatusIcon.svelte";
   import SafetyTag from "../components/SafetyTag.svelte";
@@ -353,7 +354,7 @@
         <p class="muted sub">{t("files.subtitle")}</p>
       </div>
       {#if !scanning}
-        <button class="btn btn-ghost" onclick={() => load(true)}>↻ {t("files.rescan")}</button>
+        <button class="btn btn-ghost" onclick={() => load(true)}><Icon name="refresh" />{t("files.rescan")}</button>
       {/if}
     </div>
     {#if usesSampleData()}<SampleBanner />{/if}
@@ -372,7 +373,7 @@
             <span class="muted">{t("files.checked", { count: count(progress.filesChecked) })}</span>
           </div>
         {/if}
-        <p class="muted note">🛡️ {t("files.scanNote")}</p>
+        <p class="muted note icon-line"><Icon name="shieldCheck" />{t("files.scanNote")}</p>
       </div>
     {:else if error}
       <div class="card message">
@@ -380,7 +381,7 @@
         <button class="btn btn-primary" onclick={() => load(true)}>{t("files.retry")}</button>
       </div>
     {:else if groups.length === 0}
-      <div class="card message"><span class="big-icon" aria-hidden="true">✨</span><p>{t("files.empty")}</p></div>
+      <div class="card message"><span class="big-icon"><Icon name="checkCircle" size={26} /></span><p>{t("files.empty")}</p></div>
     {:else}
       {#each sections as section (section.title)}
         {#if section.items.length}
@@ -389,7 +390,7 @@
             <div class="card group" class:focused={focusedId === group.id} role="button" tabindex="0"
                  onclick={() => focus(group.id)} onkeydown={(e) => e.key === "Enter" && focus(group.id)}>
               {#if group.reviewOnly}
-                <span class="no-check" aria-hidden="true">🔎</span>
+                <span class="no-check"><Icon name="search" /></span>
               {:else}
                 <input type="checkbox" checked={checked.has(group.id)} onclick={(e) => e.stopPropagation()} onchange={() => toggle(group.id)} aria-label={t(group.titleKey)} />
               {/if}
@@ -398,7 +399,7 @@
                 <div class="muted desc">{t(group.descriptionKey)} · {countLabel(group)}</div>
               </div>
               {#if reviewable(group)}
-                <button class="review-link" onclick={(e) => { e.stopPropagation(); openReview(group); }}>{t("files.review.start")} ›</button>
+                <button class="review-link" onclick={(e) => { e.stopPropagation(); openReview(group); }}>{t("files.review.start")}<Icon name="chevronRight" size={12} /></button>
               {/if}
               <SafetyTag safety={group.safety} />
               <span class="size">{formatBytes(group.sizeBytes)}</span>
@@ -425,7 +426,7 @@
       <button class="hidden-link" onclick={() => onNavigate("hidden")}>
         <EyeOffIcon />
         <span>{t("files.hiddenLink", { count: itemCount(hiddenCount) })}</span>
-        <span class="link-action">{t("files.hiddenLinkAction")} ›</span>
+        <span class="link-action">{t("files.hiddenLinkAction")}<Icon name="chevronRight" size={12} /></span>
       </button>
     {/if}
   </div>
@@ -461,19 +462,19 @@
           {:else if confirmAll}
             <p>{t("ai.all.confirm", { count: left, service: serviceLabel(settings.ai.service, settings.ai.model) })}</p>
             <div class="ai-buttons">
-              <button class="btn btn-ai" onclick={() => startAskAll(focused)}>✨ {t("ai.all.ask", { count: left })}</button>
+              <button class="btn btn-ai" onclick={() => startAskAll(focused)}><Icon name="sparkle" /> {t("ai.all.ask", { count: left })}</button>
               <button class="btn btn-ghost" onclick={() => (confirmAll = false)}>{t("common.cancel")}</button>
             </div>
           {:else}
             {#if answered.length}
               {@const first = answerFor(answered[0].path)}
-              <p>✨ {t(answered.length === 1 ? "ai.all.lookedOne" : "ai.all.looked", { count: answered.length })}{first ? ` · ${serviceLabel(first.service, first.model)}` : ""}</p>
+              <p><Icon name="sparkle" /> {t(answered.length === 1 ? "ai.all.lookedOne" : "ai.all.looked", { count: answered.length })}{first ? ` · ${serviceLabel(first.service, first.model)}` : ""}</p>
             {:else}
-              <p>✨ {t(left === 1 ? "ai.all.introOne" : "ai.all.intro", { count: left })}</p>
+              <p><Icon name="sparkle" /> {t(left === 1 ? "ai.all.introOne" : "ai.all.intro", { count: left })}</p>
             {/if}
             <div class="ai-buttons">
               {#if left}
-                <button class="btn btn-ai" onclick={() => startAskAll(focused)}>✨ {answered.length ? t("ai.all.askRest", { count: left }) : t("ai.all.askAll")}</button>
+                <button class="btn btn-ai" onclick={() => startAskAll(focused)}><Icon name="sparkle" /> {answered.length ? t("ai.all.askRest", { count: left }) : t("ai.all.askAll")}</button>
               {/if}
               {#if answered.length}
                 <button class="link" onclick={() => forgetAnswers(answered.map((i) => i.path))}>{t("ai.all.forget")}</button>
@@ -514,10 +515,10 @@
       <div class="grow"></div>
       {#if reviewable(focused)}
         {@const g = focused}
-        <button class="btn btn-ghost wide" onclick={() => openReview(g)}>🔍 {t("files.review.oneByOne")}</button>
+        <button class="btn btn-ghost wide" onclick={() => openReview(g)}><Icon name="search" />{t("files.review.oneByOne")}</button>
       {/if}
       {#if focused.reviewOnly}
-        <p class="muted review-note">🔎 {t("files.reviewOnly")}</p>
+        <p class="muted review-note icon-line"><Icon name="info" />{t("files.reviewOnly")}</p>
       {:else}
         {@const id = focused.id}
         {@const deletes = DELETE_NOW_GROUPS.includes(id)}
@@ -545,14 +546,14 @@
       {#each n.kind === "moved" ? removedLines(n.report, quarantine.keepDays) : n.kind === "folderMoved" ? folderMovedLines(n.report, n.item) : n.lines as line, i (i)}<p>{line}</p>{/each}
     </div>
     {#if n.kind === "hidden"}
-      <button class="btn btn-ghost" disabled={undoing} onclick={() => unhide(n.items)}>↩ {t("files.undo")}</button>
+      <button class="btn btn-ghost" disabled={undoing} onclick={() => unhide(n.items)}><Icon name="undo" />{t("files.undo")}</button>
     {/if}
     {#if (n.kind === "moved" || n.kind === "folderMoved") && n.report.entryIds.length}
       <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(n.report)}>
-        {undoing ? t("files.undoing") : `↩ ${t("files.undo")}`}
+        {#if !undoing}<Icon name="undo" />{/if}{undoing ? t("files.undoing") : t("files.undo")}
       </button>
     {/if}
-    <button class="close" aria-label={t("common.close")} onclick={() => (notice = null)}>✕</button>
+    <button class="close" aria-label={t("common.close")} onclick={() => (notice = null)}><Icon name="dismiss" /></button>
   </div>
 {/if}
 
@@ -561,7 +562,7 @@
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="card menu" style="left:{m.x}px;top:{m.y}px" role="menu" tabindex="-1" onclick={(e) => e.stopPropagation()}>
     {#if reviewable(m.group)}
-      <button role="menuitem" onclick={() => act(openReview)}>🔍 {t("files.review.oneByOne")}</button>
+      <button role="menuitem" class="menu-hide" onclick={() => act(openReview)}><Icon name="search" /><span>{t("files.review.oneByOne")}</span></button>
       <hr />
     {/if}
     <button role="menuitem" class="menu-hide" onclick={() => act((g) => hide([hiddenItem("group", g.id, g.titleKey)]))}>
@@ -583,7 +584,7 @@
   .group { display: flex; align-items: center; gap: 12px; padding: 11px 14px; margin-bottom: 7px; border-width: 2px; border-color: transparent; cursor: pointer; }
   .group.focused { border-color: var(--accent); }
   .group input { width: 18px; height: 18px; accent-color: var(--accent); }
-  .no-check { width: 18px; text-align: center; font-size: 14px; }
+  .no-check { width: 18px; display: flex; justify-content: center; color: var(--text-muted); }
   .info { min-width: 0; flex: 1; }
   .title { font-size: 14px; font-weight: 600; }
   .desc { font-size: 12px; }
@@ -606,7 +607,7 @@
   .note { font-size: 12.5px; margin-top: 14px; }
   .message { padding: 22px 24px; margin-top: 8px; display: flex; align-items: center; gap: 14px; }
   .message p { flex: 1; }
-  .big-icon { font-size: 26px; }
+  .big-icon { display: flex; color: var(--safe-fg); }
 
   /* Wider on a wide window: the group rows need less room than the folder list. */
   .side { width: clamp(330px, 30vw, 520px); flex: none; padding: 18px; min-height: 420px; display: flex; flex-direction: column; position: sticky; top: 0; }
@@ -642,7 +643,7 @@
   .ai-error { color: var(--keep-fg); margin-top: 6px; }
   .spinner { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--tip-border); border-top-color: var(--ai); animation: spin 0.9s linear infinite; flex: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .review-link { border: none; background: none; color: var(--accent); font-size: 12.5px; font-weight: 600; padding: 4px 6px; border-radius: var(--radius-sm); white-space: nowrap; }
+  .review-link { border: none; background: none; color: var(--accent); font-size: 12.5px; font-weight: 600; padding: 4px 6px; border-radius: var(--radius-sm); white-space: nowrap; display: inline-flex; align-items: center; gap: 2px; }
   .review-link:hover { background: var(--accent-soft); }
 
   .dots { flex: none; border: none; background: none; font-size: 18px; line-height: 1; padding: 4px 8px; margin-right: -6px; border-radius: var(--radius-sm); color: var(--text-muted); }
@@ -653,14 +654,14 @@
   .items li:hover .hide-pill, .hide-pill:focus-visible { opacity: 1; }
   .hide-pill:hover { background: var(--hover); }
   .hidden-link { display: flex; align-items: center; gap: 8px; margin-top: 16px; border: none; background: none; padding: 6px 2px; font-size: 13px; color: var(--text-muted); text-align: left; }
-  .link-action { color: var(--accent); font-weight: 600; }
+  .link-action { color: var(--accent); font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
   .hidden-link:hover .link-action { text-decoration: underline; }
   .menu { position: fixed; z-index: 20; width: 290px; padding: 6px; box-shadow: var(--shadow-pop); display: flex; flex-direction: column; }
   .menu button { border: none; background: none; text-align: left; padding: 8px 10px; border-radius: 5px; font-size: 13px; }
   .menu button:hover, .menu button:focus-visible { background: var(--hover); outline: none; }
   .menu hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
   .menu-hide { display: flex; align-items: flex-start; gap: 8px; }
-  .menu-hide :global(.eye-off) { margin-top: 2px; }
+  .menu-hide :global(.icon) { margin-top: 2px; }
   .menu-hint { display: block; font-size: 12px; margin-top: 2px; }
   .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
   .toast.error { border-left-color: var(--danger); }
@@ -670,5 +671,6 @@
   .toast-text { flex: 1; font-size: 13px; line-height: 1.4; }
   .toast-text p + p { color: var(--text-muted); margin-top: 2px; }
   .toast .btn { flex: none; }
-  .close { border: none; background: none; color: var(--text-muted); font-size: 13px; padding: 4px; }
+  .close { border: none; background: none; color: var(--text-muted); padding: 4px; display: flex; border-radius: var(--radius-sm); }
+  .close:hover { background: var(--hover); }
 </style>

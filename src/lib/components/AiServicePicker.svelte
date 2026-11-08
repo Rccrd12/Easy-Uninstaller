@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from "./Icon.svelte";
   import { onMount } from "svelte";
   import { aiModels, aiOpenPage, aiRemoveKey, aiServices, aiSetKey, aiTest } from "../api";
   import { ai, AI_SERVICES, aiConfig, aiErrorText, recommendedModel, serviceInfo, type AiKind, type AiServiceInfo } from "../ai.svelte";
@@ -185,7 +186,7 @@
             <b>{t(`ai.services.${s.id}.name`)}</b>
             <span class="muted">{subtitle(s)}</span>
           </span>
-          {#if b}<span class="badge {b.tone}">{b.tone === "ok" ? "✓ " : ""}{b.text}</span>{/if}
+          {#if b}<span class="badge {b.tone}">{#if b.tone === "ok"}<Icon name="check" /> {/if}{b.text}</span>{/if}
         </button>
       {/each}
     </div>
@@ -213,7 +214,7 @@
           <span class="field-label">{t(info.id === "unsloth" ? "ai.picker.unslothKey" : "ai.picker.key")}{info.optionalKey ? ` (${t("ai.picker.optional")})` : ""}</span>
           {#if hasKey}
             <div class="saved">
-              <span class="ok-text">✓ {t("ai.picker.keyStored")}</span>
+              <span class="ok-text"><Icon name="check" /> {t("ai.picker.keyStored")}</span>
               <button class="link" onclick={removeKey}>{t("ai.picker.removeKey")}</button>
             </div>
           {:else}
@@ -266,7 +267,7 @@
           {test?.state === "running" ? (ai.starting !== null && info.id === "unsloth" ? t("ai.picker.starting", { seconds: ai.starting }) : t("ai.picker.testing")) : t("ai.picker.test")}
         </button>
         {#if test?.state === "ok"}
-          <span class="ok-text" role="status">✓ {t("ai.picker.works", { seconds: seconds(test.ms) })}</span>
+          <span class="ok-text" role="status"><Icon name="check" /> {t("ai.picker.works", { seconds: seconds(test.ms) })}</span>
         {:else if test?.state === "fail"}
           <span class="bad-text" role="status">{test.error}</span>
         {/if}

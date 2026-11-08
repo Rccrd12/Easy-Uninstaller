@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Icon from "./Icon.svelte";
+  import type { IconName } from "../icons";
   import { ai, aiReady, serviceInfo, turnOff } from "../ai.svelte";
   import { t } from "../i18n/index.svelte";
   import { saveSettings, settings } from "../settings.svelte";
@@ -16,9 +18,9 @@
 
   const then = ai.setup?.then;
 
-  const CHOICES: { mode: AiMode; icon: string; lines: string[] }[] = [
-    { mode: "online", icon: "☁️", lines: ["a", "b", "c"] },
-    { mode: "local", icon: "💻", lines: ["a", "b", "c"] },
+  const CHOICES: { mode: AiMode; icon: IconName | ""; lines: string[] }[] = [
+    { mode: "online", icon: "globe", lines: ["a", "b", "c"] },
+    { mode: "local", icon: "desktop", lines: ["a", "b", "c"] },
     { mode: "off", icon: "", lines: ["a"] },
   ];
 
@@ -59,14 +61,14 @@
   <div class="dialog card" role="dialog" aria-modal="true" aria-labelledby="ai-setup-title">
     {#if step === 1}
       <div class="top">
-        <h2 id="ai-setup-title">✨ {t("ai.setup.title")}</h2>
+        <h2 id="ai-setup-title"><Icon name="sparkle" /> {t("ai.setup.title")}</h2>
         <span class="muted step">{t("ai.setup.step", { step: 1 })}</span>
       </div>
       <p class="lead">{t("ai.setup.lead")} <b>{t("ai.setup.leadBold")}</b>{t("ai.setup.leadEnd")}</p>
       <div class="choices" role="radiogroup" aria-labelledby="ai-setup-title">
         {#each CHOICES as c (c.mode)}
           <button class="choice" class:on={choice === c.mode} role="radio" aria-checked={choice === c.mode} onclick={() => (choice = c.mode)}>
-            <b>{c.icon ? `${c.icon} ` : ""}{t(`ai.setup.${c.mode}.title`)}</b>
+            <b>{#if c.icon}<Icon name={c.icon} /> {/if}{t(`ai.setup.${c.mode}.title`)}</b>
             <ul>
               {#each c.lines as line (line)}<li>{t(`ai.setup.${c.mode}.${line}`)}</li>{/each}
             </ul>
@@ -79,13 +81,13 @@
       </div>
     {:else}
       <div class="top">
-        <h2 id="ai-setup-title">{choice === "local" ? `💻 ${t("ai.setup.localTitle")}` : `☁️ ${t("ai.setup.onlineTitle")}`}</h2>
+        <h2 id="ai-setup-title"><Icon name={choice === "local" ? "desktop" : "globe"} /> {choice === "local" ? t("ai.setup.localTitle") : t("ai.setup.onlineTitle")}</h2>
         <span class="muted step">{t("ai.setup.step", { step: 2 })}</span>
       </div>
       {#if choice === "online"}
         <div class="segmented" role="tablist">
-          <button role="tab" aria-selected={tab === "cli"} class:on={tab === "cli"} onclick={() => (tab = "cli")}>🎟️ {t("ai.setup.tabCli")}</button>
-          <button role="tab" aria-selected={tab === "api"} class:on={tab === "api"} onclick={() => (tab = "api")}>🔑 {t("ai.setup.tabApi")}</button>
+          <button role="tab" aria-selected={tab === "cli"} class:on={tab === "cli"} onclick={() => (tab = "cli")}><Icon name="key" /> {t("ai.setup.tabCli")}</button>
+          <button role="tab" aria-selected={tab === "api"} class:on={tab === "api"} onclick={() => (tab = "api")}><Icon name="key" /> {t("ai.setup.tabApi")}</button>
         </div>
       {/if}
       <div class="body">
@@ -94,7 +96,7 @@
         {/key}
       </div>
       <div class="foot line">
-        <button class="link" onclick={() => (step = 1)}>← {t("ai.setup.back")}</button>
+        <button class="link" onclick={() => (step = 1)}><Icon name="arrowLeft" /> {t("ai.setup.back")}</button>
         <button class="btn btn-ai" disabled={!ready} onclick={done}>{then ? t("ai.setup.doneAsk") : t("ai.setup.done")}</button>
       </div>
     {/if}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
   import AiServicePicker from "../components/AiServicePicker.svelte";
+  import Icon from "../components/Icon.svelte";
   import { AI_PARALLEL_CHOICES, aiStats, createRestorePoint, KEEP_DAYS_CHOICES, listExclusions } from "../api";
   import { forgetAnswers, serviceInfo } from "../ai.svelte";
   import { formatBytes } from "../format";
@@ -131,7 +132,7 @@
       <span class="muted hint">{t("settings.hiddenHint")}</span>
     </span>
     {#if hiddenCount}<span class="count">{hiddenCount}</span>{/if}
-    <span class="manage">{t("settings.manage")} ›</span>
+    <span class="manage">{t("settings.manage")}<Icon name="chevronRight" size={14} /></span>
   </button>
   <div class="row restore">
     <label class="restore-toggle">
@@ -171,8 +172,8 @@
     <div class="row block">
       {#if settings.ai.mode === "online"}
         <div class="segmented tabs" role="tablist">
-          <button role="tab" aria-selected={aiTab === "cli"} class:on={aiTab === "cli"} onclick={() => (aiTab = "cli")}>🎟️ {t("ai.setup.tabCli")}</button>
-          <button role="tab" aria-selected={aiTab === "api"} class:on={aiTab === "api"} onclick={() => (aiTab = "api")}>🔑 {t("ai.setup.tabApi")}</button>
+          <button role="tab" aria-selected={aiTab === "cli"} class:on={aiTab === "cli"} onclick={() => (aiTab = "cli")}><Icon name="key" /> {t("ai.setup.tabCli")}</button>
+          <button role="tab" aria-selected={aiTab === "api"} class:on={aiTab === "api"} onclick={() => (aiTab = "api")}><Icon name="key" /> {t("ai.setup.tabApi")}</button>
         </div>
       {/if}
       {#key settings.ai.mode === "local" ? "local" : aiTab}
@@ -217,7 +218,7 @@
   <div class="row block">
     <span>{t("ai.settings.never")}</span>
     <div class="never">
-      {#each ["contents", "username", "apps", "personal"] as item (item)}<span>✅ {t(`ai.settings.neverItems.${item}`)}</span>{/each}
+      {#each ["contents", "username", "apps", "personal"] as item (item)}<span><Icon name="checkCircle" /> {t(`ai.settings.neverItems.${item}`)}</span>{/each}
     </div>
   </div>
 </div>
@@ -253,7 +254,7 @@
   .hidden-icon { display: flex; color: var(--text-muted); }
   .grow { flex: 1; min-width: 0; }
   .count { flex: none; font-size: 12px; font-weight: 600; background: var(--track); border-radius: 10px; padding: 1px 8px; }
-  .manage { flex: none; color: var(--accent); font-weight: 600; font-size: 13px; }
+  .manage { display: inline-flex; align-items: center; gap: 2px; flex: none; color: var(--accent); font-weight: 600; font-size: 13px; }
   .about { margin-top: 14px; font-size: 12px; }
   .section { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.3px; text-transform: uppercase; margin: 22px 0 0; }
   .new { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; background: var(--ai); color: var(--on-ai); }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import EyeOffIcon from "./EyeOffIcon.svelte";
+  import Icon from "./Icon.svelte";
   import FileThumb from "./FileThumb.svelte";
   import { DELETE_NOW_GROUPS, hiddenItem, openScannedFile, reviewFileGroup, showScannedFile } from "../api";
   import { quarantine } from "../settings.svelte";
@@ -213,7 +214,7 @@
 <svelte:window onclick={closeMenu} onkeydown={(e) => e.key === "Escape" && closeMenu()} onresize={closeMenu} />
 
 <div class="review">
-  <button class="back" onclick={onBack}>‹ {t("files.title")}</button>
+  <button class="back" onclick={onBack}><Icon name="chevronLeft" size={14} />{t("files.title")}</button>
   <div class="head">
     <div class="titles">
       <h1>{t(group.titleKey)}</h1>
@@ -226,8 +227,8 @@
       {/if}
     </div>
     <div class="segmented" role="radiogroup" aria-label={t("files.review.view")}>
-      <button role="radio" aria-checked={view === "list"} class:on={view === "list"} onclick={() => (view = "list")}>☰ {t("files.review.list")}</button>
-      <button role="radio" aria-checked={view === "grid"} class:on={view === "grid"} onclick={() => (view = "grid")}>▦ {t("files.review.previews")}</button>
+      <button role="radio" aria-checked={view === "list"} class:on={view === "list"} onclick={() => (view = "list")}><Icon name="list" />{t("files.review.list")}</button>
+      <button role="radio" aria-checked={view === "grid"} class:on={view === "grid"} onclick={() => (view = "grid")}><Icon name="grid" />{t("files.review.previews")}</button>
     </div>
   </div>
 
@@ -237,7 +238,7 @@
     <div class="card message">{t("files.failed", { error })}</div>
   {:else if !review || (review.files.length === 0 && review.duplicateSets.length === 0)}
     <div class="card message">
-      <span class="big-icon" aria-hidden="true">✨</span>
+      <span class="big-icon"><Icon name="checkCircle" size={26} /></span>
       <p>{t("files.review.empty")}</p>
       <button class="btn btn-ghost" onclick={onBack}>{t("files.review.backToFiles")}</button>
     </div>
@@ -375,12 +376,12 @@
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="card menu" style="left:{m.x}px;top:{m.y}px" role="menu" tabindex="-1" onclick={(e) => e.stopPropagation()}>
     {#if m.file.canOpen}
-      <button role="menuitem" onclick={() => act(() => openScannedFile(m.file.path))}>📂 {t("files.review.open")}</button>
+      <button role="menuitem" class="with-icon" onclick={() => act(() => openScannedFile(m.file.path))}><Icon name="folderOpen" />{t("files.review.open")}</button>
     {/if}
-    <button role="menuitem" onclick={() => act(() => showScannedFile(m.file.path))}>🔎 {t("files.review.showInFolder")}</button>
+    <button role="menuitem" class="with-icon" onclick={() => act(() => showScannedFile(m.file.path))}><Icon name="search" />{t("files.review.showInFolder")}</button>
     {#if m.set && keptOf(m.set) !== m.file.path}
       {@const set = m.set}
-      <button role="menuitem" onclick={() => act(() => keepInstead(m.file, set))}>⇄ {t("files.review.keepInstead")}</button>
+      <button role="menuitem" class="with-icon" onclick={() => act(() => keepInstead(m.file, set))}><Icon name="swap" />{t("files.review.keepInstead")}</button>
     {/if}
     <hr />
     <button role="menuitem" class="with-icon" onclick={() => act(() => hideFiles([m.file.path]))}><EyeOffIcon /> {t("files.review.hideFile")}</button>
@@ -392,13 +393,13 @@
 
 <style>
   .review { padding-bottom: 8px; }
-  .back { border: none; background: none; color: var(--text-muted); font-size: 13px; padding: 2px 0; margin-bottom: 4px; }
+  .back { border: none; background: none; color: var(--text-muted); font-size: 13px; padding: 2px 0; margin-bottom: 4px; display: inline-flex; align-items: center; gap: 4px; }
   .back:hover { color: var(--accent); }
   .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
   .titles { min-width: 0; padding-bottom: 12px; }
   .sub { margin-top: 3px; }
   .segmented { display: inline-flex; flex: none; background: var(--track); border-radius: 8px; padding: 3px; margin-top: 4px; }
-  .segmented button { border: none; background: none; padding: 5px 12px; font-size: 12.5px; border-radius: 6px; }
+  .segmented button { border: none; background: none; padding: 5px 12px; font-size: 12.5px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
   .segmented .on { background: var(--raised); font-weight: 600; box-shadow: var(--shadow); }
 
   .toolbar { display: flex; align-items: center; gap: 14px; padding: 10px 14px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -410,7 +411,7 @@
   .small { font-size: 12px; }
   .message { padding: 22px 24px; display: flex; align-items: center; gap: 14px; }
   .message p { flex: 1; }
-  .big-icon { font-size: 26px; }
+  .big-icon { display: flex; color: var(--safe-fg); }
 
   input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
   .dots { flex: none; border: none; background: none; font-size: 18px; line-height: 1; padding: 4px 8px; border-radius: var(--radius-sm); color: var(--text-muted); }

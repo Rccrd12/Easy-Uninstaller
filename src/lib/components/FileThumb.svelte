@@ -17,19 +17,21 @@
 
 <script lang="ts">
   import { fileKind, type FileKind } from "../paths";
+  import type { IconName } from "../icons";
+  import Icon from "./Icon.svelte";
 
   /** `size` is the tile size in CSS pixels; previews are asked at twice that for sharp screens. */
   let { path, size = 44 }: { path: string; size?: number } = $props();
 
-  const icons: Record<FileKind, string> = {
-    image: "🖼️",
-    video: "🎬",
-    audio: "🎵",
-    document: "📄",
-    archive: "🗜️",
-    program: "📦",
-    disc: "💿",
-    other: "📁",
+  const icons: Record<FileKind, IconName> = {
+    image: "image",
+    video: "video",
+    audio: "music",
+    document: "document",
+    archive: "archive",
+    program: "box",
+    disc: "drive",
+    other: "document",
   };
 
   let el: HTMLElement | undefined = $state();
@@ -57,20 +59,13 @@
   });
 </script>
 
-<span bind:this={el} class="thumb kind-{kind}" style="width:{size}px;height:{size}px;font-size:{Math.round(size * 0.42)}px" aria-hidden="true">
-  {#if url}<img src={url} alt="" />{:else}{icons[kind]}{/if}
-  {#if kind === "video"}<i class="play" style="font-size:{Math.max(10, Math.round(size * 0.24))}px">▶</i>{/if}
+<span bind:this={el} class="thumb" style="width:{size}px;height:{size}px" aria-hidden="true">
+  {#if url}<img src={url} alt="" />{:else}<Icon name={icons[kind]} size={Math.min(Math.round(size * 0.45), 40)} />{/if}
+  {#if url && kind === "video"}<i class="play" style="font-size:{Math.max(10, Math.round(size * 0.24))}px"><Icon name="play" filled size={Math.max(10, Math.round(size * 0.24))} /></i>{/if}
 </span>
 
 <style>
-  .thumb { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); overflow: hidden; background: var(--kind-other); }
+  .thumb { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); overflow: hidden; background: var(--file-tile-bg); color: var(--file-tile-fg); }
   img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .play { position: absolute; inset: 0; margin: auto; width: 2em; height: 2em; border-radius: 50%; background: rgba(0, 0, 0, 0.45); color: #fff; font-style: normal; display: flex; align-items: center; justify-content: center; padding-left: 0.15em; }
-  .kind-image { background: var(--kind-image); }
-  .kind-video { background: var(--kind-video); }
-  .kind-audio { background: var(--kind-audio); }
-  .kind-document { background: var(--kind-document); }
-  .kind-archive { background: var(--kind-archive); }
-  .kind-program { background: var(--kind-program); }
-  .kind-disc { background: var(--kind-disc); }
 </style>
