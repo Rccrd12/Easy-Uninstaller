@@ -1,19 +1,29 @@
 <script lang="ts">
+  import FileReview from "../components/FileReview.svelte";
   import SafetyTag from "../components/SafetyTag.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
-  import { keepFileGroups, listFileGroups, QUARANTINE_DAYS, quarantineFileGroups, restoreQuarantine, usesSampleData } from "../api";
+  import {
+    addExclusion,
+    keepFileGroups,
+    listFileGroups,
+    QUARANTINE_DAYS,
+    quarantineFileGroups,
+    quarantineFileSelection,
+    refreshFileGroups,
+    restoreQuarantine,
+    usesSampleData,
+  } from "../api";
   import { fileCount, formatBytes, restoreSummary } from "../format";
   import { locale, t } from "../i18n/index.svelte";
-  import type { FileGroup, FileItem, MoveReport, ScanProgress } from "../types";
+  import { displayPath, folderOf, nameOf } from "../paths";
+  import type { Exclusion, FileGroup, FileItem, FileSelection, MoveReport, ScanProgress } from "../types";
 
   /** How many items the details panel lists. */
   const SHOWN_ITEMS = 8;
-  /** The order the scan returns groups in, used to put groups back after an undo. */
-  const GROUP_ORDER = ["temp", "installers", "old-downloads", "duplicates", "large-files"];
 
   /** What the toast at the bottom says after a move or an undo. */
   type Notice =
-    | { kind: "moved"; report: MoveReport; groups: FileGroup[] }
+    | { kind: "moved"; report: MoveReport }
     | { kind: "info"; lines: string[] }
     | { kind: "error"; lines: string[] };
 
@@ -26,8 +36,20 @@
   let moving = $state(false);
   let undoing = $state(false);
   let notice = $state<Notice | null>(null);
+  /** The group being reviewed file by file, kept even when all its files are gone. */
+  let reviewing = $state<FileGroup | null>(null);
+  /** Changes after every move, undo or hidden file, so the review reads its files again. */
+  let version = $state(0);
 
   const focused = $derived(groups.find((g) => g.id === focusedId) ?? null);
+
+  /** Groups of single files can be reviewed one by one; folder groups (temp) cannot. */
+  const reviewable = (g: FileGroup) => g.items.length > 0 && g.items.every((i) => i.lastUsed !== null);
+
+  function openReview(g: FileGroup) {
+    reviewing = g;
+    notice = null;
+  }
 
   function load(rescan = false) {
     scanning = true;
@@ -68,13 +90,7 @@
     notice = null;
     try {
       const report = await quarantineFileGroups(ids);
-      if (report.movedCount === 0) {
-        notice = { kind: "info", lines: [t("files.nothingMoved")] };
-        return;
-      }
-      const moved = groups.filter((g) => ids.includes(g.id));
-      setGroups(groups.filter((g) => !ids.includes(g.id)));
-      notice = { kind: "moved", report, groups: moved };
+      await afterMove(report);
     } catch (e) {
       notice = { kind: "error", lines: [t("files.moveFailed", { error: String(e) })] };
     } finally {
@@ -82,12 +98,55 @@
     }
   }
 
-  async function undo(report: MoveReport, moved: FileGroup[]) {
+  /** Moves the files picked in the review. */
+  async function moveSelection(selection: FileSelection) {
+    if (moving) return;
+    moving = true;
+    notice = null;
+    try {
+      await afterMove(await quarantineFileSelection([selection]));
+    } catch (e) {
+      notice = { kind: "error", lines: [t("files.moveFailed", { error: String(e) })] };
+    } finally {
+      moving = false;
+    }
+  }
+
+  async function afterMove(report: MoveReport) {
+    if (report.movedCount === 0) {
+      notice = { kind: "info", lines: [t("files.nothingMoved")] };
+      return;
+    }
+    notice = { kind: "moved", report };
+    await refresh();
+  }
+
+  /** Reads the groups again from the last scan: what was moved, put back or hidden shows up. */
+  async function refresh() {
+    try {
+      setGroups(await refreshFileGroups());
+    } finally {
+      version++;
+    }
+  }
+
+  /** "Don't show again": nothing is moved, the file or folder is only left out from now on. */
+  async function hide(exclusion: Exclusion) {
+    try {
+      await addExclusion(exclusion);
+      const name = exclusion.folder ? displayPath(exclusion.path) : nameOf(exclusion.path);
+      notice = { kind: "info", lines: [t("files.review.hidden", { name }), t("files.review.hiddenHint")] };
+      await refresh();
+    } catch (e) {
+      notice = { kind: "error", lines: [String(e)] };
+    }
+  }
+
+  async function undo(report: MoveReport) {
     undoing = true;
     try {
       const restored = await restoreQuarantine(report.entryIds);
-      const back = [...groups, ...moved].sort((a, b) => GROUP_ORDER.indexOf(a.id) - GROUP_ORDER.indexOf(b.id));
-      setGroups(back);
+      await refresh();
       const clean = restored.renamedCount === 0 && restored.failedCount === 0;
       notice = { kind: "info", lines: clean ? [t("files.undone")] : restoreSummary(restored) };
     } catch (e) {
@@ -101,6 +160,7 @@
   function setGroups(next: FileGroup[]) {
     groups = next;
     keepFileGroups(next);
+    if (reviewing) reviewing = next.find((g) => g.id === reviewing?.id) ?? reviewing;
     checked = new Set([...checked].filter((id) => next.some((g) => g.id === id)));
     if (!next.some((g) => g.id === focusedId)) focusedId = null;
   }
@@ -110,8 +170,6 @@
     if (r.skippedCount) lines.push(t("files.movedSkipped", { count: fileCount(r.skippedCount) }));
     return lines;
   }
-  const nameOf = (path: string) => path.split(/[\\/]/).pop() ?? path;
-  const folderOf = (path: string) => path.slice(0, Math.max(path.length - nameOf(path).length - 1, 0));
   /** The last two parts of a path, which say the most in little room: "…\\Pictures\\photo.jpg". */
   const shortPath = (path: string) => {
     const parts = path.split(/[\\/]/);
@@ -129,6 +187,10 @@
   const moreItems = (g: FileGroup) => Math.max((g.id === "temp" ? g.items.length : g.itemCount) - SHOWN_ITEMS, 0);
 </script>
 
+{#if reviewing}
+  {@const g = reviewing}
+  <FileReview group={g} {version} busy={moving} onBack={() => (reviewing = null)} onMove={moveSelection} onHide={hide} />
+{:else}
 <div class="layout">
   <div class="col">
     <div class="head">
@@ -177,6 +239,9 @@
                 <div class="title">{t(group.titleKey)}</div>
                 <div class="muted desc">{t(group.descriptionKey)} · {fileCount(group.itemCount)}</div>
               </div>
+              {#if reviewable(group)}
+                <button class="review-link" onclick={(e) => { e.stopPropagation(); openReview(group); }}>{t("files.review.start")} ›</button>
+              {/if}
               <SafetyTag safety={group.safety} />
               <span class="size">{formatBytes(group.sizeBytes)}</span>
             </div>
@@ -219,6 +284,10 @@
         <div class="muted more">{t("files.more", { count: count(moreItems(focused)) })}</div>
       {/if}
       <div class="grow"></div>
+      {#if reviewable(focused)}
+        {@const g = focused}
+        <button class="btn btn-ghost wide" onclick={() => openReview(g)}>🔍 {t("files.review.oneByOne")}</button>
+      {/if}
       {@const id = focused.id}
       <button class="btn btn-primary wide" disabled={moving} onclick={() => moveToQuarantine([id])}>
         {moving ? t("files.moving") : `${t("common.moveToQuarantine")} (${formatBytes(focused.sizeBytes)})`}
@@ -228,16 +297,17 @@
     {/if}
   </aside>
 </div>
+{/if}
 
 {#if notice}
   {@const n = notice}
-  <div class="card toast" class:error={n.kind === "error"} role="status" aria-live="polite">
+  <div class="card toast" class:error={n.kind === "error"} class:raised={reviewing !== null} role="status" aria-live="polite">
     <span class="toast-icon" aria-hidden="true">{n.kind === "error" ? "⚠️" : "✅"}</span>
     <div class="toast-text">
       {#each n.kind === "moved" ? movedLines(n.report) : n.lines as line, i (i)}<p>{line}</p>{/each}
     </div>
     {#if n.kind === "moved"}
-      <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(n.report, n.groups)}>
+      <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(n.report)}>
         {undoing ? t("files.undoing") : `↩ ${t("files.undo")}`}
       </button>
     {/if}
@@ -293,9 +363,14 @@
   .item-size { font-size: 12px; font-weight: 600; flex: none; }
   .more { font-size: 12px; margin-top: 6px; }
   .wide { width: 100%; padding: 10px; margin-top: 14px; }
+  .wide + .wide { margin-top: 8px; }
+  .review-link { border: none; background: none; color: var(--accent); font-size: 12.5px; font-weight: 600; padding: 4px 6px; border-radius: var(--radius-sm); white-space: nowrap; }
+  .review-link:hover { background: var(--accent-soft); }
 
   .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
   .toast.error { border-left-color: var(--danger); }
+  /* Above the review's sticky footer, so its buttons stay reachable. */
+  .toast.raised { bottom: 96px; }
   .toast-icon { font-size: 18px; }
   .toast-text { flex: 1; font-size: 13px; line-height: 1.4; }
   .toast-text p + p { color: var(--text-muted); margin-top: 2px; }

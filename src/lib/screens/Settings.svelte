@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ExclusionList from "../components/ExclusionList.svelte";
   import { createRestorePoint, QUARANTINE_DAYS } from "../api";
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
   import { saveSettings, settings } from "../settings.svelte";
@@ -41,6 +42,7 @@
     <span>{t("settings.quarantineDays")}</span>
     <span class="muted">{t("settings.days", { days: QUARANTINE_DAYS })}</span>
   </div>
+  <ExclusionList />
   <div class="row restore">
     <label class="restore-toggle">
       <span>

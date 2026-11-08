@@ -9,6 +9,9 @@
 //! 3. `old-downloads`: downloads not opened or changed in over a year (Check).
 //! 4. `duplicates`: identical copies in the user's folders; the oldest copy is kept (Check).
 //! 5. `large-files`: files of 1 GB or more in the user's folders (Check).
+//!
+//! What the UI shows is rebuilt from the kept file lists by `review.rs`, leaving
+//! out files that are gone or changed and files the user asked never to see again.
 
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
@@ -19,7 +22,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::ipc::Channel;
-use tauri::State;
+use tauri::{AppHandle, Manager};
 
 const DAY: Duration = Duration::from_secs(24 * 60 * 60);
 /// Temp and cache files younger than this may be in use, so they are left out.
@@ -31,7 +34,7 @@ const LARGE_FILE_BYTES: u64 = 1024 * 1024 * 1024;
 /// Smaller duplicates are not worth the time it takes to compare them.
 const MIN_DUPLICATE_BYTES: u64 = 1024 * 1024;
 /// How many items per group are sent to the UI (largest first); `item_count` has the full count.
-const MAX_ITEMS: usize = 200;
+pub(crate) const MAX_ITEMS: usize = 200;
 /// Send a progress update every this many files.
 const PROGRESS_EVERY: u64 = 250;
 const INSTALLER_EXTENSIONS: [&str; 5] = ["exe", "msi", "msix", "msixbundle", "appx"];
@@ -119,18 +122,43 @@ pub struct ScanResult {
     /// What the UI shows.
     pub groups: Vec<FileGroup>,
     /// Every file of each group, by group id (the UI only gets the largest ones).
+    /// For `duplicates`, the extra copies (every set but its oldest file).
     pub files: HashMap<String, Vec<ScannedFile>>,
+    /// Every set of identical files, oldest first: the copy kept unless the user picks another.
+    pub duplicate_sets: Vec<Vec<ScannedFile>>,
 }
 
-/// The files of the last scan, by group id. A group can be moved again after an
-/// undo: files already moved are simply not there anymore and are skipped, and a
-/// file restored under a new name is not the scanned file.
+/// The last scan, kept so that later moves act on exactly what was found, plus
+/// the files and folders the user asked never to see again. A group can be moved
+/// again after an undo: files already moved are simply not there anymore and are
+/// skipped, and a file restored under a new name is not the scanned file.
 #[derive(Default)]
-pub struct LastScan(Mutex<HashMap<String, Vec<ScannedFile>>>);
+pub struct LastScan(pub(crate) Mutex<Kept>);
+
+#[derive(Debug, Default)]
+pub(crate) struct Kept {
+    /// The groups as scanned: their order, safety and, for folder groups like temp, the folders.
+    pub groups: Vec<FileGroup>,
+    pub files: HashMap<String, Vec<ScannedFile>>,
+    pub duplicate_sets: Vec<Vec<ScannedFile>>,
+    /// Paths of files and folders never to show or move; see `review.rs`.
+    pub excluded: Vec<PathBuf>,
+}
 
 impl LastScan {
+    /// What moving a whole group takes: its files minus the excluded ones, and for
+    /// duplicates every copy except the one each set keeps.
     pub fn group(&self, group_id: &str) -> Option<Vec<ScannedFile>> {
-        self.0.lock().ok()?.get(group_id).cloned()
+        crate::review::movable(&*self.0.lock().ok()?, group_id)
+    }
+
+    /// Keeps a new scan result and returns the groups to show.
+    pub fn replace(&self, result: ScanResult) -> Vec<FileGroup> {
+        let mut kept = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        kept.groups = result.groups;
+        kept.files = result.files;
+        kept.duplicate_sets = result.duplicate_sets;
+        crate::review::current_groups(&kept)
     }
 }
 
@@ -146,21 +174,20 @@ pub struct Locations {
 
 #[tauri::command]
 pub async fn scan_files(
+    app: AppHandle,
     on_progress: Channel<ScanProgress>,
-    last: State<'_, LastScan>,
 ) -> Result<Vec<FileGroup>, String> {
-    let result = tauri::async_runtime::spawn_blocking(move || {
+    tauri::async_runtime::spawn_blocking(move || {
         let locations = platform::locations();
         let installed = platform::installed_app_names();
-        scan(&locations, &installed, SystemTime::now(), &mut |p| {
+        let result = scan(&locations, &installed, SystemTime::now(), &mut |p| {
             // The window may be gone; the scan result is still returned.
             let _ = on_progress.send(p);
-        })
+        });
+        app.state::<LastScan>().replace(result)
     })
     .await
-    .map_err(|e| e.to_string())?;
-    *last.0.lock().map_err(|e| e.to_string())? = result.files;
-    Ok(result.groups)
+    .map_err(|e| e.to_string())
 }
 
 /// Temp and cache folders apps recreate on their own (also used by the space map).
@@ -170,16 +197,16 @@ pub fn cache_dirs() -> Vec<PathBuf> {
 
 /// A file seen during the scan.
 #[derive(Debug, Clone)]
-struct Seen {
-    path: PathBuf,
-    size: u64,
-    modified: SystemTime,
+pub(crate) struct Seen {
+    pub path: PathBuf,
+    pub size: u64,
+    pub modified: SystemTime,
     /// The later of last access and last change.
-    last_used: SystemTime,
+    pub last_used: SystemTime,
 }
 
 impl Seen {
-    fn from_meta(path: PathBuf, meta: &Metadata) -> Self {
+    pub(crate) fn from_meta(path: PathBuf, meta: &Metadata) -> Self {
         let modified = meta.modified().unwrap_or(UNIX_EPOCH);
         let accessed = meta.accessed().unwrap_or(UNIX_EPOCH);
         Seen {
@@ -190,7 +217,7 @@ impl Seen {
         }
     }
 
-    fn scanned(&self) -> ScannedFile {
+    pub(crate) fn scanned(&self) -> ScannedFile {
         ScannedFile {
             path: self.path.clone(),
             size: self.size,
@@ -198,7 +225,7 @@ impl Seen {
         }
     }
 
-    fn item(&self, duplicate_of: Option<&Path>) -> FileItem {
+    pub(crate) fn item(&self, duplicate_of: Option<&Path>) -> FileItem {
         FileItem {
             path: self.path.to_string_lossy().into_owned(),
             size_bytes: self.size,
@@ -338,18 +365,22 @@ pub fn scan(
     }
 
     progress.start(ScanStep::Duplicates);
-    let duplicates = find_duplicates(&personal, &mut || progress.tick());
+    let duplicate_sets = find_duplicates(&personal, &mut || progress.tick());
     let mut dup_items: Vec<FileItem> = Vec::new();
     let mut dup_files = Vec::new();
-    for (copy, original) in &duplicates {
-        claimed.insert(copy.path.clone());
-        dup_items.push(copy.item(Some(&original.path)));
-        dup_files.push(copy.scanned());
+    for set in &duplicate_sets {
+        let (original, copies) = set.split_first().expect("a set has two files or more");
+        claimed.insert(original.path.clone());
+        for copy in copies {
+            claimed.insert(copy.path.clone());
+            dup_items.push(copy.item(Some(&original.path)));
+            dup_files.push(copy.scanned());
+        }
     }
     groups.push(group(
         "duplicates",
         Safety::Check,
-        duplicates.len() as u64,
+        dup_files.len() as u64,
         dup_items,
     ));
     files.insert("duplicates".into(), dup_files);
@@ -367,7 +398,15 @@ pub fn scan(
 
     groups.retain(|g| g.item_count > 0);
     files.retain(|id, _| groups.iter().any(|g| &g.id == id));
-    ScanResult { groups, files }
+    let duplicate_sets = duplicate_sets
+        .iter()
+        .map(|set| set.iter().map(Seen::scanned).collect())
+        .collect();
+    ScanResult {
+        groups,
+        files,
+        duplicate_sets,
+    }
 }
 
 fn files_group(
@@ -570,8 +609,8 @@ fn installer_matches(path: &Path, installed: &[Vec<String>]) -> bool {
 }
 
 /// Finds identical files: same size, then same first 64 KB, then same full content.
-/// Returns `(extra copy, kept original)` pairs. The kept copy is the oldest one.
-fn find_duplicates(files: &[Seen], tick: &mut dyn FnMut()) -> Vec<(Seen, Seen)> {
+/// Returns sets of two files or more, oldest first: the oldest is the copy kept.
+fn find_duplicates(files: &[Seen], tick: &mut dyn FnMut()) -> Vec<Vec<Seen>> {
     let mut by_size: HashMap<u64, Vec<&Seen>> = HashMap::new();
     for f in files {
         by_size.entry(f.size).or_default().push(f);
@@ -587,8 +626,7 @@ fn find_duplicates(files: &[Seen], tick: &mut dyn FnMut()) -> Vec<(Seen, Seen)> 
         ) {
             for mut same in split_by(&same_head, |f| fingerprint(&f.path, &keys, None), tick) {
                 same.sort_by(|a, b| a.modified.cmp(&b.modified).then(a.path.cmp(&b.path)));
-                let original = same[0];
-                out.extend(same[1..].iter().map(|c| ((*c).clone(), original.clone())));
+                out.push(same.into_iter().cloned().collect());
             }
         }
     }
@@ -648,7 +686,7 @@ fn fingerprint(
 }
 
 /// `YYYY-MM-DD` in UTC.
-fn iso_date(t: SystemTime) -> String {
+pub(crate) fn iso_date(t: SystemTime) -> String {
     let days = t
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_secs() / 86_400) as i64;

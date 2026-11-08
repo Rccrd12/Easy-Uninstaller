@@ -3,7 +3,7 @@
 //!
 //! Read only: this module never changes or removes anything.
 
-mod icon;
+pub(crate) mod icon;
 mod registry;
 mod store;
 

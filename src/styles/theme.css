@@ -31,6 +31,18 @@
   --tint-leftovers: #fdeee4;
   --tint-map: #f0f1f3;
 
+  /* File type tiles, shown until (or instead of) a preview. */
+  --kind-image: #fde3cf;
+  --kind-video: #d6e8fa;
+  --kind-audio: #e9e0f7;
+  --kind-document: #fbe0dc;
+  --kind-archive: #efe6d2;
+  --kind-program: #dcefe0;
+  --kind-disc: #e3e6ea;
+  --kind-other: #eceef1;
+  --keep-copy-bg: #f3faf2;
+  --keep-copy-border: #cfe8cb;
+
   --cat-apps: #0f6cbd;
   --cat-games: #8764b8;
   --cat-personal: #498205;
@@ -73,6 +85,17 @@
   --tint-files: #3b3115;
   --tint-leftovers: #43291c;
   --tint-map: #34363b;
+
+  --kind-image: #4a3424;
+  --kind-video: #22374d;
+  --kind-audio: #362c4a;
+  --kind-document: #4a2b28;
+  --kind-archive: #3f3826;
+  --kind-program: #24392a;
+  --kind-disc: #34373c;
+  --kind-other: #313338;
+  --keep-copy-bg: #1f2e20;
+  --keep-copy-border: #2f5131;
 
   --cat-apps: #2b7fd0;
   --cat-games: #8f6fc4;

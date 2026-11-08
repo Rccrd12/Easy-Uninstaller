@@ -88,7 +88,7 @@
       },
       "duplicates": {
         "title": "Duplicates",
-        "description": "Identical copies: the oldest one is always kept"
+        "description": "Identical copies: one copy of each always stays"
       },
       "largeFiles": {
         "title": "Large files",
@@ -122,7 +122,56 @@
     "nothingMoved": "Nothing was moved: the files were in use or had changed since the scan. Try scanning again.",
     "undo": "Undo",
     "undoing": "Putting everything back…",
-    "undone": "Done: everything is back where it was."
+    "undone": "Done: everything is back where it was.",
+    "review": {
+      "start": "Review",
+      "oneByOne": "Review one by one",
+      "subtitle": "{files} · {size} · pick what to remove, one by one or all together",
+      "dupSubtitle": "{count} identical copies · {size} · pick what to remove, one by one or all together",
+      "view": "View",
+      "list": "List",
+      "previews": "Previews",
+      "loading": "Reading the files…",
+      "empty": "Nothing left to review in this group.",
+      "backToFiles": "Back to Files",
+      "keepIn": "Always keep the copy in",
+      "anyFolder": "any folder",
+      "then": "then",
+      "oldest": "the oldest",
+      "newest": "the newest",
+      "hintSafe": "All selected: untick anything you want to keep.",
+      "hintCheck": "Nothing is selected: tick only what you no longer need.",
+      "sortBy": "Sort by",
+      "sortSize": "Size",
+      "sortDate": "Last used",
+      "sortName": "Name",
+      "capped": "Showing the {shown} largest of {total} files.",
+      "copies": "{count} copies · {size} each",
+      "keep": "Keep",
+      "changed": "changed {date}",
+      "pick": "Remove {name}",
+      "more": "More actions",
+      "selected": "Selected {files} · {size}",
+      "oneCopyStays": "One copy of every file always stays where it is.",
+      "restorable": "Nothing is deleted: you can restore everything for {days} days.",
+      "selectAll": "Select all",
+      "selectNone": "Select none",
+      "open": "Open",
+      "showInFolder": "Show in folder",
+      "keepInstead": "Keep this one instead",
+      "hideFile": "Don't show me this file again",
+      "hideFolder": "Always ignore the folder “{folder}”",
+      "hidden": "Hidden: {name}. It will not be shown or moved again.",
+      "hiddenHint": "You can show it again in Settings.",
+      "folders": {
+        "desktop": "Desktop",
+        "documents": "Documents",
+        "downloads": "Downloads",
+        "music": "Music",
+        "pictures": "Pictures",
+        "videos": "Videos"
+      }
+    }
   },
   "leftovers": {
     "title": "Leftovers",
@@ -218,7 +267,13 @@
       "declined": "Not created: permission was not given.",
       "disabled": "System Restore is turned off on this PC.",
       "failed": "The restore point could not be created."
-    }
+    },
+    "hidden": "Hidden files and folders",
+    "hiddenHint": "Files you asked not to see again. They are never shown or moved.",
+    "hiddenNone": "None",
+    "hiddenCount": "Show {count}",
+    "hiddenClose": "Close",
+    "showAgain": "Show again"
   },
   "categories": {
     "apps": "Apps",
