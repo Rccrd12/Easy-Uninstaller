@@ -1,5 +1,5 @@
 import { locale, t } from "./i18n/index.svelte";
-import type { RestoreReport } from "./types";
+import type { MoveReport, RestoreReport } from "./types";
 
 const units = ["B", "KB", "MB", "GB", "TB"];
 
@@ -56,4 +56,13 @@ export function itemCount(n: number): string {
 /** "1 leftover", "5 leftovers", in the chosen language. */
 export function leftoverCount(n: number): string {
   return n === 1 ? t("leftovers.countOne") : t("leftovers.count", { count: n.toLocaleString(locale()) });
+}
+
+/** What removing file groups did, one sentence per case that applies. */
+export function removedLines(r: MoveReport, keepDays: number): string[] {
+  const lines: string[] = [];
+  if (r.deletedCount) lines.push(t("files.deleted", { count: fileCount(r.deletedCount), size: formatBytes(r.deletedBytes) }));
+  if (r.movedCount) lines.push(t("files.moved", { count: fileCount(r.movedCount), size: formatBytes(r.movedBytes), days: keepDays }));
+  if (r.skippedCount) lines.push(t("files.movedSkipped", { count: fileCount(r.skippedCount) }));
+  return lines;
 }

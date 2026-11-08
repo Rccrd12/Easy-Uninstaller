@@ -1,8 +1,9 @@
 <script lang="ts">
   import SafetyTag from "../components/SafetyTag.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
-  import { keepFileGroups, listFileGroups, QUARANTINE_DAYS, quarantineFileGroups, restoreQuarantine, usesSampleData } from "../api";
-  import { fileCount, formatBytes, restoreSummary } from "../format";
+  import { DELETE_NOW_GROUPS, keepFileGroups, listFileGroups, removeFileGroups, restoreQuarantine, usesSampleData } from "../api";
+  import { quarantine } from "../settings.svelte";
+  import { fileCount, formatBytes, removedLines, restoreSummary } from "../format";
   import { locale, t } from "../i18n/index.svelte";
   import type { FileGroup, FileItem, MoveReport, ScanProgress } from "../types";
 
@@ -51,6 +52,13 @@
     { title: "files.checkSection", items: groups.filter((g) => g.safety === "check") },
   ]);
   const selectedBytes = $derived(groups.filter((g) => checked.has(g.id)).reduce((s, g) => s + g.sizeBytes, 0));
+  const selectionDeletes = $derived([...checked].some((id) => DELETE_NOW_GROUPS.includes(id)));
+  const selectionMoves = $derived([...checked].some((id) => !DELETE_NOW_GROUPS.includes(id)));
+  /** What the button does: "Delete", "Move to quarantine", or both ("Free up"). */
+  function actionLabel(deletes: boolean, moves: boolean, size: number): string {
+    if (deletes && moves) return t("files.freeUp", { size: formatBytes(size) });
+    return deletes ? t("files.deleteNow", { size: formatBytes(size) }) : `${t("common.moveToQuarantine")} (${formatBytes(size)})`;
+  }
 
   function toggle(id: string) {
     const next = new Set(checked);
@@ -61,14 +69,17 @@
 
   const count = (n: number) => n.toLocaleString(locale());
 
-  /** Moves whole groups into quarantine. Nothing is deleted: the toast offers to undo. */
-  async function moveToQuarantine(ids: string[]) {
+  /**
+   * Removes whole groups: temporary files and caches are deleted, the rest goes to
+   * Quarantine, and the toast offers to undo that part.
+   */
+  async function remove(ids: string[]) {
     if (!ids.length || moving) return;
     moving = true;
     notice = null;
     try {
-      const report = await quarantineFileGroups(ids);
-      if (report.movedCount === 0) {
+      const report = await removeFileGroups(ids);
+      if (report.movedCount === 0 && report.deletedCount === 0) {
         notice = { kind: "info", lines: [t("files.nothingMoved")] };
         return;
       }
@@ -86,7 +97,8 @@
     undoing = true;
     try {
       const restored = await restoreQuarantine(report.entryIds);
-      const back = [...groups, ...moved].sort((a, b) => GROUP_ORDER.indexOf(a.id) - GROUP_ORDER.indexOf(b.id));
+      // Deleted groups cannot come back; scanning again finds what is left of them.
+      const back = [...groups, ...moved.filter((g) => !DELETE_NOW_GROUPS.includes(g.id))].sort((a, b) => GROUP_ORDER.indexOf(a.id) - GROUP_ORDER.indexOf(b.id));
       setGroups(back);
       const clean = restored.renamedCount === 0 && restored.failedCount === 0;
       notice = { kind: "info", lines: clean ? [t("files.undone")] : restoreSummary(restored) };
@@ -105,11 +117,6 @@
     if (!next.some((g) => g.id === focusedId)) focusedId = null;
   }
 
-  function movedLines(r: MoveReport): string[] {
-    const lines = [t("files.moved", { count: fileCount(r.movedCount), size: formatBytes(r.movedBytes), days: QUARANTINE_DAYS })];
-    if (r.skippedCount) lines.push(t("files.movedSkipped", { count: fileCount(r.skippedCount) }));
-    return lines;
-  }
   const nameOf = (path: string) => path.split(/[\\/]/).pop() ?? path;
   const folderOf = (path: string) => path.slice(0, Math.max(path.length - nameOf(path).length - 1, 0));
   /** The last two parts of a path, which say the most in little room: "…\\Pictures\\photo.jpg". */
@@ -187,10 +194,13 @@
       <div class="footer">
         <b>{t("files.selected", { size: formatBytes(selectedBytes) })}</b>
         <span class="grow"></span>
-        <button class="btn btn-primary" disabled={selectedBytes === 0 || moving} onclick={() => moveToQuarantine([...checked])}>
-          {moving ? t("files.moving") : t("common.moveToQuarantine")}
+        <button class="btn btn-primary" disabled={selectedBytes === 0 || moving} onclick={() => remove([...checked])}>
+          {moving ? t("files.moving") : actionLabel(selectionDeletes, selectionMoves, selectedBytes)}
         </button>
       </div>
+      {#if selectionDeletes}
+        <p class="muted how">{t("files.howRemoved", { days: quarantine.keepDays })}</p>
+      {/if}
     {/if}
   </div>
 
@@ -220,8 +230,10 @@
       {/if}
       <div class="grow"></div>
       {@const id = focused.id}
-      <button class="btn btn-primary wide" disabled={moving} onclick={() => moveToQuarantine([id])}>
-        {moving ? t("files.moving") : `${t("common.moveToQuarantine")} (${formatBytes(focused.sizeBytes)})`}
+      {@const deletes = DELETE_NOW_GROUPS.includes(id)}
+      {#if deletes}<p class="muted how">{t("files.deletedRightAway")}</p>{/if}
+      <button class="btn btn-primary wide" disabled={moving} onclick={() => remove([id])}>
+        {moving ? t("files.moving") : actionLabel(deletes, !deletes, focused.sizeBytes)}
       </button>
     {:else}
       <p class="muted">{t("files.pickGroup")}</p>
@@ -234,9 +246,9 @@
   <div class="card toast" class:error={n.kind === "error"} role="status" aria-live="polite">
     <span class="toast-icon" aria-hidden="true">{n.kind === "error" ? "⚠️" : "✅"}</span>
     <div class="toast-text">
-      {#each n.kind === "moved" ? movedLines(n.report) : n.lines as line, i (i)}<p>{line}</p>{/each}
+      {#each n.kind === "moved" ? removedLines(n.report, quarantine.keepDays) : n.lines as line, i (i)}<p>{line}</p>{/each}
     </div>
-    {#if n.kind === "moved"}
+    {#if n.kind === "moved" && n.report.entryIds.length}
       <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(n.report, n.groups)}>
         {undoing ? t("files.undoing") : `↩ ${t("files.undo")}`}
       </button>
@@ -262,6 +274,8 @@
   .footer { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
   .btn:disabled { opacity: 0.5; cursor: default; }
   .grow { flex: 1; }
+  .how { font-size: 12px; margin-top: 8px; text-align: right; }
+  .side .how { text-align: left; margin-top: 12px; }
 
   .scan { padding: 22px 24px; margin-top: 8px; }
   .scan-title { font-size: 17px; font-weight: 600; }

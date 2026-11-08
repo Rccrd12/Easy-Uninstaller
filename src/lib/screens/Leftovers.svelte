@@ -1,9 +1,10 @@
 <script lang="ts">
   import LeftoverRow from "../components/LeftoverRow.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
-  import { listLeftovers, QUARANTINE_DAYS, quarantineLeftovers, restoreQuarantine, usesSampleData } from "../api";
+  import { listLeftovers, quarantineLeftovers, restoreQuarantine, usesSampleData } from "../api";
   import { formatBytes, leftoverCount, restoreSummary } from "../format";
   import { t } from "../i18n/index.svelte";
+  import { quarantine } from "../settings.svelte";
   import type { LeftoverItem, MoveReport } from "../types";
 
   type Notice = { kind: "moved"; report: MoveReport } | { kind: "info" | "error"; lines: string[] };
@@ -116,7 +117,7 @@
   }
 
   function movedLines(r: MoveReport): string[] {
-    const lines = [t("leftovers.moved", { count: leftoverCount(r.movedCount), days: QUARANTINE_DAYS })];
+    const lines = [t("leftovers.moved", { count: leftoverCount(r.movedCount), days: quarantine.keepDays })];
     if (r.declinedCount) lines.push(t("leftovers.declined", { count: leftoverCount(r.declinedCount) }));
     if (r.skippedCount) lines.push(t("uninstall.skippedNote", { count: leftoverCount(r.skippedCount) }));
     return lines;

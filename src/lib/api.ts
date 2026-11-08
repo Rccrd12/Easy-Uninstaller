@@ -4,7 +4,7 @@
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GB } from "./format";
-import { sampleApps, sampleAppLeftovers, sampleFileGroups, sampleLeftovers, sampleQuarantine, sampleSpaceUsage } from "./mock";
+import { sampleApps, sampleAppLeftovers, sampleDrives, sampleFileGroups, sampleLeftovers, sampleQuarantine, sampleQuarantineSettings, sampleSpaceUsage } from "./mock";
 import type {
   DiskInfo,
   FileGroup,
@@ -12,6 +12,8 @@ import type {
   LeftoverItem,
   MoveReport,
   QuarantineEntry,
+  QuarantineOptions,
+  QuarantineSettings,
   RestorePointOutcome,
   RestoreReport,
   ScanProgress,
@@ -20,8 +22,13 @@ import type {
   UninstallOutcome,
 } from "./types";
 
-/** Matches `KEEP_DAYS` in src-tauri/src/quarantine.rs. */
-export const QUARANTINE_DAYS = 7;
+/** Matches `KEEP_DAYS_CHOICES` in src-tauri/src/quarantine.rs. */
+export const KEEP_DAYS_CHOICES = [3, 7, 30] as const;
+/**
+ * File groups deleted right away instead of going to Quarantine: Windows and apps
+ * recreate them. Matches `DELETE_NOW_GROUPS` in src-tauri/src/cleanup.rs.
+ */
+export const DELETE_NOW_GROUPS: readonly string[] = ["temp"];
 const DAY = 24 * 60 * 60;
 
 /**
@@ -42,10 +49,13 @@ export function usesSampleData(): boolean {
   return !isTauri();
 }
 
+/** Browser fallback: grows when sample files are removed, like a real disk would. */
+let sampleFreeBytes = 64 * GB;
+
 /** Real: implemented in src-tauri/src/disk.rs. */
 export async function getSystemDisk(): Promise<DiskInfo> {
   if (isTauri()) return invoke<DiskInfo>("get_system_disk");
-  return { mountPoint: "C:", totalBytes: 476 * GB, freeBytes: 64 * GB };
+  return { mountPoint: "C:", totalBytes: 476 * GB, freeBytes: sampleFreeBytes };
 }
 
 let appsCache: Promise<InstalledApp[]> | null = null;
@@ -161,7 +171,7 @@ export async function quarantineLeftovers(ids: string[], found: LeftoverItem[]):
   if (isTauri()) return invoke<MoveReport>("quarantine_leftovers", { ids });
   await sleep(700);
   const now = Math.floor(Date.now() / 1000);
-  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
   const picked = found.filter((l) => ids.includes(l.id));
   const byApp = new Map<string, LeftoverItem[]>();
   for (const l of picked) byApp.set(l.appName ?? "", [...(byApp.get(l.appName ?? "") ?? []), l]);
@@ -175,7 +185,7 @@ export async function quarantineLeftovers(ids: string[], found: LeftoverItem[]):
       itemCount: items.length,
       sizeBytes: size,
       removedAt: now,
-      expiresAt: now + QUARANTINE_DAYS * DAY,
+      expiresAt: now + sampleQuarantineSettings.keepDays * DAY,
       items: items.map((l) => ({ originalPath: l.path, sizeBytes: l.sizeBytes, kind: l.kind === "registry" ? "registry" : l.kind === "folder" ? "folder" : "file" })),
       needsAdmin: items.some((l) => l.needsAdmin),
     });
@@ -230,14 +240,23 @@ export async function listQuarantine(): Promise<QuarantineEntry[]> {
 }
 
 /**
- * Moves whole groups of the last file scan into quarantine (one entry per group).
- * Only group ids are sent: Rust moves exactly the files its own scan found.
+ * Removes whole groups of the last file scan: the groups in `DELETE_NOW_GROUPS` are
+ * deleted right away, every other group goes to Quarantine (one entry per group).
+ * Only group ids are sent: Rust removes exactly the files its own scan found.
+ * Real: src-tauri/src/cleanup.rs.
  */
-export async function quarantineFileGroups(groupIds: string[]): Promise<MoveReport> {
-  if (isTauri()) return invoke<MoveReport>("quarantine_file_groups", { groupIds });
+export async function removeFileGroups(groupIds: string[]): Promise<MoveReport> {
+  if (isTauri()) return invoke<MoveReport>("remove_file_groups", { groupIds });
+  await new Promise((r) => setTimeout(r, 900));
   const now = Math.floor(Date.now() / 1000);
-  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
   for (const g of sampleFileGroups.filter((x) => groupIds.includes(x.id))) {
+    if (DELETE_NOW_GROUPS.includes(g.id)) {
+      report.deletedCount += g.itemCount;
+      report.deletedBytes += g.sizeBytes;
+      report.freedBytes += g.sizeBytes;
+      continue;
+    }
     const id = `${now}-${g.id}-${sampleQuarantine.length}`;
     sampleQuarantine.push({
       id,
@@ -246,15 +265,29 @@ export async function quarantineFileGroups(groupIds: string[]): Promise<MoveRepo
       itemCount: g.itemCount,
       sizeBytes: g.sizeBytes,
       removedAt: now,
-      expiresAt: now + QUARANTINE_DAYS * DAY,
+      expiresAt: now + sampleQuarantineSettings.keepDays * DAY,
       items: g.items.map((i) => ({ originalPath: i.path, sizeBytes: i.sizeBytes, kind: "file" })),
       needsAdmin: false,
     });
     report.entryIds.push(id);
     report.movedCount += g.itemCount;
     report.movedBytes += g.sizeBytes;
+    if (sampleQuarantineSettings.drive) report.freedBytes += g.sizeBytes;
   }
+  sampleFreeBytes += report.freedBytes;
   return report;
+}
+
+/** Real: src-tauri/src/quarantine.rs. The quarantine choices and the drives it can use. */
+export async function getQuarantineOptions(): Promise<QuarantineOptions> {
+  if (isTauri()) return invoke<QuarantineOptions>("get_quarantine_options");
+  return { settings: { ...sampleQuarantineSettings }, systemDrive: "C:", drives: sampleDrives };
+}
+
+/** Saves the quarantine choices. Fails if the chosen drive cannot be written to. */
+export async function setQuarantineSettings(settings: QuarantineSettings): Promise<void> {
+  if (isTauri()) return invoke("set_quarantine_settings", { settings });
+  Object.assign(sampleQuarantineSettings, settings);
 }
 
 /** Puts the files of these entries back where they were. */

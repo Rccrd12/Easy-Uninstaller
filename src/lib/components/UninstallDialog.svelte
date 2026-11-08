@@ -4,14 +4,13 @@
     createRestorePoint,
     findAppLeftovers,
     isAppInstalled,
-    QUARANTINE_DAYS,
     quarantineLeftovers,
     restoreQuarantine,
     uninstallApp,
   } from "../api";
   import { formatBytes, leftoverCount } from "../format";
   import { t } from "../i18n/index.svelte";
-  import { settings } from "../settings.svelte";
+  import { quarantine, settings } from "../settings.svelte";
   import type { InstalledApp, LeftoverItem, MoveReport, RestorePointOutcome } from "../types";
 
   /**
@@ -266,7 +265,7 @@
           <LeftoverRow {item} checked={picked.has(item.id)} onToggle={() => toggle(item.id)} />
         {/each}
       </div>
-      <p class="muted small">♻️ {t("uninstall.quarantineNote", { days: QUARANTINE_DAYS })}</p>
+      <p class="muted small">♻️ {t("uninstall.quarantineNote", { days: quarantine.keepDays })}</p>
       {#if pickedAdmin}<p class="muted small">🛡️ {t("uninstall.adminLeftovers", { count: leftoverCount(pickedAdmin) })}</p>{/if}
       <div class="grow"></div>
       <div class="buttons">
@@ -291,7 +290,7 @@
           {#if step.undone}
             <p>{t("uninstall.undone")}</p>
           {:else if step.report}
-            <p>{t("uninstall.movedNote", { count: leftoverCount(step.report.movedCount), days: QUARANTINE_DAYS })}</p>
+            <p>{t("uninstall.movedNote", { count: leftoverCount(step.report.movedCount), days: quarantine.keepDays })}</p>
             {#if step.report.declinedCount}<p>{t("uninstall.declinedNote", { count: leftoverCount(step.report.declinedCount) })}</p>{/if}
             {#if step.report.skippedCount}<p>{t("uninstall.skippedNote", { count: leftoverCount(step.report.skippedCount) })}</p>{/if}
           {:else if step.found}

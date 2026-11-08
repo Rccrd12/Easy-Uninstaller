@@ -16,6 +16,10 @@ space. Goals in order: **safe**, **simple for non-technical users**, **lightweig
 - One Rust module per area (`disk.rs`, `apps.rs`, `files.rs`, `quarantine.rs`, ...), registered in `lib.rs`.
 - **Never delete user data directly.** Anything removed goes through the quarantine module.
   Scanners are read only. Destructive features land only after quarantine exists.
+  The one exception (the owner's decision): file groups listed in `DELETE_NOW_GROUPS`
+  (`cleanup.rs`, mirrored in `api.ts`), i.e. temporary files and caches that apps recreate,
+  are deleted right away by `cleanup.rs`, and only the exact files the scan found, unchanged since.
+  Every removal of scanned files goes through `cleanup::remove`.
 - Windows-only code goes behind `#[cfg(windows)]` with a stub for other platforms, so the crate
   still builds and tests on Linux/macOS.
 - Lightness matters: think twice before adding a dependency (frontend or Rust); prefer
