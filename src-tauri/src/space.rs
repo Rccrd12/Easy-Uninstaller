@@ -235,10 +235,12 @@ fn measure_all(targets: Vec<Target>, counter: &Counter) -> Vec<SpaceFolder> {
         .collect()
 }
 
-/// Lowercase path without a trailing separator: Windows paths ignore case.
+/// Lowercase path with `/` as the only separator and none at the end: Windows paths
+/// ignore case and accept both separators (`C:\Users\a/AppData` is a valid path).
 fn norm(p: &Path) -> String {
     p.to_string_lossy()
-        .trim_end_matches(['\\', '/'])
+        .replace('\\', "/")
+        .trim_end_matches('/')
         .to_lowercase()
 }
 
@@ -428,6 +430,10 @@ mod tests {
         // Case and a trailing separator do not matter.
         let skip = vec![norm(&tmp.0.join("skipped/"))];
         assert_eq!(measure(&tmp.0, &skip, &counter), 120);
+        assert_eq!(
+            norm(Path::new("C:\\Users\\A/AppData\\")),
+            "c:/users/a/appdata"
+        );
         assert_eq!(measure(&tmp.0.join("missing"), &[], &counter), 0);
         assert_eq!(counter.files.load(Ordering::Relaxed), 5);
     }
