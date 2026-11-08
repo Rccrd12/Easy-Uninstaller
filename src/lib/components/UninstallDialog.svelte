@@ -319,7 +319,7 @@
 
 <style>
   .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.32); display: flex; align-items: center; justify-content: center; z-index: 20; padding: 24px; }
-  .dialog { width: 520px; max-width: 100%; min-height: 400px; max-height: calc(100vh - 48px); padding: 26px 28px 22px; display: flex; flex-direction: column; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22); }
+  .dialog { width: 520px; max-width: 100%; min-height: 320px; max-height: calc(100vh - 48px); padding: 26px 28px 22px; display: flex; flex-direction: column; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22); }
   .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
   .step { font-size: 12px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--accent); }
   .count { font-size: 12px; }

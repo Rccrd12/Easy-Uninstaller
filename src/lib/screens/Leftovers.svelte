@@ -45,7 +45,7 @@
       if (!out.has(key)) out.set(key, { title, items: [] });
       out.get(key)!.items.push(item);
     }
-    return [...out.values()];
+    return [...out.values()].map((g) => ({ ...g, size: g.items.reduce((s, i) => s + i.sizeBytes, 0) }));
   });
 
   const pickedItems = $derived(items.filter((i) => picked.has(i.id)));
@@ -164,15 +164,13 @@
         <b>{group.title}</b>
         <span class="muted">· {leftoverCount(group.items.length)}</span>
         <span class="grow"></span>
-        <span class="group-size">{formatBytes(group.items.reduce((s, i) => s + i.sizeBytes, 0))}</span>
+        <span class="group-size" class:muted={!group.size}>{group.size ? formatBytes(group.size) : "—"}</span>
       </div>
       {#each group.items as item (item.id)}
         <LeftoverRow {item} checked={picked.has(item.id)} onToggle={() => toggle(item.id)} />
       {/each}
     </div>
   {/each}
-  <p class="muted small">{t("leftovers.historyNote")}</p>
-
   <div class="footer">
     <b>{t("leftovers.selected", { size: formatBytes(pickedBytes) })}</b>
     {#if pickedAdmin}<span class="muted small">· 🛡️ {t("uninstall.adminLeftovers", { count: leftoverCount(pickedAdmin) })}</span>{/if}
@@ -217,7 +215,7 @@
   .spinner { flex: none; width: 18px; height: 18px; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14); border-left: 4px solid var(--safe-fg); z-index: 10; }
+  .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
   .toast.error { border-left-color: var(--danger); }
   .toast-icon { font-size: 18px; }
   .toast-text { flex: 1; font-size: 13px; line-height: 1.4; }

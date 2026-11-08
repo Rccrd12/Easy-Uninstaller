@@ -221,6 +221,8 @@
     "from": "From {path}",
     "showFiles": "Show files",
     "hideFiles": "Hide files",
+    "showItems": "Show items",
+    "hideItems": "Hide items",
     "more": "and {count} more",
     "deleteNow": "Delete now",
     "confirmDelete": "Delete {size} for good? This cannot be undone.",

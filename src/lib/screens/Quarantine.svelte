@@ -36,8 +36,9 @@
   const totalFiles = $derived(entries.reduce((s, e) => s + e.itemCount, 0));
 
   const titleOf = (e: QuarantineEntry) => (e.titleKey ? t(e.titleKey) : (e.title ?? ""));
+  const onlyFiles = (e: QuarantineEntry) => e.items.every((i) => i.kind === "file");
   /** "3 files", or "3 items" when the entry holds folders or registry keys. */
-  const countOf = (e: QuarantineEntry) => (e.items.some((i) => i.kind !== "file") ? itemCount(e.itemCount) : fileCount(e.itemCount));
+  const countOf = (e: QuarantineEntry) => (onlyFiles(e) ? fileCount(e.itemCount) : itemCount(e.itemCount));
   const kindIcons = { file: "", folder: "📂 ", registry: "🔑 " } as const;
   const failure = (err: unknown) => (String(err) === "declined" ? t("quarantine.declined") : t("quarantine.failed", { error: String(err) }));
   const nameOf = (path: string) => path.split(/[\\/]/).pop() ?? path;
@@ -157,7 +158,9 @@
 
       {#if e.items.length > 1}
         <button class="link" aria-expanded={openId === e.id} onclick={() => (openId = openId === e.id ? null : e.id)}>
-          {openId === e.id ? `▾ ${t("quarantine.hideFiles")}` : `▸ ${t("quarantine.showFiles")}`}
+          {openId === e.id
+            ? `▾ ${t(onlyFiles(e) ? "quarantine.hideFiles" : "quarantine.hideItems")}`
+            : `▸ ${t(onlyFiles(e) ? "quarantine.showFiles" : "quarantine.showItems")}`}
         </button>
         {#if openId === e.id}
           <ul class="items">

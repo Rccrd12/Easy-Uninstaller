@@ -221,6 +221,8 @@
     "from": "Da {path}",
     "showFiles": "Mostra i file",
     "hideFiles": "Nascondi i file",
+    "showItems": "Mostra gli elementi",
+    "hideItems": "Nascondi gli elementi",
     "more": "e altri {count}",
     "deleteNow": "Elimina ora",
     "confirmDelete": "Eliminare definitivamente {size}? Non si potrà annullare.",
