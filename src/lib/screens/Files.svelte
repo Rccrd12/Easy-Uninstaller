@@ -1,4 +1,6 @@
 <script lang="ts">
+  import ExplainCard from "../components/ExplainCard.svelte";
+  import ExplainTag from "../components/ExplainTag.svelte";
   import SafetyTag from "../components/SafetyTag.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
   import { DELETE_NOW_GROUPS, keepFileGroups, listFileGroups, removeFileGroups, restoreQuarantine, usesSampleData } from "../api";
@@ -10,7 +12,7 @@
   /** How many items the details panel lists. */
   const SHOWN_ITEMS = 8;
   /** The order the scan returns groups in, used to put groups back after an undo. */
-  const GROUP_ORDER = ["temp", "installers", "old-downloads", "duplicates", "large-files"];
+  const GROUP_ORDER = ["temp", "recycle-bin", "crash-reports", "thumbnails", "installers", "old-downloads", "duplicates", "large-files", "unknown-folders"];
 
   /** What the toast at the bottom says after a move or an undo. */
   type Notice =
@@ -21,6 +23,8 @@
   let groups = $state<FileGroup[]>([]);
   let checked = $state<Set<string>>(new Set());
   let focusedId = $state<string | null>(null);
+  /** The item whose "What is this?" explanation the side panel shows. */
+  let explained = $state<FileItem | null>(null);
   let scanning = $state(true);
   let progress = $state<ScanProgress | null>(null);
   let error = $state<string | null>(null);
@@ -38,7 +42,7 @@
       .then((g) => {
         groups = g;
         // Pre-select only what is safe; anything else needs the user's eyes.
-        checked = new Set(g.filter((x) => x.safety === "safe").map((x) => x.id));
+        checked = new Set(g.filter((x) => x.safety === "safe" && !x.reviewOnly).map((x) => x.id));
         if (!g.some((x) => x.id === focusedId)) focusedId = null;
       })
       .catch((e) => (error = String(e)))
@@ -46,6 +50,11 @@
   }
 
   $effect(() => load());
+
+  function focus(id: string) {
+    focusedId = id;
+    explained = null;
+  }
 
   const sections = $derived([
     { title: "files.safeSection", items: groups.filter((g) => g.safety === "safe") },
@@ -115,6 +124,7 @@
     keepFileGroups(next);
     checked = new Set([...checked].filter((id) => next.some((g) => g.id === id)));
     if (!next.some((g) => g.id === focusedId)) focusedId = null;
+    if (!focusedId) explained = null;
   }
 
   const nameOf = (path: string) => path.split(/[\\/]/).pop() ?? path;
@@ -128,12 +138,23 @@
 
   function itemNote(item: FileItem): string {
     if (item.duplicateOf) return t("files.copyOf", { path: shortPath(item.duplicateOf) });
-    const folder = folderOf(item.path);
+    if (item.originalPath) return t("files.wasIn", { path: folderOf(item.originalPath) });
+    // "C:\\Users\\you\\AppData\\Local" says less than "AppData\\Local" in a narrow panel.
+    const folder = folderOf(item.path).replace(/^.*?[\\/](AppData[\\/])/i, "$1");
     return item.lastUsed ? `${folder} · ${t("files.lastUsed", { date: dateOf(item.lastUsed) })}` : folder;
   }
 
-  // Temp files are listed by folder, the other groups file by file.
-  const moreItems = (g: FileGroup) => Math.max((g.id === "temp" ? g.items.length : g.itemCount) - SHOWN_ITEMS, 0);
+  /** Groups listed by folder or Recycle Bin entry (no dates) rather than file by file. */
+  const byFolder = (g: FileGroup) => g.items.every((i) => i.lastUsed === null);
+  const moreItems = (g: FileGroup) => Math.max((byFolder(g) ? g.items.length : g.itemCount) - SHOWN_ITEMS, 0);
+  /** Unknown folders count folders; Recycle Bin entries count deleted items; the rest count files. */
+  function countLabel(g: FileGroup): string {
+    if (g.reviewOnly) return g.itemCount === 1 ? t("files.folderCountOne") : t("files.folderCount", { count: count(g.itemCount) });
+    if (g.id === "recycle-bin") return g.items.length === 1 ? t("files.entryCountOne") : t("files.entryCount", { count: count(g.items.length) });
+    return fileCount(g.itemCount);
+  }
+  /** Folders get a "What is this?" tag and open their explanation. */
+  const explainable = (g: FileGroup, item: FileItem) => g.reviewOnly || (item.explainId !== null && byFolder(g) && !item.originalPath);
 </script>
 
 <div class="layout">
@@ -178,11 +199,15 @@
           <h2>{t(section.title)}</h2>
           {#each section.items as group (group.id)}
             <div class="card group" class:focused={focusedId === group.id} role="button" tabindex="0"
-                 onclick={() => (focusedId = group.id)} onkeydown={(e) => e.key === "Enter" && (focusedId = group.id)}>
-              <input type="checkbox" checked={checked.has(group.id)} onclick={(e) => e.stopPropagation()} onchange={() => toggle(group.id)} aria-label={t(group.titleKey)} />
+                 onclick={() => focus(group.id)} onkeydown={(e) => e.key === "Enter" && focus(group.id)}>
+              {#if group.reviewOnly}
+                <span class="no-check" aria-hidden="true">🔎</span>
+              {:else}
+                <input type="checkbox" checked={checked.has(group.id)} onclick={(e) => e.stopPropagation()} onchange={() => toggle(group.id)} aria-label={t(group.titleKey)} />
+              {/if}
               <div class="info">
                 <div class="title">{t(group.titleKey)}</div>
-                <div class="muted desc">{t(group.descriptionKey)} · {fileCount(group.itemCount)}</div>
+                <div class="muted desc">{t(group.descriptionKey)} · {countLabel(group)}</div>
               </div>
               <SafetyTag safety={group.safety} />
               <span class="size">{formatBytes(group.sizeBytes)}</span>
@@ -205,23 +230,34 @@
   </div>
 
   <aside class="card side">
-    {#if focused}
-      <div class="label">{t("files.details")}</div>
+    {#if focused && explained}
+      <ExplainCard item={explained} groupTitle={t(focused.titleKey)} onBack={() => (explained = null)} />
+    {:else if focused}
+      <div class="label">{t("explain.title")}</div>
       <h3>{t(focused.titleKey)}</h3>
       <p class="muted desc">{t(focused.descriptionKey)}</p>
+      <h4>{t("explain.what")}</h4>
+      <p class="about">{t(focused.titleKey.replace(/title$/, "what"))}</p>
+      <h4>{t("explain.ifRemovedGroup")}</h4>
+      <p class="about">{t(focused.titleKey.replace(/title$/, "ifRemoved"))}</p>
       <dl>
         <dt>{t("files.size")}</dt><dd>{formatBytes(focused.sizeBytes)}</dd>
-        <dt>{t("files.files")}</dt><dd>{count(focused.itemCount)}</dd>
+        {#if !focused.reviewOnly}<dt>{t("files.files")}</dt><dd>{count(focused.itemCount)}</dd>{/if}
       </dl>
       <div class="label list-label">{t("files.largest")}</div>
       <ul class="items">
         {#each focused.items.slice(0, SHOWN_ITEMS) as item (item.path)}
-          <li title={item.duplicateOf ? `${item.path}\n${t("files.copyOf", { path: item.duplicateOf })}` : item.path}>
-            <div class="item-text">
-              <div class="item-name">{nameOf(item.path)}</div>
-              <div class="muted item-note">{itemNote(item)}</div>
-            </div>
-            <span class="item-size">{formatBytes(item.sizeBytes)}</span>
+          {@const canExplain = explainable(focused, item)}
+          <li title={item.duplicateOf ? `${item.path}\n${t("files.copyOf", { path: item.duplicateOf })}` : (item.originalPath ?? item.path)}>
+            <svelte:element this={canExplain ? "button" : "div"} class="item-row" class:clickable={canExplain}
+              onclick={canExplain ? () => (explained = item) : undefined} role={canExplain ? undefined : "presentation"}>
+              <div class="item-text">
+                <div class="item-name">{nameOf(item.originalPath ?? item.path)}</div>
+                <div class="muted item-note">{itemNote(item)}</div>
+              </div>
+              {#if canExplain}<ExplainTag explainId={item.explainId} />{/if}
+              <span class="item-size">{formatBytes(item.sizeBytes)}</span>
+            </svelte:element>
           </li>
         {/each}
       </ul>
@@ -229,12 +265,16 @@
         <div class="muted more">{t("files.more", { count: count(moreItems(focused)) })}</div>
       {/if}
       <div class="grow"></div>
-      {@const id = focused.id}
-      {@const deletes = DELETE_NOW_GROUPS.includes(id)}
-      {#if deletes}<p class="muted how">{t("files.deletedRightAway")}</p>{/if}
-      <button class="btn btn-primary wide" disabled={moving} onclick={() => remove([id])}>
-        {moving ? t("files.moving") : actionLabel(deletes, !deletes, focused.sizeBytes)}
-      </button>
+      {#if focused.reviewOnly}
+        <p class="muted review-note">🔎 {t("files.reviewOnly")}</p>
+      {:else}
+        {@const id = focused.id}
+        {@const deletes = DELETE_NOW_GROUPS.includes(id)}
+        {#if deletes}<p class="muted how">{t("files.deletedRightAway")}</p>{/if}
+        <button class="btn btn-primary wide" disabled={moving} onclick={() => remove([id])}>
+          {moving ? t("files.moving") : actionLabel(deletes, !deletes, focused.sizeBytes)}
+        </button>
+      {/if}
     {:else}
       <p class="muted">{t("files.pickGroup")}</p>
     {/if}
@@ -267,6 +307,7 @@
   .group { display: flex; align-items: center; gap: 12px; padding: 11px 14px; margin-bottom: 7px; border-width: 2px; border-color: transparent; cursor: pointer; }
   .group.focused { border-color: var(--accent); }
   .group input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .no-check { width: 18px; text-align: center; font-size: 14px; }
   .info { min-width: 0; flex: 1; }
   .title { font-size: 14px; font-weight: 600; }
   .desc { font-size: 12px; }
@@ -291,15 +332,21 @@
   .message p { flex: 1; }
   .big-icon { font-size: 26px; }
 
-  .side { width: 300px; flex: none; padding: 18px; min-height: 420px; display: flex; flex-direction: column; position: sticky; top: 0; }
+  .side { width: 330px; flex: none; padding: 18px; min-height: 420px; display: flex; flex-direction: column; position: sticky; top: 0; }
   .label { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; color: var(--text-muted); text-transform: uppercase; }
   .side h3 { font-size: 17px; margin: 6px 0 4px; }
+  .side h4 { font-size: 12.5px; margin-top: 10px; }
+  .about { font-size: 12.5px; line-height: 1.45; margin-top: 2px; }
+  .review-note { font-size: 12.5px; margin-top: 14px; }
   dl { display: grid; grid-template-columns: 1fr auto; row-gap: 3px; font-size: 12.5px; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
   dt { color: var(--text-muted); }
   dd { font-weight: 600; }
   .list-label { margin-top: 14px; }
   .items { list-style: none; margin-top: 6px; }
-  .items li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .items li { border-bottom: 1px solid var(--border); }
+  .item-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; width: 100%; border: none; background: none; color: inherit; font: inherit; text-align: left; }
+  .item-row.clickable { cursor: pointer; padding: 6px 6px; margin: 0 -6px; width: calc(100% + 12px); border-radius: var(--radius-sm); }
+  .item-row.clickable:hover { background: var(--hover); }
   .item-text { flex: 1; min-width: 0; }
   .item-name, .item-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .item-name { font-size: 12.5px; font-weight: 600; }

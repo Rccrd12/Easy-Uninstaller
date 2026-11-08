@@ -27,7 +27,8 @@
     getSystemDisk().then((d) => (disk = d));
     // Reclaimable from apps = apps flagged as unused or bloatware.
     listInstalledApps().then((apps) => (appsBytes = apps.filter((a) => a.bloatware || a.neverUsed).reduce((s, a) => s + a.sizeBytes, 0)));
-    listFileGroups().then((g) => (filesBytes = g.reduce((s, x) => s + x.sizeBytes, 0)));
+    // Review-only groups (unknown folders) are explained, not offered for removal.
+    listFileGroups().then((g) => (filesBytes = g.filter((x) => !x.reviewOnly).reduce((s, x) => s + x.sizeBytes, 0)));
     listLeftovers().then((l) => (leftoversBytes = l.reduce((s, x) => s + x.sizeBytes, 0)));
   });
 

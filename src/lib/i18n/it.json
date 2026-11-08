@@ -81,23 +81,57 @@
     "groups": {
       "temp": {
         "title": "File temporanei e cache",
-        "description": "Windows, i browser e le app li ricreano da soli"
+        "description": "Windows, i browser e le app li ricreano da soli",
+        "what": "File di appoggio e cache che Windows, i browser e le app scrivono mentre lavorano. Ci sono solo quelli non toccati da più di un giorno, così niente di quello che è in uso viene toccato.",
+        "ifRemoved": "Niente che noteresti: le app ricreano ciò che serve. Qualche pagina o gioco potrebbe aprirsi un po' più lentamente la prima volta."
       },
       "installers": {
         "title": "Installer già usati",
-        "description": "File di installazione in Download di programmi che hai già installato"
+        "description": "File di installazione in Download di programmi che hai già installato",
+        "what": "File di installazione in Download di programmi già installati su questo PC.",
+        "ifRemoved": "Niente: i programmi restano installati. Per reinstallarne uno, lo riscarichi."
       },
       "oldDownloads": {
         "title": "Download vecchi",
-        "description": "Nella cartella Download, non aperti da oltre un anno"
+        "description": "Nella cartella Download, non aperti da oltre un anno",
+        "what": "File in Download che non apri né modifichi da più di un anno.",
+        "ifRemoved": "Potrebbero servire ancora (una ricevuta, un documento): guarda l'elenco prima di toglierli."
       },
       "duplicates": {
         "title": "Duplicati",
-        "description": "Copie identiche: la più vecchia viene sempre tenuta"
+        "description": "Copie identiche: la più vecchia viene sempre tenuta",
+        "what": "d",
+        "ifRemoved": "Tieni una copia di ogni file, quindi non perdi niente. Collegamenti alla copia tolta non la apriranno più."
       },
       "largeFiles": {
         "title": "File grandi",
-        "description": "File da 1 GB in su nelle tue cartelle"
+        "description": "File da 1 GB in su nelle tue cartelle",
+        "what": "File da 1 GB in su nelle tue cartelle: video, immagini disco, backup.",
+        "ifRemoved": "Spesso sono personali: controllali uno per uno prima di toglierli."
+      },
+      "recycleBin": {
+        "title": "Cestino",
+        "description": "Nel Cestino da più di 30 giorni",
+        "what": "File che hai eliminato più di 30 giorni fa e che sono ancora nel Cestino. Quelli più recenti restano, nel caso cambiassi idea.",
+        "ifRemoved": "È come svuotare il Cestino, ma solo per questi elementi vecchi."
+      },
+      "crashReports": {
+        "title": "Rapporti di errore e dump",
+        "description": "Creati da Windows quando un'app si blocca",
+        "what": "Rapporti e copie della memoria che Windows scrive quando un'app si blocca, per aiutare gli sviluppatori a trovare il problema.",
+        "ifRemoved": "Per te non cambia niente: servono solo a chi indaga su un vecchio blocco."
+      },
+      "thumbnails": {
+        "title": "Cache delle miniature",
+        "description": "Anteprime di foto e video che Esplora file ricrea da solo",
+        "what": "Piccole anteprime di foto e video che Esplora file tiene da parte per aprire le cartelle più in fretta.",
+        "ifRemoved": "Le anteprime ci mettono un attimo a comparire la prossima volta che apri una cartella. I file che Esplora file sta usando restano dove sono."
+      },
+      "unknownFolders": {
+        "title": "Cartelle sconosciute",
+        "description": "Cartelle grandi in AppData e ProgramData: scopri cosa sono",
+        "what": "Cartelle grandi che le app tengono in AppData e ProgramData. L'app spiega quelle che conosce: tocca una cartella per scoprire cos'è.",
+        "ifRemoved": "Qui guardi soltanto: niente viene spostato. Molte di queste cartelle sono di app che usi ancora."
       }
     },
     "scanning": "Sto cercando i file che puoi togliere…",
@@ -106,7 +140,8 @@
       "caches": "File temporanei e cache",
       "downloads": "La cartella Download",
       "personal": "Le tue cartelle",
-      "duplicates": "Confronto i file per trovare i duplicati"
+      "duplicates": "Confronto i file per trovare i duplicati",
+      "appFolders": "Le cartelle delle app in AppData e ProgramData"
     },
     "stepOf": "Passo {n} di {total}",
     "checked": "{count} file controllati",
@@ -132,7 +167,13 @@
     "deleteNow": "Elimina ({size})",
     "howRemoved": "File temporanei e cache vengono eliminati subito. Tutto il resto aspetta in Quarantena per {days} giorni.",
     "deletedRightAway": "Eliminati subito, non tenuti in Quarantena: Windows e le app ricreano questi file da soli.",
-    "deleted": "Eliminati: {count}, {size}."
+    "deleted": "Eliminati: {count}, {size}.",
+    "folderCount": "{count} cartelle",
+    "folderCountOne": "1 cartella",
+    "entryCount": "{count} elementi",
+    "entryCountOne": "1 elemento",
+    "reviewOnly": "Qui guardi soltanto: tocca una cartella per scoprire cos'è.",
+    "wasIn": "era in {path}"
   },
   "quick": {
     "title": "Pulizia rapida",
@@ -367,6 +408,185 @@
       "stillInstalled": "L'app è ancora installata, quindi non ho cercato nulla.",
       "declined": "Il permesso non è stato dato, quindi non è cambiato nulla.",
       "other": "Qualcosa è andato storto: {error}"
+    }
+  },
+  "explain": {
+    "title": "Cos'è questo?",
+    "what": "Cos'è",
+    "ifRemovedGroup": "Se li togli",
+    "ifRemoved": "Se la togli",
+    "madeBy": "Chi l'ha creata",
+    "verdict": {
+      "safe": "Consiglio: puoi toglierla",
+      "check": "Consiglio: controlla prima",
+      "keep": "Consiglio: tienila"
+    },
+    "tag": {
+      "keep": "Meglio tenerla",
+      "unknown": "Non la conosco"
+    },
+    "source": "Spiegazione integrata nell'app · nessun dato inviato",
+    "unknownTitle": "Per “{name}” non ho una spiegazione",
+    "unknownHint": "Di solito una cartella ha il nome dell'app o dell'azienda che l'ha creata. Se non la riconosci, lasciala dov'è.",
+    "aiSoon": "In futuro potrai chiederla all'assistente AI, se lo attivi.",
+    "askAi": "Chiedi all'AI · in arrivo",
+    "back": "Torna a {group}",
+    "folders": {
+      "temp": {
+        "label": "File temporanei",
+        "what": "File di appoggio che Windows e le app scrivono mentre lavorano e poi spesso dimenticano di cancellare.",
+        "ifRemoved": "Niente che noteresti: le app ne creano di nuovi quando servono."
+      },
+      "inetCache": {
+        "label": "Cache di Internet",
+        "what": "Copie di pagine web e immagini salvate da Windows e da app più vecchie per aprirle più in fretta.",
+        "ifRemoved": "Alcune pagine potrebbero caricarsi un po' più lentamente la prima volta."
+      },
+      "browserCache": {
+        "label": "Cache del browser",
+        "what": "Immagini e file dei siti che il browser conserva per aprire le pagine più in fretta. Password, preferiti e cronologia non sono qui.",
+        "ifRemoved": "I siti si aprono un po' più lentamente la prima volta, poi il browser li salva di nuovo."
+      },
+      "browserData": {
+        "label": "Dati del browser",
+        "what": "Il profilo del browser: preferiti, password salvate, cronologia, estensioni e impostazioni, oltre alle sue cache.",
+        "ifRemoved": "Perderesti preferiti, password e impostazioni non sincronizzati con un account."
+      },
+      "shaderCache": {
+        "label": "Cache della scheda video",
+        "what": "Istruzioni grafiche già pronte (shader) per giochi e app, così partono senza scatti.",
+        "ifRemoved": "I giochi potrebbero scattare un po' la prima volta che li riapri, poi la cache si ricrea."
+      },
+      "crashDumps": {
+        "label": "Rapporti di errore",
+        "what": "Rapporti e copie della memoria che Windows scrive quando un'app si blocca, per aiutare gli sviluppatori a trovare il problema.",
+        "ifRemoved": "Per te non cambia niente. Servirebbero solo a chi deve indagare su un vecchio blocco."
+      },
+      "thumbCache": {
+        "label": "Cache delle miniature",
+        "what": "Piccole anteprime di foto e video che Esplora file salva per aprire le cartelle più in fretta.",
+        "ifRemoved": "La prima volta che apri una cartella con tante foto, le anteprime ci mettono un attimo a ricomparire."
+      },
+      "recycleBin": {
+        "label": "Cestino",
+        "what": "File che hai eliminato. Windows li tiene qui nel caso cambiassi idea.",
+        "ifRemoved": "Spariscono del tutto, come quando svuoti il Cestino."
+      },
+      "windowsData": {
+        "label": "Dati di Windows",
+        "what": "Impostazioni e dati di Windows e delle app Microsoft (Office, Teams, OneDrive, Edge e altre).",
+        "ifRemoved": "Funzioni di Windows o app Microsoft potrebbero smettere di funzionare bene."
+      },
+      "storeApps": {
+        "label": "App del Microsoft Store",
+        "what": "I dati delle app installate dal Microsoft Store, ognuna nella sua cartella.",
+        "ifRemoved": "Quelle app perderebbero i loro dati o smetterebbero di funzionare. Per liberare spazio, disinstalla l'app dalla schermata App."
+      },
+      "userPrograms": {
+        "label": "Programmi installati",
+        "what": "Programmi installati solo per te, come Visual Studio Code, Python o GitHub Desktop.",
+        "ifRemoved": "Quei programmi smetterebbero di funzionare. Disinstallali invece dalla schermata App."
+      },
+      "packageCache": {
+        "label": "Copie degli installer",
+        "what": "Copie degli installer che Windows conserva per riparare, aggiornare o disinstallare programmi come Visual Studio e .NET.",
+        "ifRemoved": "Alcuni programmi potrebbero non aggiornarsi più o non disinstallarsi correttamente."
+      },
+      "gpuDrivers": {
+        "label": "Driver video",
+        "what": "File del driver della scheda video e del suo pannello, a volte con copie di vecchi installer del driver.",
+        "ifRemoved": "Il driver video o la sua app di impostazioni potrebbero smettere di funzionare."
+      },
+      "discord": {
+        "label": "App Discord",
+        "what": "L'app Discord stessa con impostazioni, aggiornamenti e cache.",
+        "ifRemoved": "Discord smetterebbe di funzionare. Se non lo usi più, disinstallalo dalla schermata App."
+      },
+      "spotify": {
+        "label": "Musica e cache di Spotify",
+        "what": "I brani scaricati per ascoltarli offline e la cache di Spotify con la musica ascoltata di recente.",
+        "ifRemoved": "I brani scaricati andrebbero riscaricati; Spotify continua a funzionare."
+      },
+      "zoom": {
+        "label": "App Zoom",
+        "what": "L'app Zoom, che si installa qui, con le sue impostazioni.",
+        "ifRemoved": "Zoom smetterebbe di funzionare. Se non lo usi più, disinstallalo dalla schermata App."
+      },
+      "slack": {
+        "label": "App Slack",
+        "what": "L'app Slack, i suoi aggiornamenti e la sua cache.",
+        "ifRemoved": "Slack smetterebbe di funzionare. Se non lo usi più, disinstallalo dalla schermata App."
+      },
+      "telegram": {
+        "label": "App Telegram",
+        "what": "L'app Telegram per PC, il tuo accesso e le foto e i video che ha scaricato.",
+        "ifRemoved": "Verresti disconnesso e i media scaricati sparirebbero da questo PC."
+      },
+      "whatsapp": {
+        "label": "App WhatsApp",
+        "what": "L'app WhatsApp per PC e i media che ha salvato.",
+        "ifRemoved": "WhatsApp smetterebbe di funzionare su questo PC."
+      },
+      "vscode": {
+        "label": "Dati di VS Code",
+        "what": "Impostazioni, dati delle estensioni e cache di Visual Studio Code.",
+        "ifRemoved": "Perderesti impostazioni e lavori aperti di VS Code, a meno che la sincronizzazione sia attiva."
+      },
+      "devCache": {
+        "label": "Cache per programmatori",
+        "what": "Pacchetti scaricati dagli strumenti per programmatori (npm, pip, Yarn, NuGet) per installarli più in fretta la volta dopo.",
+        "ifRemoved": "La prossima installazione li riscarica."
+      },
+      "npmGlobal": {
+        "label": "Strumenti per programmatori",
+        "what": "Strumenti a riga di comando installati con npm per tutto l'utente.",
+        "ifRemoved": "Quegli strumenti smetterebbero di funzionare finché non li reinstalli."
+      },
+      "jetbrains": {
+        "label": "Dati di JetBrains",
+        "what": "Impostazioni, cache e indici degli IDE JetBrains; con Toolbox, anche gli IDE stessi.",
+        "ifRemoved": "Le cache si ricreano, ma impostazioni e IDE installati da Toolbox andrebbero persi."
+      },
+      "docker": {
+        "label": "Dati di Docker",
+        "what": "Il disco virtuale di Docker Desktop con immagini, container e volumi.",
+        "ifRemoved": "Docker perderebbe tutte le immagini, i container e i volumi. Usa invece la pulizia di Docker."
+      },
+      "steamCache": {
+        "label": "Cache di Steam",
+        "what": "Pagine e immagini del negozio e della libreria di Steam, conservate per mostrarle più in fretta.",
+        "ifRemoved": "Steam le riscarica. I tuoi giochi non sono qui."
+      },
+      "epicGames": {
+        "label": "Dati di Epic Games",
+        "what": "Impostazioni di Epic Games Launcher e l'elenco dei giochi che ha installato.",
+        "ifRemoved": "Il launcher potrebbe non trovare più i giochi installati."
+      },
+      "minecraft": {
+        "label": "Mondi di Minecraft",
+        "what": "Minecraft Java Edition: i tuoi mondi, salvataggi, mod e pacchetti di risorse.",
+        "ifRemoved": "I tuoi mondi andrebbero persi per sempre."
+      },
+      "iphoneBackup": {
+        "label": "Backup dell'iPhone",
+        "what": "Backup di iPhone o iPad fatti da iTunes o Apple Devices, con le loro impostazioni.",
+        "ifRemoved": "Non potresti più ripristinare il telefono da questi backup. Elimina i backup vecchi da iTunes o Apple Devices."
+      },
+      "adobe": {
+        "label": "Dati di Adobe",
+        "what": "Impostazioni, preset e cache delle app Adobe; la cache multimediale di Premiere e After Effects può diventare grande.",
+        "ifRemoved": "Le cache si ricreano, ma preset, font e impostazioni potrebbero andare persi. Svuota la cache multimediale dalle preferenze dell'app."
+      },
+      "updaterLeftovers": {
+        "label": "Resti di aggiornamenti",
+        "what": "File temporanei lasciati dal sistema di aggiornamento usato da molte app (Discord, Teams, Slack e altre).",
+        "ifRemoved": "Niente: le app lo ricreano al prossimo aggiornamento."
+      },
+      "packageManagers": {
+        "label": "Gestore di pacchetti",
+        "what": "Chocolatey o Scoop e i programmi che hanno installato.",
+        "ifRemoved": "I programmi installati con loro smetterebbero di funzionare o non si aggiornerebbero più."
+      }
     }
   }
 }

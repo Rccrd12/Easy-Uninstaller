@@ -5,6 +5,7 @@ mod apps;
 mod cleanup;
 mod disk;
 mod elevated;
+mod explain;
 mod files;
 mod leftovers;
 mod quarantine;

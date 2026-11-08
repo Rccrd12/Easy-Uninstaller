@@ -81,23 +81,57 @@
     "groups": {
       "temp": {
         "title": "Temporary files and caches",
-        "description": "Windows, your browsers and apps recreate them on their own"
+        "description": "Windows, your browsers and apps recreate them on their own",
+        "what": "Scratch files and caches that Windows, browsers and apps write while they work. Only files untouched for over a day are included, so nothing in use is touched.",
+        "ifRemoved": "Nothing you would notice: apps recreate what they need. Some pages or games may open a little slower the first time."
       },
       "installers": {
         "title": "Installers already used",
-        "description": "Setup files in Downloads for programs you already installed"
+        "description": "Setup files in Downloads for programs you already installed",
+        "what": "Setup files in Downloads for programs that are already installed on this PC.",
+        "ifRemoved": "Nothing: the programs stay installed. To reinstall one, download it again."
       },
       "oldDownloads": {
         "title": "Old downloads",
-        "description": "In your Downloads folder, not opened in over a year"
+        "description": "In your Downloads folder, not opened in over a year",
+        "what": "Files in Downloads you have not opened or changed in over a year.",
+        "ifRemoved": "They might still matter (a receipt, a document): look at the list before removing them."
       },
       "duplicates": {
         "title": "Duplicates",
-        "description": "Identical copies: the oldest one is always kept"
+        "description": "Identical copies: the oldest one is always kept",
+        "what": "I",
+        "ifRemoved": "You keep one copy of each file, so nothing is lost. Links or shortcuts to the removed copy will no longer open it."
       },
       "largeFiles": {
         "title": "Large files",
-        "description": "Files of 1 GB or more in your folders"
+        "description": "Files of 1 GB or more in your folders",
+        "what": "Files of 1 GB or more in your folders: videos, disk images, backups.",
+        "ifRemoved": "They are often personal: check each one before removing it."
+      },
+      "recycleBin": {
+        "title": "Recycle Bin",
+        "description": "Items in the Recycle Bin for more than 30 days",
+        "what": "Files you deleted more than 30 days ago that are still in the Recycle Bin. Newer ones stay, in case you change your mind.",
+        "ifRemoved": "It is like emptying the Recycle Bin, but only for these old items."
+      },
+      "crashReports": {
+        "title": "Error reports and dumps",
+        "description": "Created by Windows when an app crashes",
+        "what": "Reports and memory dumps Windows writes when an app crashes, to help developers find the problem.",
+        "ifRemoved": "Nothing changes for you: they are only useful to someone investigating an old crash."
+      },
+      "thumbnails": {
+        "title": "Thumbnail cache",
+        "description": "Photo and video previews File Explorer recreates on its own",
+        "what": "Small previews of your photos and videos that File Explorer keeps so folders open quickly.",
+        "ifRemoved": "Previews take a moment to appear the next time you open a folder. Files Explorer is using right now are left in place."
+      },
+      "unknownFolders": {
+        "title": "Unknown folders",
+        "description": "Big folders in AppData and ProgramData: find out what they are",
+        "what": "Big folders apps keep in AppData and ProgramData. The app explains the ones it knows; tap a folder to find out what it is.",
+        "ifRemoved": "Here you only look: nothing is moved. Many of these folders belong to apps you still use."
       }
     },
     "scanning": "Looking for files you can remove…",
@@ -106,7 +140,8 @@
       "caches": "Temporary files and caches",
       "downloads": "Your Downloads folder",
       "personal": "Your folders",
-      "duplicates": "Comparing files to find duplicates"
+      "duplicates": "Comparing files to find duplicates",
+      "appFolders": "App folders in AppData and ProgramData"
     },
     "stepOf": "Step {n} of {total}",
     "checked": "{count} files checked",
@@ -132,7 +167,13 @@
     "deleteNow": "Delete ({size})",
     "howRemoved": "Temporary files and caches are deleted right away. Everything else waits in Quarantine for {days} days.",
     "deletedRightAway": "Deleted right away, not kept in Quarantine: Windows and apps recreate these files on their own.",
-    "deleted": "Deleted: {count}, {size}."
+    "deleted": "Deleted: {count}, {size}.",
+    "folderCount": "{count} folders",
+    "folderCountOne": "1 folder",
+    "entryCount": "{count} items",
+    "entryCountOne": "1 item",
+    "reviewOnly": "Here you only look: tap a folder to find out what it is.",
+    "wasIn": "was in {path}"
   },
   "quick": {
     "title": "Quick clean",
@@ -367,6 +408,185 @@
       "stillInstalled": "The app is still installed, so nothing was searched.",
       "declined": "Permission was not given, so nothing was changed.",
       "other": "Something went wrong: {error}"
+    }
+  },
+  "explain": {
+    "title": "What is this?",
+    "what": "What it is",
+    "ifRemovedGroup": "If you remove them",
+    "ifRemoved": "If you remove it",
+    "madeBy": "Who made it",
+    "verdict": {
+      "safe": "Advice: you can remove it",
+      "check": "Advice: check it first",
+      "keep": "Advice: keep it"
+    },
+    "tag": {
+      "keep": "Better keep it",
+      "unknown": "Don't know it"
+    },
+    "source": "Explanation built into the app · no data sent",
+    "unknownTitle": "I have no explanation for “{name}”",
+    "unknownHint": "A folder is usually named after the app or company that made it. If you don't recognise it, leave it where it is.",
+    "aiSoon": "In the future you will be able to ask the AI assistant, if you turn it on.",
+    "askAi": "Ask AI · coming soon",
+    "back": "Back to {group}",
+    "folders": {
+      "temp": {
+        "label": "Temporary files",
+        "what": "Scratch files Windows and apps write while they work, then usually forget to delete.",
+        "ifRemoved": "Nothing you would notice: apps create new ones when they need them."
+      },
+      "inetCache": {
+        "label": "Internet cache",
+        "what": "Copies of web pages and images saved by Windows and older apps to open them faster.",
+        "ifRemoved": "Some pages may load a little slower the first time."
+      },
+      "browserCache": {
+        "label": "Browser cache",
+        "what": "Images and files of websites your browser keeps so pages open faster. Your passwords, bookmarks and history are not here.",
+        "ifRemoved": "Websites load a bit slower the first time, then the browser saves them again."
+      },
+      "browserData": {
+        "label": "Browser data",
+        "what": "Your browser's profile: bookmarks, saved passwords, history, extensions and settings, plus its caches.",
+        "ifRemoved": "You would lose bookmarks, passwords and settings that are not synced to an account."
+      },
+      "shaderCache": {
+        "label": "Graphics card cache",
+        "what": "Ready-made graphics instructions (shaders) for games and apps, so they start without stutter.",
+        "ifRemoved": "Games may stutter a little the first time you play them again, then the cache is rebuilt."
+      },
+      "crashDumps": {
+        "label": "Error reports",
+        "what": "Reports and memory dumps Windows writes when an app crashes, to help developers find the problem.",
+        "ifRemoved": "Nothing changes for you. Only developers looking into an old crash would miss them."
+      },
+      "thumbCache": {
+        "label": "Thumbnail cache",
+        "what": "Small previews of your photos and videos that File Explorer saves so folders open quickly.",
+        "ifRemoved": "The first time you open a folder with many photos, previews take a moment to appear again."
+      },
+      "recycleBin": {
+        "label": "Recycle Bin",
+        "what": "Files you deleted. Windows keeps them here in case you change your mind.",
+        "ifRemoved": "They are gone for good, as when you empty the Recycle Bin."
+      },
+      "windowsData": {
+        "label": "Windows data",
+        "what": "Settings and data of Windows and Microsoft apps (Office, Teams, OneDrive, Edge and others).",
+        "ifRemoved": "Windows features or Microsoft apps may stop working properly."
+      },
+      "storeApps": {
+        "label": "Microsoft Store apps",
+        "what": "Data of the apps installed from the Microsoft Store, each in its own folder.",
+        "ifRemoved": "Those apps would lose their data or stop working. To free space, uninstall the app from the Apps screen instead."
+      },
+      "userPrograms": {
+        "label": "Installed programs",
+        "what": "Programs installed only for you, such as Visual Studio Code, Python or GitHub Desktop.",
+        "ifRemoved": "Those programs would stop working. Uninstall them from the Apps screen instead."
+      },
+      "packageCache": {
+        "label": "Installer copies",
+        "what": "Copies of the installers Windows keeps to repair, update or uninstall programs such as Visual Studio and .NET.",
+        "ifRemoved": "Some programs may no longer update or uninstall correctly."
+      },
+      "gpuDrivers": {
+        "label": "Graphics drivers",
+        "what": "Files of your graphics card driver and its control panel, sometimes with copies of past driver installers.",
+        "ifRemoved": "The graphics driver or its settings app may stop working."
+      },
+      "discord": {
+        "label": "Discord app",
+        "what": "The Discord app itself and its settings, updates and cache.",
+        "ifRemoved": "Discord would stop working. If you no longer use it, uninstall it from the Apps screen."
+      },
+      "spotify": {
+        "label": "Spotify music and cache",
+        "what": "Songs you downloaded for offline listening and Spotify's cache of recently played music.",
+        "ifRemoved": "Downloaded songs need to be downloaded again; Spotify itself keeps working."
+      },
+      "zoom": {
+        "label": "Zoom app",
+        "what": "The Zoom app, which installs itself here, and its settings.",
+        "ifRemoved": "Zoom would stop working. If you no longer use it, uninstall it from the Apps screen."
+      },
+      "slack": {
+        "label": "Slack app",
+        "what": "The Slack app, its updates and its cache.",
+        "ifRemoved": "Slack would stop working. If you no longer use it, uninstall it from the Apps screen."
+      },
+      "telegram": {
+        "label": "Telegram app",
+        "what": "The Telegram desktop app, your login and the photos and videos it downloaded.",
+        "ifRemoved": "You would be logged out and downloaded media would be gone from this PC."
+      },
+      "whatsapp": {
+        "label": "WhatsApp app",
+        "what": "The WhatsApp desktop app and the media it saved.",
+        "ifRemoved": "WhatsApp would stop working on this PC."
+      },
+      "vscode": {
+        "label": "VS Code data",
+        "what": "Settings, extension data and caches of Visual Studio Code.",
+        "ifRemoved": "You would lose your VS Code settings and open work, unless Settings Sync is on."
+      },
+      "devCache": {
+        "label": "Developer tool cache",
+        "what": "Packages downloaded by developer tools (npm, pip, Yarn, NuGet) to install them faster next time.",
+        "ifRemoved": "The next install downloads them again."
+      },
+      "npmGlobal": {
+        "label": "Developer tools",
+        "what": "Command line tools installed with npm for the whole user.",
+        "ifRemoved": "Those tools would stop working until installed again."
+      },
+      "jetbrains": {
+        "label": "JetBrains data",
+        "what": "Settings, caches and indexes of JetBrains IDEs; with Toolbox, the IDEs themselves too.",
+        "ifRemoved": "Caches are rebuilt, but settings and IDEs installed by Toolbox would be lost."
+      },
+      "docker": {
+        "label": "Docker data",
+        "what": "Docker Desktop's virtual disk with your images, containers and volumes.",
+        "ifRemoved": "Docker would lose every image, container and volume. Use Docker's own clean up instead."
+      },
+      "steamCache": {
+        "label": "Steam cache",
+        "what": "Web pages and images of the Steam store and library, kept to show them faster.",
+        "ifRemoved": "Steam downloads them again. Your games are not here."
+      },
+      "epicGames": {
+        "label": "Epic Games data",
+        "what": "Settings of the Epic Games Launcher and the list of the games it installed.",
+        "ifRemoved": "The launcher may no longer find your installed games."
+      },
+      "minecraft": {
+        "label": "Minecraft worlds",
+        "what": "Minecraft Java Edition: your worlds, saves, mods and resource packs.",
+        "ifRemoved": "Your worlds would be lost for good."
+      },
+      "iphoneBackup": {
+        "label": "iPhone backups",
+        "what": "Backups of your iPhone or iPad made by iTunes or Apple Devices, plus their settings.",
+        "ifRemoved": "You could no longer restore your phone from these backups. Delete old backups from iTunes or Apple Devices instead."
+      },
+      "adobe": {
+        "label": "Adobe data",
+        "what": "Settings, presets and caches of Adobe apps; the media cache of Premiere and After Effects can get big.",
+        "ifRemoved": "Caches are rebuilt, but presets, fonts and settings could be lost. Clear the media cache from the app's preferences."
+      },
+      "updaterLeftovers": {
+        "label": "Update leftovers",
+        "what": "Temporary files left by the updater many apps use (Discord, Teams, Slack and others).",
+        "ifRemoved": "Nothing: apps create it again during their next update."
+      },
+      "packageManagers": {
+        "label": "Package manager",
+        "what": "Chocolatey or Scoop and the programs they installed.",
+        "ifRemoved": "Programs installed with them would stop working or could no longer be updated."
+      }
     }
   }
 }

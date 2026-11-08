@@ -36,6 +36,10 @@ without a way back.
 |---|---|---|
 | ![](docs/screenshots/uninstall-leftovers.png) | ![](docs/screenshots/uninstall-done.png) | ![](docs/screenshots/leftovers.png) |
 
+| "What is this?" (explanations built in, no AI, nothing sent) |
+|---|
+| ![](docs/screenshots/files-explain.png) |
+
 The original design mockups are in [`docs/design`](docs/design).
 
 ## Roadmap
@@ -47,6 +51,7 @@ The original design mockups are in [`docs/design`](docs/design).
 5. ✅ Uninstall + leftovers cleanup: the app's own uninstaller (MSI quietly), Store apps via
    PackageManager, then leftover folders, registry keys and shortcuts moved to quarantine
 6. ✅ Space map with real data: apps, profile folders, app data, caches and Recycle Bin (read only)
+7. ✅ "What is this?": built-in explanations (EN/IT) for common folders; new groups for old Recycle Bin items, error reports, thumbnail cache and big unknown folders
 
 ## Development
 
@@ -80,5 +85,7 @@ src-tauri/              backend (Rust)
   src/disk.rs           system drive usage
   src/apps.rs           installed apps: registry (Win32/MSI) and Microsoft Store, with icons
   src/files.rs          file scan: temp, installers, old downloads, duplicates, large files
+  src/files/extra.rs    Recycle Bin, error reports, thumbnails, big app folders
+  src/explain.rs        "What is this?": matches paths against known_folders.json
 docs/                   screenshots and design mockups
 ```
