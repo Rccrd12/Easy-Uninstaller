@@ -1,5 +1,7 @@
 <script lang="ts">
   import EyeOffIcon from "./EyeOffIcon.svelte";
+  import Icon from "./Icon.svelte";
+  import type { IconName } from "../icons";
   import { formatBytes } from "../format";
   import { t } from "../i18n/index.svelte";
   import type { LeftoverItem } from "../types";
@@ -12,17 +14,17 @@
     onHide,
   }: { item: LeftoverItem; checked?: boolean; onToggle?: () => void; onHide?: () => void } = $props();
 
-  const icons: Record<LeftoverItem["kind"], string> = { folder: "📂", registry: "🔑", shortcut: "🔗" };
+  const icons: Record<LeftoverItem["kind"], IconName> = { folder: "folder", registry: "key", shortcut: "link" };
 </script>
 
 <label class="row" class:on={checked} class:readonly={!onToggle} title={item.path}>
   {#if onToggle}<input type="checkbox" {checked} onchange={onToggle} />{/if}
-  <span class="kind" aria-hidden="true">{icons[item.kind]}</span>
+  <span class="kind"><Icon name={icons[item.kind]} size={18} /></span>
   <span class="info">
     <span class="reason">
       {t(`leftovers.reasons.${item.reason}`)}
       {#if item.safety === "check" && !item.unowned}<span class="tag tag-check">{t("common.check")}</span>{/if}
-      {#if item.needsAdmin}<span class="shield" title={t("common.needsAdmin")} aria-label={t("common.needsAdmin")}>🛡️</span>{/if}
+      {#if item.needsAdmin}<span class="shield" title={t("common.needsAdmin")}><Icon name="shield" size={13} label={t("common.needsAdmin")} /></span>{/if}
     </span>
     <span class="muted path">{item.path}</span>
   </span>
@@ -40,10 +42,10 @@
   .row.readonly { cursor: default; }
   .row:last-child { border-bottom: none; }
   .row input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
-  .kind { font-size: 18px; flex: none; }
+  .kind { display: flex; flex: none; color: var(--text-muted); }
   .info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .reason { font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
-  .shield { font-size: 12px; }
+  .shield { display: inline-flex; color: var(--text-muted); }
   .path { font-family: Consolas, "Cascadia Mono", monospace; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hide-pill { flex: none; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 999px; padding: 3px 10px; font-size: 12px; opacity: 0; transition: opacity 0.12s; }
   .row:hover .hide-pill, .hide-pill:focus-visible { opacity: 1; }

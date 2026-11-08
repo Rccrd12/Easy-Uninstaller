@@ -24,7 +24,7 @@
     "needsAdmin": "Windows asks for permission"
   },
   "home": {
-    "greeting": "Hi there 👋",
+    "greeting": "Hi there",
     "subtitle": "Here is what you can do to free up space.",
     "canFree": "You can safely free",
     "disk": "Drive {drive}",
@@ -43,7 +43,7 @@
     "mapButton": "Open map",
     "quarantineTip": "Temporary files, caches and old Recycle Bin items are deleted right away: nobody needs them back. Everything else goes to <b>Quarantine</b> for {days} days and you can restore it with one click.",
     "used": "Used",
-    "quickClean": "✨ Quick clean",
+    "quickClean": "Quick clean",
     "seeAll": "See everything",
     "quickCleanHint": "Only what is safe, in one click.",
     "calculating": "Calculating…",
@@ -248,7 +248,7 @@
     "freeNowDrive": "deleted, or moved to the Quarantine on drive {drive}",
     "held": "In Quarantine for {days} days",
     "heldNote": "you can restore it; after that it is deleted and the space comes back",
-    "heldTip": "Keep the Quarantine on another drive to free this right away too ›",
+    "heldTip": "Keep the Quarantine on another drive to free this right away too",
     "free": "Free {size}",
     "details": "Let me see the details first",
     "cleaning": "Cleaning up…",

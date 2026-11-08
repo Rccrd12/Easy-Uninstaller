@@ -1,6 +1,7 @@
 <script lang="ts">
   import LeftoverRow from "./LeftoverRow.svelte";
   import StatusIcon from "./StatusIcon.svelte";
+  import Icon from "./Icon.svelte";
   import {
     createRestorePoint,
     findAppLeftovers,
@@ -250,10 +251,10 @@
         {#if totalSize}<p class="muted total">{t("uninstall.totalSize", { size: formatBytes(totalSize) })}</p>{/if}
       {/if}
       {#if settings.restorePoint && !allStore}
-        <p class="note good">🛡️ {t("uninstall.restorePointNote")}</p>
+        <p class="note good"><Icon name="shieldCheck" />{t("uninstall.restorePointNote")}</p>
       {/if}
       {#if anyStore}<p class="note">{allStore ? t("uninstall.storeNote") : t("uninstall.storeAlso")}</p>{/if}
-      {#if anyForEveryone}<p class="note">🛡️ {t("uninstall.adminNote")}</p>{/if}
+      {#if anyForEveryone}<p class="note"><Icon name="shield" />{t("uninstall.adminNote")}</p>{/if}
       <div class="grow"></div>
       <div class="buttons">
         <button class="btn btn-ghost" onclick={close}>{t("common.cancel")}</button>
@@ -265,7 +266,7 @@
       <p class="muted">{t("uninstall.restorePointAsk")}</p>
     {:else if step.kind === "restorePointFailed"}
       <h2 id="uninstall-title">{single ? t("uninstall.confirmTitle", { name: app.name }) : t("uninstall.confirmMany", { count: apps.length })}</h2>
-      <p class="note warn" role="alert">⚠️ {t(`uninstall.restorePointNot.${step.outcome}`)}</p>
+      <p class="note warn" role="alert"><Icon name="warning" />{t(`uninstall.restorePointNot.${step.outcome}`)}</p>
       <div class="grow"></div>
       <div class="buttons">
         <button class="btn btn-ghost" onclick={close}>{t("common.cancel")}</button>
@@ -341,7 +342,7 @@
         {:else if removedApps.some((a) => a.source !== "store") && !step.cleanupError}
           <p>{t("uninstall.noLeftovers")}</p>
         {/if}
-        {#if step.cleanupError}<p class="warn-text" role="alert">⚠️ {step.cleanupError}</p>{/if}
+        {#if step.cleanupError}<p class="warn-text" role="alert"><Icon name="warning" />{step.cleanupError}</p>{/if}
       </div>
       {#if showItems && movedItems.length}
         <div class="list">
@@ -354,7 +355,7 @@
       <div class="grow"></div>
       <div class="buttons">
         {#if step.report && step.report.entryIds.length && !step.undone}
-          <button class="btn btn-ghost" disabled={undoing} onclick={undo}>{undoing ? t("uninstall.undoing") : `↩ ${t("uninstall.undo")}`}</button>
+          <button class="btn btn-ghost" disabled={undoing} onclick={undo}>{#if !undoing}<Icon name="undo" />{/if}{undoing ? t("uninstall.undoing") : t("uninstall.undo")}</button>
         {/if}
         <button class="btn btn-primary wide" disabled={undoing} onclick={close}>{t("uninstall.done")}</button>
       </div>
@@ -379,10 +380,11 @@
   .total { font-size: 13px; margin-bottom: 10px; }
   .current { display: flex; align-items: center; gap: 14px; margin: 8px 0 6px; }
   .current h2 { margin: 0; }
-  .note { font-size: 13.5px; line-height: 1.45; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--bg); margin-bottom: 10px; }
+  .note { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; line-height: 1.45; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--bg); margin-bottom: 10px; }
   .note.good { background: var(--safe-bg); color: var(--safe-fg); }
   .note.warn { background: var(--check-bg); color: var(--check-fg); }
-  .warn-text { color: var(--check-fg); }
+  .warn-text { color: var(--check-fg); display: flex; gap: 6px; align-items: flex-start; }
+  .note :global(.icon), .warn-text :global(.icon) { margin-top: 0.15em; }
   .bar { height: 6px; border-radius: 3px; background: var(--accent-soft); overflow: hidden; margin: 6px 0 14px; }
   .bar i { display: block; height: 100%; width: 35%; border-radius: 3px; background: var(--accent); animation: sweep 1.3s ease-in-out infinite; }
   @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }

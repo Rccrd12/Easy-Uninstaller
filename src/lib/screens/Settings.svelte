@@ -1,5 +1,6 @@
 <script lang="ts">
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
+  import Icon from "../components/Icon.svelte";
   import { createRestorePoint, KEEP_DAYS_CHOICES, listExclusions } from "../api";
   import { formatBytes } from "../format";
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
@@ -105,7 +106,7 @@
       <span class="muted hint">{t("settings.hiddenHint")}</span>
     </span>
     {#if hiddenCount}<span class="count">{hiddenCount}</span>{/if}
-    <span class="manage">{t("settings.manage")} ›</span>
+    <span class="manage">{t("settings.manage")}<Icon name="chevronRight" size={14} /></span>
   </button>
   <div class="row restore">
     <label class="restore-toggle">
@@ -157,6 +158,6 @@
   .hidden-icon { display: flex; color: var(--text-muted); }
   .grow { flex: 1; min-width: 0; }
   .count { flex: none; font-size: 12px; font-weight: 600; background: var(--track); border-radius: 10px; padding: 1px 8px; }
-  .manage { flex: none; color: var(--accent); font-weight: 600; font-size: 13px; }
+  .manage { display: inline-flex; align-items: center; gap: 2px; flex: none; color: var(--accent); font-weight: 600; font-size: 13px; }
   .about { margin-top: 14px; font-size: 12px; }
 </style>

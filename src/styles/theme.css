@@ -26,20 +26,12 @@
   --keep-bg: #fde7e9;   --keep-fg: #a4262c;
   --tip-bg: #f3eefc;    --tip-border: #e3d8f7;
 
-  --tint-apps: #e8f1fb;
-  --tint-files: #fff4ce;
-  --tint-leftovers: #fdeee4;
-  --tint-map: #f0f1f3;
+  /* Square behind a large icon (Home tiles, empty states) and file tiles without a preview. */
+  --icon-tile-bg: #e8f1fb;
+  --icon-tile-fg: #0f6cbd;
+  --file-tile-bg: #eef0f3;
+  --file-tile-fg: #5f6368;
 
-  /* File type tiles, shown until (or instead of) a preview. */
-  --kind-image: #fde3cf;
-  --kind-video: #d6e8fa;
-  --kind-audio: #e9e0f7;
-  --kind-document: #fbe0dc;
-  --kind-archive: #efe6d2;
-  --kind-program: #dcefe0;
-  --kind-disc: #e3e6ea;
-  --kind-other: #eceef1;
   --keep-copy-bg: #f3faf2;
   --keep-copy-border: #cfe8cb;
 
@@ -81,19 +73,11 @@
   --keep-bg: #45222a;   --keep-fg: #ff9ca3;
   --tip-bg: #2c2640;    --tip-border: #40365e;
 
-  --tint-apps: #1e3550;
-  --tint-files: #3b3115;
-  --tint-leftovers: #43291c;
-  --tint-map: #34363b;
+  --icon-tile-bg: #1e3550;
+  --icon-tile-fg: #62aef0;
+  --file-tile-bg: #34363b;
+  --file-tile-fg: #a7aab0;
 
-  --kind-image: #4a3424;
-  --kind-video: #22374d;
-  --kind-audio: #362c4a;
-  --kind-document: #4a2b28;
-  --kind-archive: #3f3826;
-  --kind-program: #24392a;
-  --kind-disc: #34373c;
-  --kind-other: #313338;
   --keep-copy-bg: #1f2e20;
   --keep-copy-border: #2f5131;
 
@@ -127,7 +111,7 @@ select { background: var(--surface); }
 .muted { color: var(--text-muted); }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 
-.btn { border: none; border-radius: var(--radius-sm); padding: 8px 16px; }
+.btn { border: none; border-radius: var(--radius-sm); padding: 8px 16px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .btn-primary { background: var(--accent); color: var(--on-accent); }
 .btn-danger { background: var(--danger); color: var(--on-danger); }
 .btn-ghost { background: var(--surface); border: 1px solid var(--border-strong); color: var(--text); }
@@ -144,5 +128,9 @@ select { background: var(--surface); }
 .sample-banner {
   font-size: 13px; padding: 8px 12px; border-radius: var(--radius-sm);
   background: var(--check-bg); color: var(--check-fg); border: 1px solid var(--check-border);
-  font-weight: 600; margin-bottom: 12px; display: block;
+  font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
 }
+
+/* A line of text led by an <Icon>: the icon sits on the first line and keeps its size. */
+.icon-line { display: flex; gap: 7px; align-items: flex-start; }
+.icon-line > .icon { margin-top: 0.15em; }

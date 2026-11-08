@@ -1,5 +1,7 @@
 <script lang="ts">
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
+  import Icon from "../components/Icon.svelte";
+  import type { IconName } from "../icons";
   import { addExclusions, listExclusions, removeExclusions } from "../api";
   import { relativeTime } from "../format";
   import { locale, t } from "../i18n/index.svelte";
@@ -10,7 +12,7 @@
   let { onNavigate }: { onNavigate: (s: Screen) => void } = $props();
 
   const KINDS: HiddenKind[] = ["file", "folder", "group", "leftover"];
-  const ICONS: Record<HiddenKind, string> = { file: "📄", folder: "📁", group: "🗂️", leftover: "🧹" };
+  const ICONS: Record<HiddenKind, IconName> = { file: "document", folder: "folder", group: "list", leftover: "broom" };
 
   let list = $state<Exclusion[]>([]);
   let loading = $state(true);
@@ -84,7 +86,7 @@
   const count = (n: number) => n.toLocaleString(locale());
 </script>
 
-<button class="back" onclick={() => onNavigate("settings")}>‹ {t("settings.title")}</button>
+<button class="back" onclick={() => onNavigate("settings")}><Icon name="chevronLeft" size={14} />{t("settings.title")}</button>
 <h1>{t("hidden.title")}</h1>
 <p class="muted sub">{t("hidden.subtitle")}</p>
 
@@ -112,7 +114,7 @@
   <div class="card rows">
     {#each visible as item (`${item.kind}:${item.path}`)}
       <div class="row">
-        <span class="icon" aria-hidden="true">{ICONS[item.kind]}</span>
+        <span class="icon"><Icon name={ICONS[item.kind]} size={20} /></span>
         <div class="text">
           <div class="name" title={item.kind === "group" ? undefined : item.path}>{nameOfItem(item)}</div>
           <div class="muted small">{whereOf(item)}</div>
@@ -136,15 +138,15 @@
 {#if shown}
   {@const items = shown}
   <div class="card toast" role="status" aria-live="polite">
-    <span class="toast-icon" aria-hidden="true">✅</span>
+    <span class="toast-icon"><Icon name="checkCircle" size={20} /></span>
     <p class="toast-text">{items.length === 1 ? t("hidden.shownAgain") : t("hidden.shownAgainMany", { count: count(items.length) })}</p>
-    <button class="btn btn-ghost" disabled={busy} onclick={() => hideAgain(items)}>↩ {t("files.undo")}</button>
-    <button class="close" aria-label={t("common.close")} onclick={() => (shown = null)}>✕</button>
+    <button class="btn btn-ghost" disabled={busy} onclick={() => hideAgain(items)}><Icon name="undo" />{t("files.undo")}</button>
+    <button class="close" aria-label={t("common.close")} onclick={() => (shown = null)}><Icon name="dismiss" /></button>
   </div>
 {/if}
 
 <style>
-  .back { border: none; background: none; color: var(--text-muted); font-size: 13px; padding: 2px 0; margin-bottom: 4px; }
+  .back { border: none; background: none; color: var(--text-muted); font-size: 13px; padding: 2px 0; margin-bottom: 4px; display: inline-flex; align-items: center; gap: 4px; }
   .back:hover { color: var(--accent); }
   .sub { margin: 3px 0 14px; max-width: 640px; }
   .message { padding: 22px 24px; display: flex; align-items: center; gap: 14px; }
@@ -155,7 +157,7 @@
   .rows { overflow: hidden; }
   .row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
   .row:last-child { border-bottom: none; }
-  .icon { font-size: 20px; width: 26px; text-align: center; flex: none; }
+  .icon { width: 26px; display: flex; justify-content: center; flex: none; color: var(--text-muted); }
   .text { flex: 1; min-width: 0; }
   .name { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .small { font-size: 12px; }
@@ -168,8 +170,9 @@
   .grow { flex: 1; }
   .error { color: var(--danger); margin-top: 10px; font-size: 13px; }
   .toast { position: fixed; right: 30px; bottom: 22px; max-width: 520px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
-  .toast-icon { font-size: 18px; }
+  .toast-icon { display: flex; color: var(--safe-fg); }
   .toast-text { flex: 1; font-size: 13px; }
   .toast .btn { flex: none; }
-  .close { border: none; background: none; color: var(--text-muted); font-size: 13px; padding: 4px; }
+  .close { border: none; background: none; color: var(--text-muted); padding: 4px; display: flex; border-radius: var(--radius-sm); }
+  .close:hover { background: var(--hover); }
 </style>
