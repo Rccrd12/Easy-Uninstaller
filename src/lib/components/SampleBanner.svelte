@@ -2,4 +2,4 @@
   import { t } from "../i18n";
 </script>
 
-<div class="sample-banner">{t("common.sampleData")}</div>
+<div class="sample-banner" role="note">⚠️ {t("common.sampleData")}</div>

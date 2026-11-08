@@ -59,6 +59,7 @@ input { font-family: inherit; }
 .tag-info { background: var(--accent-soft); color: var(--accent); }
 
 .sample-banner {
-  font-size: 12px; padding: 6px 12px; border-radius: var(--radius-sm);
-  background: var(--accent-soft); color: var(--accent); margin-bottom: 12px; display: inline-block;
+  font-size: 13px; padding: 8px 12px; border-radius: var(--radius-sm);
+  background: var(--check-bg); color: var(--check-fg); border: 1px solid #f1d675;
+  font-weight: 600; margin-bottom: 12px; display: block;
 }

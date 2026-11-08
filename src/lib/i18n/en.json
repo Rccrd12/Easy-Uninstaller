@@ -9,7 +9,7 @@
     "settings": "Settings"
   },
   "common": {
-    "sampleData": "Sample data: the real scan is not wired up yet",
+    "sampleData": "Demo mode: the apps and files shown here are examples, not from your PC. Real scanning is coming in the next versions.",
     "uninstall": "Uninstall",
     "cancel": "Cancel",
     "openFolder": "Open folder",
