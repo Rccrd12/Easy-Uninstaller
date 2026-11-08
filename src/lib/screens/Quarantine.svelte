@@ -1,4 +1,5 @@
 <script lang="ts">
+  import StatusIcon from "../components/StatusIcon.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
   import { deleteQuarantine, listQuarantine, QUARANTINE_DAYS, restoreQuarantine, usesSampleData } from "../api";
   import { fileCount, formatBytes, itemCount, relativeTime, restoreSummary } from "../format";
@@ -108,7 +109,7 @@
 
 {#if notice}
   <div class="card notice" class:error={notice.error} role="status" aria-live="polite">
-    <span aria-hidden="true">{notice.error ? "⚠️" : "✅"}</span>
+    <StatusIcon kind={notice.error ? "warn" : "ok"} />
     <div class="notice-text">{#each notice.lines as line, i (i)}<p>{line}</p>{/each}</div>
     <button class="close" aria-label={t("common.close")} onclick={() => (notice = null)}>✕</button>
   </div>

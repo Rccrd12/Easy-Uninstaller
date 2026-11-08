@@ -1,5 +1,6 @@
 <script lang="ts">
   import LeftoverRow from "./LeftoverRow.svelte";
+  import StatusIcon from "./StatusIcon.svelte";
   import {
     createRestorePoint,
     findAppLeftovers,
@@ -252,10 +253,7 @@
       {#if settings.restorePoint && !allStore}
         <p class="note good">🛡️ {t("uninstall.restorePointNote")}</p>
       {/if}
-      <p class="note">
-        {allStore ? t("uninstall.storeNote") : t(single ? "uninstall.autoNote" : "uninstall.autoNoteMany", { days: QUARANTINE_DAYS })}
-        {#if anyStore && !allStore}{t("uninstall.storeAlso")}{/if}
-      </p>
+      {#if anyStore}<p class="note">{allStore ? t("uninstall.storeNote") : t("uninstall.storeAlso")}</p>{/if}
       {#if anyForEveryone}<p class="note">🛡️ {t("uninstall.adminNote")}</p>{/if}
       <div class="grow"></div>
       <div class="buttons">
@@ -303,7 +301,7 @@
       <p class="muted">{t("uninstall.quarantineNote", { days: QUARANTINE_DAYS })}</p>
     {:else if step.kind === "done"}
       <div class="done">
-        <div class="check" aria-hidden="true">{removedApps.length ? "✅" : "⚠️"}</div>
+        <div class="check"><StatusIcon kind={removedApps.length ? "ok" : "warn"} size={56} /></div>
         <h2 id="uninstall-title">{doneTitle}</h2>
         {#if freed > 0}
           <div class="freed">+{formatBytes(freed)}</div>
@@ -315,7 +313,7 @@
         <div class="results">
           {#each results as r (r.app.id)}
             <div class="result">
-              <span aria-hidden="true">{r.ok ? "✅" : "⚠️"}</span>
+              <StatusIcon kind={r.ok ? "ok" : "warn"} size={18} />
               <span class="app-name">{r.app.name}</span>
               {#if r.ok}
                 <span class="muted">{r.app.sizeBytes ? formatBytes(r.app.sizeBytes) : ""}</span>
@@ -399,7 +397,7 @@
   .buttons .wide { min-width: 170px; }
   .btn:disabled { opacity: 0.5; cursor: default; }
   .done { text-align: center; padding-top: 8px; }
-  .check { font-size: 54px; line-height: 1; margin-bottom: 6px; }
+  .check { line-height: 0; margin-bottom: 10px; }
   .done h2 { margin-bottom: 6px; }
   .freed { font-size: 36px; font-weight: 700; color: var(--safe-fg); margin-top: 6px; }
   .summary { font-size: 13px; margin-top: 14px; line-height: 1.45; text-align: center; }
