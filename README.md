@@ -49,9 +49,8 @@ The original design mockups are in [`docs/design`](docs/design).
 3. ✅ File scan: temp files, caches, used installers, old downloads, duplicates, large files (read only)
 4. ✅ Quarantine and restore: files are moved, kept 7 days, restorable with one click; Windows restore points
 5. ✅ One-click uninstall: quiet when the installer allows it (MSI, Inno Setup, NSIS, Squirrel,
-   WiX bundles), else the app's own uninstaller; Store apps via PackageManager. Then the safe
-   leftover folders, registry keys and shortcuts go to quarantine on their own; personal
-   settings stay. The Leftovers screen also offers, unticked, folders no installed app owns and
+   WiX bundles), else the app's own uninstaller; Store apps via PackageManager. Then its leftover
+   folders, registry keys, shortcuts and settings go to quarantine on their own. The Leftovers screen also offers, unticked, folders no installed app owns and
    untouched for 6 months (leftovers of uninstalls done by hand or with other tools)
 6. ✅ Space map with real data: apps, profile folders, app data, caches and Recycle Bin (read only)
 7. ✅ "What is this?": built-in explanations (EN/IT) for common folders; new groups for old Recycle Bin items, error reports, thumbnail cache and big unknown folders
