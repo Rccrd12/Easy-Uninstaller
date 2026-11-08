@@ -28,6 +28,8 @@
     "active": true,
     "targets": ["nsis"],
     "category": "Utility",
+    "publisher": "Rccrd12",
+    "copyright": "Copyright (c) 2026 Rccrd12. MIT License.",
     "shortDescription": "Uninstall apps and free up space, simply.",
     "icon": [
       "icons/32x32.png",

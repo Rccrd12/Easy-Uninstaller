@@ -3,8 +3,8 @@
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
   import { saveSettings, settings } from "../settings.svelte";
   import type { RestorePointOutcome } from "../types";
-
-  const version = "0.1.0";
+  // Only this field ends up in the bundle; the release workflow keeps it in sync with the tag.
+  import { version } from "../../../package.json";
 
   let restorePoint = $state<RestorePointOutcome | "creating" | null>(null);
 
