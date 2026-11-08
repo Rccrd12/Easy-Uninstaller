@@ -28,7 +28,7 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 - **Light.** Built with [Tauri 2](https://tauri.app): it uses the WebView2 engine that is
   already part of Windows, so the installer is a few MB instead of 100+ MB.
 - **Private.** It works entirely on your PC. No account, no ads, no tracking. The only
-  thing it asks the internet is, once a day, whether a new version exists (you can turn
+  thing it asks the internet is, when it opens, whether a new version exists (you can turn
   that off in Settings).
 - **Updates itself.** *Settings > Check for updates*: one click, and it opens again on the
   new version, with your settings and Quarantine as they were.

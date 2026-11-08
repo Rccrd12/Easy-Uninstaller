@@ -1,7 +1,7 @@
 # In-app updates
 
 Settings has a *Check for updates* button, and by default the app also checks by itself
-once a day, a few seconds after it starts. When a newer version exists, the user presses
+each time it opens, a few seconds after start. When a newer version exists, the user presses
 *Update now*: the app downloads the new installer, checks its signature, runs it quietly
 (a small progress window, no questions) and opens again on the new version. Settings,
 Quarantine and hidden items are kept, since they live outside the install folder.
@@ -18,7 +18,7 @@ Quarantine and hidden items are kept, since they live outside the install folder
 - `latest.json` and the installer's `.sig` file are made by the
   [Release workflow](../.github/workflows/release.yml) and attached to the release next to
   the installer.
-- Only the version number is asked for: nothing about the PC is sent. The daily check can
+- Only the version number is asked for: nothing about the PC is sent. The check at start can
   be turned off in Settings.
 
 ## The update signing key

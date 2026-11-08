@@ -432,7 +432,7 @@
     "updateFailed": "Non riesco a cercare aggiornamenti ({error}).",
     "updateInstallFailed": "Non sono riuscito a installare l'aggiornamento ({error}). Non è cambiato nulla.",
     "updateRetry": "Riprova",
-    "updateAuto": "Controlla da solo una volta al giorno",
+    "updateAuto": "Controlla ogni volta che apri l'app",
     "updateAutoHint": "Chiede solo a GitHub, dove l'app è pubblicata, se c'è una versione nuova. Nulla del tuo PC viene inviato."
   },
   "categories": {

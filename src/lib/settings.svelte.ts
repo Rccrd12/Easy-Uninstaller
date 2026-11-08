@@ -9,7 +9,7 @@ const STORAGE_KEY = "settings";
 interface Settings {
   /** Make a Windows restore point before uninstalling apps. */
   restorePoint: boolean;
-  /** Ask GitHub once a day whether a newer version exists. */
+  /** Ask GitHub whether a newer version exists each time the app opens. */
   checkUpdates: boolean;
 }
 

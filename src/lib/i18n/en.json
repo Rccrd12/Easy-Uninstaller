@@ -432,7 +432,7 @@
     "updateFailed": "Could not check for updates ({error}).",
     "updateInstallFailed": "The update could not be installed ({error}). Nothing has changed.",
     "updateRetry": "Try again",
-    "updateAuto": "Check by itself once a day",
+    "updateAuto": "Check each time the app opens",
     "updateAutoHint": "It only asks GitHub, where the app is published, whether there is a new version. Nothing about your PC is sent."
   },
   "categories": {
