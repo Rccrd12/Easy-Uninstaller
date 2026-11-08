@@ -1,24 +1,43 @@
 <script lang="ts">
   import ExplainCard from "../components/ExplainCard.svelte";
   import ExplainTag from "../components/ExplainTag.svelte";
+  import EyeOffIcon from "../components/EyeOffIcon.svelte";
+  import FileReview from "../components/FileReview.svelte";
   import StatusIcon from "../components/StatusIcon.svelte";
   import SafetyTag from "../components/SafetyTag.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
-  import { DELETE_NOW_GROUPS, keepFileGroups, listFileGroups, quarantineAppFolder, removeFileGroups, restoreQuarantine, usesSampleData } from "../api";
+  import {
+    addExclusions,
+    DELETE_NOW_GROUPS,
+    hiddenItem,
+    keepFileGroups,
+    listExclusions,
+    listFileGroups,
+    quarantineAppFolder,
+    quarantineFileSelection,
+    refreshFileGroups,
+    removeExclusions,
+    removeFileGroups,
+    restoreQuarantine,
+    usesSampleData,
+  } from "../api";
   import { quarantine } from "../settings.svelte";
   import { fileCount, formatBytes, removedLines, restoreSummary } from "../format";
   import { locale, t } from "../i18n/index.svelte";
-  import type { FileGroup, FileItem, MoveReport, ScanProgress } from "../types";
+  import { displayPath, folderOf, nameOf } from "../paths";
+  import type { Screen } from "../screens";
+  import type { Exclusion, FileGroup, FileItem, FileSelection, MoveReport, ScanProgress } from "../types";
+
+  let { onNavigate }: { onNavigate: (s: Screen) => void } = $props();
 
   /** How many items the details panel lists. */
   const SHOWN_ITEMS = 8;
-  /** The order the scan returns groups in, used to put groups back after an undo. */
-  const GROUP_ORDER = ["temp", "recycle-bin", "crash-reports", "thumbnails", "installers", "old-downloads", "duplicates", "large-files", "unknown-folders"];
 
   /** What the toast at the bottom says after a move or an undo. */
   type Notice =
-    | { kind: "moved"; report: MoveReport; groups: FileGroup[] }
-    | { kind: "folderMoved"; report: MoveReport; group: FileGroup; item: FileItem }
+    | { kind: "moved"; report: MoveReport }
+    | { kind: "folderMoved"; report: MoveReport; item: FileItem }
+    | { kind: "hidden"; items: Exclusion[]; lines: string[] }
     | { kind: "info"; lines: string[] }
     | { kind: "error"; lines: string[] };
 
@@ -35,8 +54,24 @@
   let moving = $state(false);
   let undoing = $state(false);
   let notice = $state<Notice | null>(null);
+  /** The group being reviewed file by file, kept even when all its files are gone. */
+  let reviewing = $state<FileGroup | null>(null);
+  /** Changes after every move, undo or hidden file, so the review reads its files again. */
+  let version = $state(0);
+  /** How many files, folders and groups are hidden (leftovers have their own screen). */
+  let hiddenCount = $state(0);
+  /** The ⋯ menu of a group card. */
+  let menu = $state<{ group: FileGroup; x: number; y: number } | null>(null);
 
   const focused = $derived(groups.find((g) => g.id === focusedId) ?? null);
+
+  /** Groups of single files can be reviewed one by one; folder groups (temp) cannot. */
+  const reviewable = (g: FileGroup) => g.items.length > 0 && g.items.every((i) => i.lastUsed !== null);
+
+  function openReview(g: FileGroup) {
+    reviewing = g;
+    notice = null;
+  }
 
   function load(rescan = false) {
     scanning = true;
@@ -54,6 +89,13 @@
   }
 
   $effect(() => load());
+  $effect(() => countHidden());
+
+  function countHidden() {
+    listExclusions()
+      .then((list) => (hiddenCount = list.filter((e) => e.kind !== "leftover").length))
+      .catch(() => {});
+  }
 
   function focus(id: string) {
     if (focusedId !== id) showAll = false;
@@ -93,13 +135,7 @@
     notice = null;
     try {
       const report = await removeFileGroups(ids);
-      if (report.movedCount === 0 && report.deletedCount === 0) {
-        notice = { kind: "info", lines: [t("files.nothingMoved")] };
-        return;
-      }
-      const moved = groups.filter((g) => ids.includes(g.id));
-      setGroups(groups.filter((g) => !ids.includes(g.id)));
-      notice = { kind: "moved", report, groups: moved };
+      await afterMove(report);
     } catch (e) {
       notice = { kind: "error", lines: [t("files.moveFailed", { error: String(e) })] };
     } finally {
@@ -107,13 +143,99 @@
     }
   }
 
-  async function undo(report: MoveReport, moved: FileGroup[]) {
+  /** Moves the files picked in the review. */
+  async function moveSelection(selection: FileSelection) {
+    if (moving) return;
+    moving = true;
+    notice = null;
+    try {
+      await afterMove(await quarantineFileSelection([selection]));
+    } catch (e) {
+      notice = { kind: "error", lines: [t("files.moveFailed", { error: String(e) })] };
+    } finally {
+      moving = false;
+    }
+  }
+
+  async function afterMove(report: MoveReport) {
+    if (report.movedCount === 0 && report.deletedCount === 0) {
+      notice = { kind: "info", lines: [t("files.nothingMoved")] };
+      return;
+    }
+    notice = { kind: "moved", report };
+    await refresh();
+  }
+
+  /** Reads the groups again from the last scan: what was moved, put back or hidden shows up. */
+  async function refresh() {
+    try {
+      setGroups(await refreshFileGroups());
+    } finally {
+      version++;
+    }
+  }
+
+  /** The name a hidden item goes by in a sentence. */
+  function hiddenName(e: Exclusion): string {
+    if (e.kind === "group") return t(e.label ?? e.path);
+    return e.kind === "folder" ? displayPath(e.path) : nameOf(e.path);
+  }
+
+  const itemCount = (n: number) => (n === 1 ? t("hidden.countOne") : t("hidden.count", { count: count(n) }));
+
+  /** "Hide": nothing is moved or deleted, the files, folders or groups are only left out from now on. */
+  async function hide(items: Exclusion[]) {
+    if (!items.length) return;
+    try {
+      await addExclusions(items);
+      const many = items.every((e) => e.kind === "file") ? fileCount(items.length) : itemCount(items.length);
+      const line = items.length === 1 ? t("hidden.done", { name: hiddenName(items[0]) }) : t("hidden.doneMany", { count: many });
+      notice = { kind: "hidden", items, lines: [line] };
+      await refresh();
+    } catch (e) {
+      notice = { kind: "error", lines: [t("hidden.failed", { error: String(e) })] };
+    } finally {
+      countHidden();
+    }
+  }
+
+  /** Undoes a hide: the items are listed again where they were. */
+  async function unhide(items: Exclusion[]) {
+    undoing = true;
+    try {
+      await removeExclusions(items);
+      await refresh();
+      notice = { kind: "info", lines: [t("hidden.shownAgain")] };
+    } catch (e) {
+      notice = { kind: "error", lines: [t("hidden.failed", { error: String(e) })] };
+    } finally {
+      undoing = false;
+      countHidden();
+    }
+  }
+
+  function openMenu(e: MouseEvent, group: FileGroup) {
+    e.stopPropagation();
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const width = 290;
+    menu = { group, x: Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8)), y: r.bottom + 4 };
+  }
+
+  /** Runs a menu action with the menu's group, then closes the menu. */
+  function act(action: (g: FileGroup) => unknown) {
+    const g = menu?.group;
+    menu = null;
+    if (g) action(g);
+  }
+
+  /** Folder items (temp) hide the whole folder; the others one file. */
+  const hideDetail = (item: FileItem) => hide([hiddenItem(item.lastUsed === null ? "folder" : "file", item.path)]);
+
+  async function undo(report: MoveReport) {
     undoing = true;
     try {
       const restored = await restoreQuarantine(report.entryIds);
-      // Deleted groups cannot come back; scanning again finds what is left of them.
-      const back = [...groups, ...moved.filter((g) => !DELETE_NOW_GROUPS.includes(g.id))].sort((a, b) => GROUP_ORDER.indexOf(a.id) - GROUP_ORDER.indexOf(b.id));
-      setGroups(back);
+      await refresh();
       const clean = restored.renamedCount === 0 && restored.failedCount === 0;
       notice = { kind: "info", lines: clean ? [t("files.undone")] : restoreSummary(restored) };
     } catch (e) {
@@ -136,9 +258,9 @@
         notice = { kind: "info", lines: [t(key, { name })] };
         return;
       }
-      setGroups(groups.flatMap((g) => (g.id === group.id ? withoutItem(g, item) : [g])));
       explained = null;
-      notice = { kind: "folderMoved", report, group, item };
+      notice = { kind: "folderMoved", report, item };
+      await refresh();
     } catch (e) {
       notice = { kind: "error", lines: [String(e) === "declined" ? t("files.folderDeclined", { name }) : t("files.moveFailed", { error: String(e) })] };
     } finally {
@@ -146,35 +268,11 @@
     }
   }
 
-  /** The group without `item`, or nothing when it was the last one. */
-  function withoutItem(g: FileGroup, item: FileItem): FileGroup[] {
-    const items = g.items.filter((i) => i.path !== item.path);
-    if (!items.length) return [];
-    return [{ ...g, items, itemCount: g.itemCount - 1, sizeBytes: g.sizeBytes - item.sizeBytes }];
-  }
-
-  async function undoFolder(report: MoveReport, group: FileGroup, item: FileItem) {
-    undoing = true;
-    try {
-      const restored = await restoreQuarantine(report.entryIds);
-      const current = groups.find((g) => g.id === group.id);
-      const back: FileGroup = current
-        ? { ...current, items: [...current.items, item].sort((a, b) => b.sizeBytes - a.sizeBytes), itemCount: current.itemCount + 1, sizeBytes: current.sizeBytes + item.sizeBytes }
-        : { ...group, items: [item], itemCount: 1, sizeBytes: item.sizeBytes };
-      setGroups([...groups.filter((g) => g.id !== group.id), back].sort((a, b) => GROUP_ORDER.indexOf(a.id) - GROUP_ORDER.indexOf(b.id)));
-      const clean = restored.renamedCount === 0 && restored.failedCount === 0;
-      notice = { kind: "info", lines: clean ? [t("files.undone")] : restoreSummary(restored) };
-    } catch (e) {
-      notice = { kind: "error", lines: [String(e) === "declined" ? t("quarantine.declined") : t("quarantine.failed", { error: String(e) })] };
-    } finally {
-      undoing = false;
-    }
-  }
-
   /** Updates the list here and the scan result kept for the other screens. */
   function setGroups(next: FileGroup[]) {
     groups = next;
     keepFileGroups(next);
+    if (reviewing) reviewing = next.find((g) => g.id === reviewing?.id) ?? reviewing;
     checked = new Set([...checked].filter((id) => next.some((g) => g.id === id)));
     if (!next.some((g) => g.id === focusedId)) focusedId = null;
     if (!focusedId) explained = null;
@@ -183,8 +281,6 @@
   function folderMovedLines(r: MoveReport, item: FileItem): string[] {
     return [t("files.folderMoved", { name: nameOf(item.path), size: formatBytes(r.movedBytes), days: quarantine.keepDays })];
   }
-  const nameOf = (path: string) => path.split(/[\\/]/).pop() ?? path;
-  const folderOf = (path: string) => path.slice(0, Math.max(path.length - nameOf(path).length - 1, 0));
   /** The last two parts of a path, which say the most in little room: "…\\Pictures\\photo.jpg". */
   const shortPath = (path: string) => {
     const parts = path.split(/[\\/]/);
@@ -214,6 +310,10 @@
   const explainable = (g: FileGroup, item: FileItem) => g.reviewOnly || (item.explainId !== null && byFolder(g) && !item.originalPath);
 </script>
 
+{#if reviewing}
+  {@const g = reviewing}
+  <FileReview group={g} {version} busy={moving || undoing} onBack={() => (reviewing = null)} onMove={moveSelection} onHide={hide} />
+{:else}
 <div class="layout">
   <div class="col">
     <div class="head">
@@ -266,8 +366,13 @@
                 <div class="title">{t(group.titleKey)}</div>
                 <div class="muted desc">{t(group.descriptionKey)} · {countLabel(group)}</div>
               </div>
+              {#if reviewable(group)}
+                <button class="review-link" onclick={(e) => { e.stopPropagation(); openReview(group); }}>{t("files.review.start")} ›</button>
+              {/if}
               <SafetyTag safety={group.safety} />
               <span class="size">{formatBytes(group.sizeBytes)}</span>
+              <button class="dots" aria-label={t("files.groupMenu", { name: t(group.titleKey) })} aria-haspopup="menu"
+                      onclick={(e) => openMenu(e, group)}>⋯</button>
             </div>
           {/each}
         {/if}
@@ -283,6 +388,14 @@
       {#if selectionDeletes}
         <p class="muted how">{t("files.howRemoved", { days: quarantine.keepDays })}</p>
       {/if}
+    {/if}
+
+    {#if !scanning && hiddenCount > 0}
+      <button class="hidden-link" onclick={() => onNavigate("hidden")}>
+        <EyeOffIcon />
+        <span>{t("files.hiddenLink", { count: itemCount(hiddenCount) })}</span>
+        <span class="link-action">{t("files.hiddenLinkAction")} ›</span>
+      </button>
     {/if}
   </div>
 
@@ -320,6 +433,9 @@
               {#if canExplain}<ExplainTag explainId={item.explainId} />{/if}
               <span class="item-size">{formatBytes(item.sizeBytes)}</span>
             </svelte:element>
+            <button class="hide-pill" disabled={moving} onclick={() => hideDetail(item)} aria-label={t("files.hideItem", { name: nameOf(item.originalPath ?? item.path) })}>
+              <EyeOffIcon size={14} /> {t("files.hide")}
+            </button>
           </li>
         {/each}
       </ul>
@@ -332,6 +448,10 @@
         <div class="muted more">{t("files.notListed", { count: count(notListed(focused)) })}</div>
       {/if}
       <div class="grow"></div>
+      {#if reviewable(focused)}
+        {@const g = focused}
+        <button class="btn btn-ghost wide" onclick={() => openReview(g)}>🔍 {t("files.review.oneByOne")}</button>
+      {/if}
       {#if focused.reviewOnly}
         <p class="muted review-note">🔎 {t("files.reviewOnly")}</p>
       {:else}
@@ -347,22 +467,43 @@
     {/if}
   </aside>
 </div>
+{/if}
 
 {#if notice}
   {@const n = notice}
-  <div class="card toast" class:error={n.kind === "error"} role="status" aria-live="polite">
-    <StatusIcon kind={n.kind === "error" ? "warn" : "ok"} />
+  <div class="card toast" class:error={n.kind === "error"} class:raised={reviewing !== null} role="status" aria-live="polite">
+    {#if n.kind === "hidden"}<span class="toast-icon" aria-hidden="true"><EyeOffIcon size={20} /></span>{:else}<StatusIcon kind={n.kind === "error" ? "warn" : "ok"} />{/if}
     <div class="toast-text">
       {#each n.kind === "moved" ? removedLines(n.report, quarantine.keepDays) : n.kind === "folderMoved" ? folderMovedLines(n.report, n.item) : n.lines as line, i (i)}<p>{line}</p>{/each}
     </div>
+    {#if n.kind === "hidden"}
+      <button class="btn btn-ghost" disabled={undoing} onclick={() => unhide(n.items)}>↩ {t("files.undo")}</button>
+    {/if}
     {#if (n.kind === "moved" || n.kind === "folderMoved") && n.report.entryIds.length}
-      <button class="btn btn-ghost" disabled={undoing} onclick={() => (n.kind === "moved" ? undo(n.report, n.groups) : undoFolder(n.report, n.group, n.item))}>
+      <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(n.report)}>
         {undoing ? t("files.undoing") : `↩ ${t("files.undo")}`}
       </button>
     {/if}
     <button class="close" aria-label={t("common.close")} onclick={() => (notice = null)}>✕</button>
   </div>
 {/if}
+
+{#if menu}
+  {@const m = menu}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="card menu" style="left:{m.x}px;top:{m.y}px" role="menu" tabindex="-1" onclick={(e) => e.stopPropagation()}>
+    {#if reviewable(m.group)}
+      <button role="menuitem" onclick={() => act(openReview)}>🔍 {t("files.review.oneByOne")}</button>
+      <hr />
+    {/if}
+    <button role="menuitem" class="menu-hide" onclick={() => act((g) => hide([hiddenItem("group", g.id, g.titleKey)]))}>
+      <EyeOffIcon />
+      <span>{t("files.hideGroup")}<span class="muted menu-hint">{t("files.hideGroupHint")}</span></span>
+    </button>
+  </div>
+{/if}
+
+<svelte:window onclick={() => (menu = null)} onkeydown={(e) => e.key === "Escape" && (menu = null)} onresize={() => (menu = null)} />
 
 <style>
   .layout { display: flex; gap: 18px; align-items: flex-start; }
@@ -423,9 +564,32 @@
   .items.all { max-height: 46vh; overflow-y: auto; padding-right: 6px; }
   .show-all { border: none; background: none; color: var(--accent); font-size: 12.5px; padding: 6px 0 0; text-align: left; cursor: pointer; }
   .wide { width: 100%; padding: 10px; margin-top: 14px; }
+  .wide + .wide { margin-top: 8px; }
+  .review-link { border: none; background: none; color: var(--accent); font-size: 12.5px; font-weight: 600; padding: 4px 6px; border-radius: var(--radius-sm); white-space: nowrap; }
+  .review-link:hover { background: var(--accent-soft); }
 
+  .dots { flex: none; border: none; background: none; font-size: 18px; line-height: 1; padding: 4px 8px; margin-right: -6px; border-radius: var(--radius-sm); color: var(--text-muted); }
+  .dots:hover { background: var(--hover); color: var(--text); }
+  /* Over the size on hover, so the name keeps its room. */
+  .items li { position: relative; }
+  .hide-pill { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 999px; padding: 3px 10px; font-size: 12px; opacity: 0; transition: opacity 0.12s; }
+  .items li:hover .hide-pill, .hide-pill:focus-visible { opacity: 1; }
+  .hide-pill:hover { background: var(--hover); }
+  .hidden-link { display: flex; align-items: center; gap: 8px; margin-top: 16px; border: none; background: none; padding: 6px 2px; font-size: 13px; color: var(--text-muted); text-align: left; }
+  .link-action { color: var(--accent); font-weight: 600; }
+  .hidden-link:hover .link-action { text-decoration: underline; }
+  .menu { position: fixed; z-index: 20; width: 290px; padding: 6px; box-shadow: var(--shadow-pop); display: flex; flex-direction: column; }
+  .menu button { border: none; background: none; text-align: left; padding: 8px 10px; border-radius: 5px; font-size: 13px; }
+  .menu button:hover, .menu button:focus-visible { background: var(--hover); outline: none; }
+  .menu hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+  .menu-hide { display: flex; align-items: flex-start; gap: 8px; }
+  .menu-hide :global(.eye-off) { margin-top: 2px; }
+  .menu-hint { display: block; font-size: 12px; margin-top: 2px; }
   .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
   .toast.error { border-left-color: var(--danger); }
+  /* Above the review's sticky footer, so its buttons stay reachable. */
+  .toast.raised { bottom: 96px; }
+  .toast-icon { font-size: 18px; display: flex; color: var(--text-muted); }
   .toast-text { flex: 1; font-size: 13px; line-height: 1.4; }
   .toast-text p + p { color: var(--text-muted); margin-top: 2px; }
   .toast .btn { flex: none; }

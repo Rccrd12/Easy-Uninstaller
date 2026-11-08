@@ -102,7 +102,7 @@
       },
       "duplicates": {
         "title": "Duplicates",
-        "description": "Identical copies: the oldest one is always kept",
+        "description": "Identical copies: one copy of each always stays",
         "what": "I",
         "ifRemoved": "You keep one copy of each file, so nothing is lost. Links or shortcuts to the removed copy will no longer open it."
       },
@@ -177,12 +177,67 @@
     "entryCountOne": "1 item",
     "reviewOnly": "Tap a folder to find out what it is and, if you want, move it to Quarantine.",
     "wasIn": "was in {path}",
+    "review": {
+      "start": "Review",
+      "oneByOne": "Review one by one",
+      "subtitle": "{files} · {size} · you choose what to remove and what to hide",
+      "dupSubtitle": "{count} identical copies · {size} · pick what to remove, one by one or all together",
+      "view": "View",
+      "list": "List",
+      "previews": "Previews",
+      "loading": "Reading the files…",
+      "empty": "Nothing left to review in this group.",
+      "backToFiles": "Back to Files",
+      "keepIn": "Always keep the copy in",
+      "anyFolder": "any folder",
+      "then": "then",
+      "oldest": "the oldest",
+      "newest": "the newest",
+      "hintSafe": "All selected: untick anything you want to keep.",
+      "hintCheck": "Nothing is selected: tick only what you no longer need.",
+      "sortBy": "Sort by",
+      "sortSize": "Size",
+      "sortDate": "Last used",
+      "sortName": "Name",
+      "capped": "Showing the {shown} largest of {total} files.",
+      "copies": "{count} copies · {size} each",
+      "keep": "Keep",
+      "changed": "changed {date}",
+      "pick": "Remove {name}",
+      "more": "More actions",
+      "selected": "Selected {files} · {size}",
+      "oneCopyStays": "One copy of every file always stays where it is.",
+      "restorable": "Nothing is deleted: you can restore everything for {days} days.",
+      "selectAll": "Select all",
+      "selectNone": "Select none",
+      "open": "Open",
+      "showInFolder": "Show in folder",
+      "keepInstead": "Keep this one instead",
+      "hideFile": "Hide this file",
+      "hideFolder": "Hide the whole folder “{folder}”",
+      "folders": {
+        "desktop": "Desktop",
+        "documents": "Documents",
+        "downloads": "Downloads",
+        "music": "Music",
+        "pictures": "Pictures",
+        "videos": "Videos"
+      },
+      "hideSelected": "Hide ({count})"
+    },
     "folderMoved": "“{name}” is in Quarantine ({size}). You can restore it for {days} days.",
     "folderSkipped": "“{name}” could not be moved: an app may be using it. Close the app and try again.",
     "folderDeclined": "Windows did not give permission: “{name}” stayed where it was.",
     "showAll": "Show all ({count})",
     "showLess": "Show fewer",
-    "notListed": "and {count} more not listed here"
+    "notListed": "and {count} more not listed here",
+    "hide": "Hide",
+    "hideItem": "Hide {name}",
+    "groupMenu": "More for {name}",
+    "hideGroup": "Hide this group",
+    "hideGroupHint": "It won't be suggested again. Nothing is deleted.",
+    "hiddenLink": "You hid {count}.",
+    "hiddenLinkAction": "See and show again"
   },
   "quick": {
     "title": "Quick clean",
@@ -249,7 +304,10 @@
       "startMenu": "Start menu folder",
       "brokenShortcut": "Shortcut to a program that no longer exists",
       "brokenEntry": "Entry in the app list with no program"
-    }
+    },
+    "hideApp": "Hide {app}'s leftovers",
+    "hideGroup": "Hide this group",
+    "hideHint": "They stay where they are and won't be suggested again."
   },
   "map": {
     "title": "Space map",
@@ -355,7 +413,10 @@
     "driveMissing": "Drive {drive} (not connected)",
     "driveChosen": "Space on {system} is freed as soon as you remove files.",
     "noOtherDrive": "This PC has no other drive.",
-    "saveFailed": "Could not save the change: {error}"
+    "saveFailed": "Could not save the change: {error}",
+    "hidden": "Hidden items",
+    "hiddenHint": "Files, folders, groups and leftovers you don't want to see any more",
+    "manage": "Manage"
   },
   "categories": {
     "apps": "Apps",
@@ -612,5 +673,36 @@
       "confirm": "Move to Quarantine",
       "confirmAnyway": "Move it anyway"
     }
+  },
+  "hidden": {
+    "title": "Hidden items",
+    "subtitle": "Things you asked not to see again. They are still on your PC: the app just doesn't suggest them.",
+    "count": "{count} items",
+    "countOne": "1 item",
+    "tabs": {
+      "all": "All",
+      "file": "Files",
+      "folder": "Folders",
+      "group": "Groups",
+      "leftover": "Leftovers"
+    },
+    "kinds": {
+      "file": "File",
+      "folder": "Folder",
+      "group": "Group",
+      "leftover": "Leftover"
+    },
+    "folderNote": "and everything in it",
+    "groupNote": "Whole group on the Files screen",
+    "showAgain": "Show again",
+    "showAll": "Show all again",
+    "note": "Showing again moves nothing: it is simply listed again.",
+    "empty": "Nothing is hidden. When you hide a file, a folder or a group, you'll find it here.",
+    "done": "Hidden: {name}. It stays where it is and won't be suggested again.",
+    "doneMany": "Hidden: {count}. They stay where they are and won't be suggested again.",
+    "shownAgain": "Shown again.",
+    "shownAgainMany": "Shown again: {count}.",
+    "failed": "Couldn't save: {error}",
+    "leftoverOf": "{app} leftover"
   }
 }

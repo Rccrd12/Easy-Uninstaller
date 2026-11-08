@@ -4,11 +4,28 @@
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GB } from "./format";
-import { sampleApps, sampleAppLeftovers, sampleDrives, sampleFileGroups, sampleLeftovers, sampleQuarantine, sampleQuarantineSettings, sampleSpaceUsage } from "./mock";
+import {
+  buildSampleGroups,
+  sampleApps,
+  sampleAppLeftovers,
+  sampleDrives,
+  sampleDuplicateSets,
+  sampleFiles,
+  sampleLeftovers,
+  samplePreview,
+  sampleQuarantine,
+  sampleQuarantineSettings,
+  sampleSpaceUsage,
+  type SampleFile,
+} from "./mock";
 import type {
   DiskInfo,
+  Exclusion,
   FileGroup,
   FileItem,
+  FileSelection,
+  GroupReview,
+  HiddenKind,
   InstalledApp,
   LeftoverItem,
   MoveReport,
@@ -17,6 +34,7 @@ import type {
   QuarantineSettings,
   RestorePointOutcome,
   RestoreReport,
+  ReviewFile,
   ScanProgress,
   SpaceProgress,
   SpaceUsage,
@@ -121,7 +139,7 @@ async function sampleScan(notify: (p: ScanProgress) => void): Promise<FileGroup[
       await new Promise((r) => setTimeout(r, 120));
     }
   }
-  return sampleFileGroups;
+  return sampleGroups();
 }
 
 // ---------------------------------------------------------------------------
@@ -153,14 +171,16 @@ export async function findAppLeftovers(id: string): Promise<LeftoverItem[]> {
   if (isTauri()) return invoke<LeftoverItem[]>("find_app_leftovers", { id });
   await sleep(900);
   const app = sampleApps.find((a) => a.id === id);
-  return app && app.source !== "store" ? sampleAppLeftovers(app.name) : [];
+  return app && app.source !== "store" ? sampleAppLeftovers(app.name).filter((l) => !sampleHidesLeftover(l.path)) : [];
 }
 
 /** Leftovers of programs no longer installed: broken shortcuts and app-list entries, and leftovers of apps uninstalled here. */
 export async function listLeftovers(): Promise<LeftoverItem[]> {
   if (isTauri()) return invoke<LeftoverItem[]>("list_leftovers");
-  return sampleLeftovers.filter((l) => !sampleMovedLeftovers.has(l.id));
+  return sampleLeftovers.filter((l) => !sampleMovedLeftovers.has(l.id) && !sampleHidesLeftover(l.path));
 }
+
+const sampleHidesLeftover = (path: string) => sampleHidden.some((e) => e.kind === "leftover" && e.path.toLowerCase() === path.toLowerCase());
 
 const sampleMovedLeftovers = new Set<string>();
 
@@ -251,29 +271,15 @@ export async function removeFileGroups(groupIds: string[]): Promise<MoveReport> 
   await new Promise((r) => setTimeout(r, 900));
   const now = Math.floor(Date.now() / 1000);
   const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
-  for (const g of sampleFileGroups.filter((x) => groupIds.includes(x.id))) {
+  for (const g of sampleGroups().filter((x) => groupIds.includes(x.id) && !x.reviewOnly)) {
     if (DELETE_NOW_GROUPS.includes(g.id)) {
       report.deletedCount += g.itemCount;
       report.deletedBytes += g.sizeBytes;
       report.freedBytes += g.sizeBytes;
+      g.items.forEach((i) => sampleGone.add(i.path));
       continue;
     }
-    const id = `${now}-${g.id}-${sampleQuarantine.length}`;
-    sampleQuarantine.push({
-      id,
-      titleKey: g.titleKey,
-      title: null,
-      itemCount: g.itemCount,
-      sizeBytes: g.sizeBytes,
-      removedAt: now,
-      expiresAt: now + sampleQuarantineSettings.keepDays * DAY,
-      items: g.items.map((i) => ({ originalPath: i.path, sizeBytes: i.sizeBytes, kind: "file" })),
-      needsAdmin: false,
-    });
-    report.entryIds.push(id);
-    report.movedCount += g.itemCount;
-    report.movedBytes += g.sizeBytes;
-    if (sampleQuarantineSettings.drive) report.freedBytes += g.sizeBytes;
+    sampleMove(report, g, g.items.map((i) => ({ path: i.path, sizeBytes: i.sizeBytes })), g.itemCount, now);
   }
   sampleFreeBytes += report.freedBytes;
   return report;
@@ -289,6 +295,175 @@ export async function getQuarantineOptions(): Promise<QuarantineOptions> {
 export async function setQuarantineSettings(settings: QuarantineSettings): Promise<void> {
   if (isTauri()) return invoke("set_quarantine_settings", { settings });
   Object.assign(sampleQuarantineSettings, settings);
+}
+
+/** Browser fallback: records a move in the sample quarantine and hides the files. */
+function sampleMove(report: MoveReport, g: FileGroup, files: { path: string; sizeBytes: number }[], count: number, now: number) {
+  const id = `${now}-${g.id}-${sampleQuarantine.length}`;
+  const size = files.reduce((s, f) => s + f.sizeBytes, 0);
+  sampleQuarantine.push({
+    id,
+    titleKey: g.titleKey,
+    title: null,
+    itemCount: count,
+    sizeBytes: size,
+    removedAt: now,
+    expiresAt: now + sampleQuarantineSettings.keepDays * DAY,
+    items: files.map((f) => ({ originalPath: f.path, sizeBytes: f.sizeBytes, kind: "file" })),
+    needsAdmin: false,
+  });
+  files.forEach((f) => sampleGone.add(f.path));
+  report.entryIds.push(id);
+  report.movedCount += count;
+  report.movedBytes += size;
+  if (sampleQuarantineSettings.drive) report.freedBytes += size;
+}
+
+/**
+ * Removes the files the user picked, like `removeFileGroups`: one quarantine entry per
+ * group, or deleted right away for `DELETE_NOW_GROUPS`. Rust only touches files its own
+ * scan found, and always leaves one copy of every duplicate set. Real: src-tauri/src/review.rs.
+ */
+export async function quarantineFileSelection(selections: FileSelection[]): Promise<MoveReport> {
+  if (isTauri()) return invoke<MoveReport>("quarantine_file_selection", { selections });
+  const now = Math.floor(Date.now() / 1000);
+  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const groups = sampleGroups();
+  for (const sel of selections) {
+    const g = groups.find((x) => x.id === sel.groupId);
+    if (!g) continue;
+    const wanted = new Set(sel.paths);
+    let picked: SampleFile[];
+    if (g.id === "duplicates") {
+      picked = sampleDuplicateSets.flatMap((set) => {
+        const left = set.filter((f) => !sampleGone.has(f.path));
+        const chosen = left.filter((f) => wanted.has(f.path) && !sampleHides(f.path));
+        return chosen.length && chosen.length >= left.length ? chosen.slice(1) : chosen;
+      });
+    } else {
+      picked = sampleFiles.filter((f) => f.group === g.id && wanted.has(f.path) && samplePresent(f.path));
+    }
+    if (!picked.length) continue;
+    if (DELETE_NOW_GROUPS.includes(g.id)) {
+      const size = picked.reduce((s, f) => s + f.sizeBytes, 0);
+      report.deletedCount += picked.length;
+      report.deletedBytes += size;
+      report.freedBytes += size;
+      picked.forEach((f) => sampleGone.add(f.path));
+      continue;
+    }
+    sampleMove(report, g, picked, picked.length, now);
+  }
+  sampleFreeBytes += report.freedBytes;
+  return report;
+}
+
+/** The groups of the last scan as they are now, after a move, an undo or a hidden file. */
+export async function refreshFileGroups(): Promise<FileGroup[]> {
+  const groups = isTauri() ? await invoke<FileGroup[]>("current_file_groups") : sampleGroups();
+  keepFileGroups(groups);
+  return groups;
+}
+
+/** Every file of a group, to review them one by one. null when the group is gone. */
+export async function reviewFileGroup(groupId: string): Promise<GroupReview | null> {
+  if (isTauri()) return invoke<GroupReview | null>("review_file_group", { groupId });
+  await new Promise((r) => setTimeout(r, 150));
+  const review = (f: SampleFile): ReviewFile => ({
+    path: f.path,
+    sizeBytes: f.sizeBytes,
+    lastUsed: f.lastUsed,
+    modified: f.modified,
+    canOpen: !/\.(exe|msi)$/i.test(f.path),
+  });
+  if (groupId === "duplicates") {
+    const sets = sampleDuplicateSets
+      .map((set) => set.filter((f) => samplePresent(f.path)))
+      .filter((set) => set.length > 1)
+      .sort((a, b) => b[0].sizeBytes * (b.length - 1) - a[0].sizeBytes * (a.length - 1));
+    return {
+      groupId,
+      totalCount: sets.reduce((s, set) => s + set.length - 1, 0),
+      totalBytes: sets.reduce((s, set) => s + set[0].sizeBytes * (set.length - 1), 0),
+      files: [],
+      duplicateSets: sets.map((set) => set.map(review)),
+    };
+  }
+  const files = sampleFiles.filter((f) => f.group === groupId && samplePresent(f.path)).sort((a, b) => b.sizeBytes - a.sizeBytes);
+  return { groupId, totalCount: files.length, totalBytes: files.reduce((s, f) => s + f.sizeBytes, 0), files: files.map(review), duplicateSets: [] };
+}
+
+// Browser fallback: what was moved or hidden in this session.
+const sampleGone = new Set<string>();
+const sampleHidden: Exclusion[] = [];
+const sampleHides = (path: string) =>
+  sampleHidden.some((e) => (e.kind === "file" && path === e.path) || (e.kind === "folder" && (path === e.path || path.startsWith(`${e.path}\\`))));
+const samplePresent = (path: string) => !sampleGone.has(path) && !sampleHides(path);
+const sampleGroups = () => buildSampleGroups(samplePresent).filter((g) => !sampleHidden.some((e) => e.kind === "group" && e.path === g.id));
+
+/** A hidden item, ready to save (the date is set when saved). */
+export const hiddenItem = (kind: HiddenKind, path: string, label: string | null = null): Exclusion => ({ kind, path, label, hiddenAt: 0 });
+
+/** Everything the user chose to hide, oldest first. */
+export async function listExclusions(): Promise<Exclusion[]> {
+  if (isTauri()) return invoke<Exclusion[]>("list_exclusions");
+  return [...sampleHidden];
+}
+
+/**
+ * Hides files, folders, whole groups or leftovers: they stay where they are and are
+ * never shown or moved again. Nothing is deleted.
+ */
+export async function addExclusions(items: Exclusion[]): Promise<void> {
+  if (isTauri()) await invoke("add_exclusions", { items });
+  else {
+    const now = Math.floor(Date.now() / 1000);
+    for (const item of items) {
+      const i = sampleHidden.findIndex((e) => e.path === item.path && e.kind === item.kind);
+      if (i >= 0) sampleHidden.splice(i, 1);
+      sampleHidden.push({ ...item, hiddenAt: item.hiddenAt || now });
+    }
+  }
+  refreshKeptScan();
+}
+
+/** Shows hidden items again. Nothing moves: they are listed again. */
+export async function removeExclusions(items: Pick<Exclusion, "path" | "kind">[]): Promise<void> {
+  if (isTauri()) await invoke("remove_exclusions", { items: items.map(({ path, kind }) => ({ path, kind })) });
+  else {
+    for (const item of items) {
+      const i = sampleHidden.findIndex((e) => e.path === item.path && e.kind === item.kind);
+      if (i >= 0) sampleHidden.splice(i, 1);
+    }
+  }
+  refreshKeptScan();
+}
+
+/** After hiding or showing again, the kept scan result is rebuilt so every screen agrees. */
+function refreshKeptScan() {
+  if (!fileScan) return;
+  const next = fileScan.then(() => (isTauri() ? invoke<FileGroup[]>("current_file_groups") : sampleGroups()));
+  fileScan = next;
+  next.catch(() => fileScan === next && (fileScan = null));
+}
+
+/**
+ * The preview Windows Explorer shows for a photo, video or document, as an image URL;
+ * null when there is none (the UI then shows a tile for the file type).
+ */
+export async function fileThumbnail(path: string, size: number): Promise<string | null> {
+  if (isTauri()) return invoke<string | null>("file_thumbnail", { path, size });
+  return samplePreview(path);
+}
+
+/** Opens a photo, video or document found by the scan in its usual app. */
+export async function openScannedFile(path: string): Promise<void> {
+  if (isTauri()) return invoke("open_scanned_file", { path });
+}
+
+/** Opens the file's folder in Explorer with the file selected. */
+export async function showScannedFile(path: string): Promise<void> {
+  if (isTauri()) return invoke("show_scanned_file", { path });
 }
 
 /**
@@ -313,6 +488,7 @@ export async function quarantineAppFolder(item: FileItem): Promise<MoveReport> {
     items: [{ originalPath: item.path, sizeBytes: item.sizeBytes, kind: "folder" }],
     needsAdmin: !/\\AppData\\/i.test(item.path),
   });
+  sampleGone.add(item.path);
   return { entryIds: [id], movedCount: 1, movedBytes: item.sizeBytes, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
 }
 
@@ -323,7 +499,8 @@ export async function restoreQuarantine(ids: string[]): Promise<RestoreReport> {
   for (const id of ids) {
     const i = sampleQuarantine.findIndex((e) => e.id === id);
     if (i < 0) continue;
-    const entry = sampleQuarantine.splice(i, 1)[0];
+    const [entry] = sampleQuarantine.splice(i, 1);
+    entry.items.forEach((item) => sampleGone.delete(item.originalPath));
     report.restoredCount += entry.itemCount;
     for (const item of entry.items) {
       const l = sampleLeftovers.find((x) => x.path === item.originalPath);
