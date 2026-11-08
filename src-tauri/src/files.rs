@@ -281,7 +281,7 @@ impl Progress<'_> {
 
     fn tick(&mut self) {
         self.files += 1;
-        if self.files % PROGRESS_EVERY == 0 {
+        if self.files.is_multiple_of(PROGRESS_EVERY) {
             self.send();
         }
     }

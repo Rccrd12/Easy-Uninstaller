@@ -394,7 +394,6 @@
     "quarantineDays": "Keep removed items for",
     "days": "{days} days",
     "restorePoint": "Create a restore point before uninstalling",
-    "about": "Easy Uninstaller {version}",
     "restorePointHint": "Windows asks for permission. A restore point protects programs and settings; your files are protected by Quarantine.",
     "restorePointNow": "Create one now",
     "restorePointStatus": {
@@ -416,7 +415,25 @@
     "saveFailed": "Could not save the change: {error}",
     "hidden": "Hidden items",
     "hiddenHint": "Files, folders, groups and leftovers you don't want to see any more",
-    "manage": "Manage"
+    "manage": "Manage",
+    "updates": "Updates",
+    "version": "Easy Uninstaller {version}",
+    "updateIdle": "Updates are free and keep your settings and Quarantine as they are.",
+    "updateCheck": "Check for updates",
+    "updateChecking": "Checking…",
+    "updateUpToDate": "You have the latest version.",
+    "updateAvailable": "Version {version} is available.",
+    "updateNow": "Update now",
+    "updateRestartNote": "The app closes and opens again by itself in a few seconds.",
+    "updateDownloading": "Downloading the update… {percent}%",
+    "updateDownloadingNoSize": "Downloading the update…",
+    "updateInstalling": "Installing version {version}: the app closes and opens again by itself.",
+    "updateOffline": "Could not reach the internet. Check your connection and try again.",
+    "updateFailed": "Could not check for updates ({error}).",
+    "updateInstallFailed": "The update could not be installed ({error}). Nothing has changed.",
+    "updateRetry": "Try again",
+    "updateAuto": "Check by itself once a day",
+    "updateAutoHint": "It only asks GitHub, where the app is published, whether there is a new version. Nothing about your PC is sent."
   },
   "categories": {
     "apps": "Apps",
@@ -704,5 +721,11 @@
     "shownAgainMany": "Shown again: {count}.",
     "failed": "Couldn't save: {error}",
     "leftoverOf": "{app} leftover"
+  },
+  "updateNotice": {
+    "title": "A new version is available",
+    "text": "Easy Uninstaller {version} is ready. Updating takes a few seconds.",
+    "update": "Update",
+    "later": "Later"
   }
 }

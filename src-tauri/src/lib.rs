@@ -15,6 +15,7 @@ mod restore_point;
 mod review;
 mod space;
 mod uninstall;
+mod updater;
 
 /// When started as the elevated helper (see `elevated.rs`), does its job and
 /// returns the exit code; `None` means start the app normally.
@@ -28,6 +29,8 @@ pub fn run() {
         .manage(files::LastScan::default())
         .manage(leftovers::LastLeftovers::default())
         .manage(uninstall::Pending::default())
+        .manage(updater::PendingUpdate::default())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             quarantine::init(app.handle())?;
             review::init(app.handle())
@@ -58,7 +61,9 @@ pub fn run() {
             space::scan_space,
             uninstall::uninstall_app,
             uninstall::is_app_installed,
-            uninstall::find_app_leftovers
+            uninstall::find_app_leftovers,
+            updater::check_for_update,
+            updater::install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running Easy Uninstaller");

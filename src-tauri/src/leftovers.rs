@@ -161,7 +161,7 @@ impl Roots {
         match target {
             Target::Registry(k) => k.needs_admin(),
             Target::File(p) | Target::Folder(p) => {
-                self.profile.as_ref().map_or(true, |home| !inside(p, home))
+                self.profile.as_ref().is_none_or(|home| !inside(p, home))
             }
         }
     }
@@ -854,9 +854,10 @@ pub fn find_orphans(roots: &Roots, list: &[ListEntry]) -> Vec<Found> {
         if ["rundll32exe", "msiexecexe", "rundll32", "msiexec"].contains(&tool.as_str()) {
             continue;
         }
-        let location_gone = e.install_location.as_deref().map_or(true, |l| {
-            l.trim().is_empty() || !Path::new(l.trim().trim_matches('"')).exists()
-        });
+        let location_gone = e
+            .install_location
+            .as_deref()
+            .is_none_or(|l| l.trim().is_empty() || !Path::new(l.trim().trim_matches('"')).exists());
         if missing(file) && location_gone && registry_allowed(&e.key) {
             out.push(Found {
                 target: Target::Registry(e.key.clone()),

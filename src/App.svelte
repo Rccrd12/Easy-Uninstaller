@@ -8,14 +8,18 @@
   import Quarantine from "./lib/screens/Quarantine.svelte";
   import Settings from "./lib/screens/Settings.svelte";
   import Hidden from "./lib/screens/Hidden.svelte";
+  import UpdateNotice from "./lib/components/UpdateNotice.svelte";
   import type { Screen } from "./lib/screens";
   import { loadQuarantine } from "./lib/settings.svelte";
+  import { checkOnStart } from "./lib/updates.svelte";
 
   let screen = $state<Screen>("home");
   const go = (next: Screen) => (screen = next);
 
   // Defaults stay in place if this fails; Settings shows the error when saving.
   loadQuarantine().catch(() => {});
+  // A few seconds after start, so it never slows down the first screen.
+  setTimeout(checkOnStart, 3000);
 </script>
 
 <div class="shell">
@@ -32,6 +36,7 @@
     {/if}
   </main>
 </div>
+{#if screen !== "settings"}<UpdateNotice onOpenSettings={() => go("settings")} />{/if}
 
 <style>
   .shell { display: flex; height: 100%; }

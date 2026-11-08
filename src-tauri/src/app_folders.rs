@@ -104,7 +104,7 @@ pub async fn quarantine_app_folder(app: AppHandle, path: String) -> Result<MoveR
             modified: None,
         };
         let title = Title::Text(name);
-        let needs_admin = env("USERPROFILE").map_or(true, |home| !inside(&path, &home));
+        let needs_admin = env("USERPROFILE").is_none_or(|home| !inside(&path, &home));
         let mut report = MoveReport::default();
         if needs_admin {
             let job = Job::Add {

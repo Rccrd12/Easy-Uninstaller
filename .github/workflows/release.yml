@@ -4,6 +4,12 @@ name: Release
 # SHA-256 checksum, to a DRAFT GitHub release. Nothing is public until a maintainer
 # reviews the draft and presses "Publish release".
 #
+# The release also carries latest.json and the installer's update signature (.sig): the
+# app's "Check for updates" reads releases/latest/download/latest.json, so installed copies
+# see a new version only once its release is published (drafts and pre-releases are
+# skipped). The signature needs the TAURI_SIGNING_PRIVATE_KEY repository secret; see
+# docs/updates.md.
+#
 #   git tag v0.2.0 && git push origin v0.2.0
 #
 # To rebuild an existing tag (for example after fixing this workflow), run it by hand
@@ -89,11 +95,25 @@ jobs:
       - name: Test Rust
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
-      - name: Build installer
-        run: npm run tauri build
+      - name: Build installer and its update signature
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: |
+          if ($env:TAURI_SIGNING_PRIVATE_KEY) {
+            npm run tauri build -- --config "$PWD/src-tauri/tauri.updater.conf.json"
+          } elseif ($env:DRY_RUN -eq "true") {
+            Write-Host "::warning::No TAURI_SIGNING_PRIVATE_KEY secret: dry run without the update signature."
+            npm run tauri build
+          } else {
+            throw "The TAURI_SIGNING_PRIVATE_KEY secret is missing, so installed apps could not update to this release. See docs/updates.md."
+          }
+          if ($LASTEXITCODE -ne 0) { throw "tauri build failed with exit code $LASTEXITCODE" }
 
       # Code signing goes here once a certificate is available; see docs/code-signing.md.
-      # The installer must be signed before the checksum below is computed.
+      # The installer must be signed before the checksum below is computed, and the update
+      # signature (.sig) must then be made again for the signed file (docs/updates.md).
 
       - name: Collect installer and checksum
         shell: pwsh
@@ -106,6 +126,26 @@ jobs:
           Copy-Item $built[0].FullName "release-files/$name"
           $hash = (Get-FileHash "release-files/$name" -Algorithm SHA256).Hash.ToLower()
           Set-Content -Path "release-files/$name.sha256" -Value "$hash  $name`n" -Encoding ascii -NoNewline
+
+          # What installed apps read to find this version (Tauri updater format).
+          $sig = Get-Item "$($built[0].FullName).sig" -ErrorAction SilentlyContinue
+          if ($sig) {
+            Copy-Item $sig.FullName "release-files/$name.sig"
+            $latest = [ordered]@{
+              version   = $version
+              pub_date  = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+              platforms = [ordered]@{
+                "windows-x86_64" = [ordered]@{
+                  signature = (Get-Content $sig.FullName -Raw).Trim()
+                  url       = "https://github.com/${{ github.repository }}/releases/download/$env:TAG/$name"
+                }
+              }
+            }
+            $latest | ConvertTo-Json -Depth 5 | Set-Content -Path release-files/latest.json -Encoding utf8NoBOM
+            Get-Content release-files/latest.json
+          } elseif ($env:DRY_RUN -ne "true") {
+            throw "The build made no update signature ($($built[0].Name).sig)"
+          }
           $size = "{0:N1} MB" -f ((Get-Item "release-files/$name").Length / 1MB)
           @"
           ## Download

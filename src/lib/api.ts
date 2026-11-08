@@ -39,6 +39,8 @@ import type {
   SpaceProgress,
   SpaceUsage,
   UninstallOutcome,
+  UpdateInfo,
+  UpdateProgress,
 } from "./types";
 
 /** Matches `KEEP_DAYS_CHOICES` in src-tauri/src/quarantine.rs. */
@@ -522,4 +524,38 @@ export async function createRestorePoint(): Promise<RestorePointOutcome> {
   if (isTauri()) return invoke<RestorePointOutcome>("create_restore_point");
   await new Promise((r) => setTimeout(r, 1200));
   return "created";
+}
+
+// ---------------------------------------------------------------------------
+// Updates. Real: src-tauri/src/updater.rs (GitHub Releases, signed installers).
+
+/**
+ * Asks whether a newer version exists; null when this one is the latest.
+ * Rejects with "offline" when the internet cannot be reached, or another error text.
+ * In the browser, add ?update=none to the address to see the "up to date" state.
+ */
+export async function checkForUpdate(): Promise<UpdateInfo | null> {
+  if (isTauri()) return invoke<UpdateInfo | null>("check_for_update");
+  await sleep(900);
+  if (new URLSearchParams(location.search).get("update") === "none") return null;
+  return { version: "0.3.0", currentVersion: "0.2.0" };
+}
+
+/**
+ * Downloads and installs the update found by the last check. In the app this never
+ * resolves on Windows: the installer closes the app and opens the new version.
+ */
+export async function installUpdate(notify: (p: UpdateProgress) => void): Promise<void> {
+  if (isTauri()) {
+    const onProgress = new Channel<UpdateProgress>();
+    onProgress.onmessage = notify;
+    return invoke("install_update", { onProgress });
+  }
+  const total = 4.2 * 1024 * 1024;
+  for (let n = 1; n <= 20; n++) {
+    await sleep(150);
+    notify({ downloadedBytes: (total * n) / 20, totalBytes: total });
+  }
+  // The browser cannot restart into a new version; keep showing "installing".
+  return new Promise(() => {});
 }

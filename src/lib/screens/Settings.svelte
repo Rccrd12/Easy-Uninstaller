@@ -7,6 +7,7 @@
   import type { Screen } from "../screens";
   import type { RestorePointOutcome } from "../types";
   import { getTheme, setTheme, themes } from "../theme.svelte";
+  import { check, install, update } from "../updates.svelte";
   // Only this field ends up in the bundle; the release workflow keeps it in sync with the tag.
   import { version } from "../../../package.json";
 
@@ -18,6 +19,8 @@
       .then((l) => (hiddenCount = l.length))
       .catch(() => (hiddenCount = null));
   });
+
+  const phase = $derived(update.phase);
 
   let restorePoint = $state<RestorePointOutcome | "creating" | null>(null);
 
@@ -126,7 +129,54 @@
   </div>
 </div>
 
-<p class="muted about">{t("settings.about", { version })}</p>
+<h2 class="section">{t("settings.updates")}</h2>
+<div class="card list">
+  <div class="row update" aria-live="polite">
+    <span class="grow">
+      <span class="version">{t("settings.version", { version })}</span>
+      {#if phase.kind === "idle"}
+        <span class="muted hint">{t("settings.updateIdle")}</span>
+      {:else if phase.kind === "checking"}
+        <span class="muted hint">{t("settings.updateChecking")}</span>
+      {:else if phase.kind === "upToDate"}
+        <span class="hint ok">{t("settings.updateUpToDate")}</span>
+      {:else if phase.kind === "available"}
+        <span class="hint new">{t("settings.updateAvailable", { version: phase.info.version })}</span>
+        <span class="muted hint">{t("settings.updateRestartNote")}</span>
+      {:else if phase.kind === "downloading"}
+        <span class="muted hint">
+          {phase.percent === null ? t("settings.updateDownloadingNoSize") : t("settings.updateDownloading", { percent: phase.percent })}
+        </span>
+        <span class="bar" class:indeterminate={phase.percent === null}><span style:width="{phase.percent ?? 30}%"></span></span>
+      {:else if phase.kind === "installing"}
+        <span class="muted hint">{t("settings.updateInstalling", { version: phase.info.version })}</span>
+        <span class="bar indeterminate"><span style:width="30%"></span></span>
+      {:else if phase.kind === "failed"}
+        <span class="hint bad" role="alert">
+          {#if phase.offline}{t("settings.updateOffline")}
+          {:else if phase.info}{t("settings.updateInstallFailed", { error: phase.error })}
+          {:else}{t("settings.updateFailed", { error: phase.error })}{/if}
+        </span>
+      {/if}
+    </span>
+    {#if phase.kind === "available"}
+      <button class="btn btn-primary" onclick={install}>{t("settings.updateNow")}</button>
+    {:else if phase.kind === "failed" && phase.info}
+      <button class="btn btn-primary" onclick={install}>{t("settings.updateRetry")}</button>
+    {:else if phase.kind !== "downloading" && phase.kind !== "installing"}
+      <button class="btn btn-ghost" disabled={phase.kind === "checking"} onclick={check}>
+        {phase.kind === "failed" ? t("settings.updateRetry") : t("settings.updateCheck")}
+      </button>
+    {/if}
+  </div>
+  <label class="row">
+    <span>
+      {t("settings.updateAuto")}
+      <span class="muted hint">{t("settings.updateAutoHint")}</span>
+    </span>
+    <input type="checkbox" bind:checked={settings.checkUpdates} onchange={saveSettings} />
+  </label>
+</div>
 
 <style>
   .list { margin-top: 16px; }
@@ -158,5 +208,17 @@
   .grow { flex: 1; min-width: 0; }
   .count { flex: none; font-size: 12px; font-weight: 600; background: var(--track); border-radius: 10px; padding: 1px 8px; }
   .manage { flex: none; color: var(--accent); font-weight: 600; font-size: 13px; }
-  .about { margin-top: 14px; font-size: 12px; }
+  .section { font-size: 15px; margin: 24px 0 0; }
+  .section + .list { margin-top: 10px; }
+  .update { gap: 14px; }
+  .update .btn { flex: none; }
+  .update .btn:disabled { opacity: 0.5; cursor: default; }
+  .version { font-weight: 600; }
+  .hint.ok { color: var(--safe-fg); font-weight: 600; }
+  .hint.bad { color: var(--check-fg); font-weight: 600; }
+  .hint.new { color: var(--accent); font-weight: 600; }
+  .bar { display: block; height: 6px; margin-top: 8px; border-radius: 3px; background: var(--track); overflow: hidden; max-width: 360px; }
+  .bar > span { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.15s; }
+  .bar.indeterminate > span { animation: slide 1.2s ease-in-out infinite; }
+  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
 </style>

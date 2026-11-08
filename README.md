@@ -27,7 +27,11 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
   plain *What is this?* explanation, built in: no AI, nothing sent anywhere.
 - **Light.** Built with [Tauri 2](https://tauri.app): it uses the WebView2 engine that is
   already part of Windows, so the installer is a few MB instead of 100+ MB.
-- **Private.** It works entirely on your PC. No account, no ads, no tracking.
+- **Private.** It works entirely on your PC. No account, no ads, no tracking. The only
+  thing it asks the internet is, once a day, whether a new version exists (you can turn
+  that off in Settings).
+- **Updates itself.** *Settings > Check for updates*: one click, and it opens again on the
+  new version, with your settings and Quarantine as they were.
 - **English and Italian.** Picked from your system language, changeable in Settings.
 - **Light and dark.** Follows the Windows mode by default, changeable in Settings.
 
@@ -117,7 +121,8 @@ maintainer privately for anything sensitive.
    Recycle Bin items, error reports, thumbnail cache and big unknown folders
 10. ✅ Quick clean in one click; quarantine duration (3, 7 or 30 days) and drive in Settings
 11. ✅ Review files one by one with previews; hide files, folders, groups or leftovers
-12. ⬜ Signed installer and first stable release
+12. ✅ In-app updates from Settings, signed and checked before installing
+13. ⬜ Signed installer and first stable release
 
 ## Development
 
@@ -143,10 +148,13 @@ is attached to the run as an artifact. Contributors (and coding agents) should r
    `src-tauri/tauri.conf.json`, and merge that to `main`.
 2. Push a tag for it: `git tag v0.2.0 && git push origin v0.2.0`.
 3. The [Release workflow](.github/workflows/release.yml) builds the installer on Windows and
-   creates a **draft** release with the installer and its checksum. Review it on GitHub and
-   press *Publish*. Tags with a suffix (such as `v0.2.0-beta.1`) become pre-releases.
+   creates a **draft** release with the installer, its checksum and the files the in-app
+   updater reads (`latest.json` and a `.sig` signature). Review it on GitHub and press
+   *Publish*: from then on, installed copies offer the update. Tags with a suffix (such as
+   `v0.2.0-beta.1`) become pre-releases, which the updater skips.
 
-Code signing options are described in [`docs/code-signing.md`](docs/code-signing.md).
+The update signing key and how updates work are described in [`docs/updates.md`](docs/updates.md);
+code signing options in [`docs/code-signing.md`](docs/code-signing.md).
 
 ## Project layout
 
@@ -173,7 +181,8 @@ src-tauri/              backend (Rust)
   src/elevated.rs       the few steps that need administrator rights
   src/review.rs         reviewing files one by one, and the items the user hid
   src/restore_point.rs  Windows restore points
-docs/                   screenshots, design mockups, code signing notes
+  src/updater.rs        in-app updates from GitHub Releases
+docs/                   screenshots, design mockups, code signing and update notes
 ```
 
 ## License

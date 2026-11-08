@@ -261,3 +261,16 @@ export interface Exclusion {
   /** An i18n key (groups) or an app name (leftovers), when the path says little. */
   label: string | null;
 }
+
+/** A newer version of the app. Mirrors `UpdateInfo` in src-tauri/src/updater.rs. */
+export interface UpdateInfo {
+  version: string;
+  currentVersion: string;
+}
+
+/** Sent while an update downloads. Mirrors `UpdateProgress` in src-tauri/src/updater.rs. */
+export interface UpdateProgress {
+  downloadedBytes: number;
+  /** null when the size is not known. */
+  totalBytes: number | null;
+}

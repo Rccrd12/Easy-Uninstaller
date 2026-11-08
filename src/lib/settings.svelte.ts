@@ -9,10 +9,13 @@ const STORAGE_KEY = "settings";
 interface Settings {
   /** Make a Windows restore point before uninstalling apps. */
   restorePoint: boolean;
+  /** Ask GitHub once a day whether a newer version exists. */
+  checkUpdates: boolean;
 }
 
-// Off by default: it needs administrator rights and System Restore is often off on new PCs.
-const defaults: Settings = { restorePoint: false };
+// Restore points are off by default: they need administrator rights and System Restore is often off on new PCs.
+// Update checks are on: most people never press a "check" button, and only the version is asked.
+const defaults: Settings = { restorePoint: false, checkUpdates: true };
 
 function load(): Settings {
   try {
