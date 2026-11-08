@@ -29,7 +29,7 @@ export const KEEP_DAYS_CHOICES = [3, 7, 30] as const;
  * File groups deleted right away instead of going to Quarantine: Windows and apps
  * recreate them. Matches `DELETE_NOW_GROUPS` in src-tauri/src/cleanup.rs.
  */
-export const DELETE_NOW_GROUPS: readonly string[] = ["temp"];
+export const DELETE_NOW_GROUPS: readonly string[] = ["temp", "recycle-bin", "crash-reports", "thumbnails"];
 const DAY = 24 * 60 * 60;
 
 /**
