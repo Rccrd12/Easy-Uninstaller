@@ -17,7 +17,8 @@
     "safe": "Sicuro",
     "check": "Controlla",
     "personal": "Personale",
-    "restore": "Ripristina"
+    "restore": "Ripristina",
+    "close": "Chiudi"
   },
   "home": {
     "greeting": "Ciao 👋",
@@ -113,7 +114,15 @@
     "empty": "Niente da pulire qui: i tuoi file sono in ordine.",
     "rescan": "Cerca di nuovo",
     "failed": "La ricerca non è riuscita a finire: {error}",
-    "retry": "Riprova"
+    "retry": "Riprova",
+    "moving": "Spostamento in quarantena…",
+    "moved": "Messo in Quarantena: {count}, {size}. Puoi ripristinare tutto per {days} giorni.",
+    "movedSkipped": "Lasciati al loro posto perché in uso o modificati: {count}.",
+    "moveFailed": "Non è stato possibile spostare i file: {error}",
+    "nothingMoved": "Non è stato spostato nulla: i file erano in uso o modificati dopo la scansione. Prova a scansionare di nuovo.",
+    "undo": "Annulla",
+    "undoing": "Rimetto tutto a posto…",
+    "undone": "Fatto: tutto è tornato al suo posto."
   },
   "leftovers": {
     "title": "Avanzi",
@@ -129,8 +138,24 @@
   "quarantine": {
     "title": "Quarantena",
     "subtitle": "Gli elementi rimossi restano qui per {days} giorni, poi vengono eliminati definitivamente.",
-    "removedOn": "rimosso {when}",
-    "expires": "eliminato tra {days} giorni"
+    "summary": "{count} · {size} in quarantena",
+    "removedOn": "Rimosso {when}",
+    "expires": "eliminato definitivamente {when}",
+    "expiresSoon": "eliminato definitivamente a breve",
+    "from": "Da {path}",
+    "showFiles": "Mostra i file",
+    "hideFiles": "Nascondi i file",
+    "more": "e altri {count}",
+    "deleteNow": "Elimina ora",
+    "confirmDelete": "Eliminare definitivamente {size}? Non si potrà annullare.",
+    "confirmDeleteButton": "Elimina definitivamente",
+    "empty": "La quarantena è vuota. Ciò che rimuovi aspetta qui per {days} giorni, così puoi cambiare idea.",
+    "restoring": "Ripristino in corso…",
+    "restored": "Tornati al loro posto: {count}.",
+    "renamed": "Tornati con “(restored)” nel nome, perché esiste già un file con lo stesso nome: {count}.",
+    "restoreFailed": "Non è stato possibile rimetterli a posto, sono ancora in Quarantena: {count}.",
+    "failed": "Qualcosa è andato storto: {error}",
+    "deleted": "Eliminato definitivamente. Liberati {size}."
   },
   "settings": {
     "title": "Impostazioni",
@@ -145,7 +170,16 @@
     "quarantineDays": "Conserva gli elementi rimossi per",
     "days": "{days} giorni",
     "restorePoint": "Crea un punto di ripristino prima di disinstallare",
-    "about": "Easy Uninstaller {version}"
+    "about": "Easy Uninstaller {version}",
+    "restorePointHint": "Windows chiede il permesso. Un punto di ripristino protegge programmi e impostazioni; i tuoi file sono protetti dalla Quarantena.",
+    "restorePointNow": "Creane uno ora",
+    "restorePointStatus": {
+      "creating": "Creazione del punto di ripristino…",
+      "created": "Punto di ripristino pronto.",
+      "declined": "Non creato: il permesso non è stato concesso.",
+      "disabled": "Ripristino configurazione di sistema è disattivato su questo PC.",
+      "failed": "Non è stato possibile creare il punto di ripristino."
+    }
   },
   "categories": {
     "apps": "App",

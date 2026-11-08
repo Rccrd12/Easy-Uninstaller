@@ -38,7 +38,7 @@ The original design mockups are in [`docs/design`](docs/design).
 1. ✅ App skeleton: sidebar, screens, sample data, Windows CI build
 2. ✅ Installed apps: read Win32/MSI programs from the registry and Store apps (read only)
 3. ✅ File scan: temp files, caches, used installers, old downloads, duplicates, large files (read only)
-4. ⬜ Quarantine and restore
+4. ✅ Quarantine and restore: files are moved, kept 7 days, restorable with one click; Windows restore points
 5. ⬜ Uninstall + leftovers cleanup (after 2 and 4)
 6. ⬜ Space map with real data
 

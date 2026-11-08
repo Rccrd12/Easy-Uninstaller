@@ -81,11 +81,41 @@ export interface SpaceBlock {
   category: MapCategory;
 }
 
-export interface QuarantineItem {
-  id: string;
-  label: string;
+export interface QuarantinedFile {
   originalPath: string;
   sizeBytes: number;
-  removedOn: string;
-  expiresInDays: number;
 }
+
+/** One move into quarantine (for example, one file group). */
+export interface QuarantineEntry {
+  id: string;
+  /** i18n key of the title, or a plain title (an app name) when there is no key. */
+  titleKey: string | null;
+  title: string | null;
+  itemCount: number;
+  sizeBytes: number;
+  /** Unix seconds. */
+  removedAt: number;
+  expiresAt: number;
+  /** Largest first, at most 50. */
+  items: QuarantinedFile[];
+}
+
+export interface MoveReport {
+  /** One entry per group moved; restoring them undoes the move. */
+  entryIds: string[];
+  movedCount: number;
+  movedBytes: number;
+  /** Left in place: in use, changed since the scan, or gone. */
+  skippedCount: number;
+}
+
+export interface RestoreReport {
+  restoredCount: number;
+  /** Came back as "name (restored)" because the original name is taken. */
+  renamedCount: number;
+  /** Still in quarantine. */
+  failedCount: number;
+}
+
+export type RestorePointOutcome = "created" | "declined" | "disabled" | "failed";

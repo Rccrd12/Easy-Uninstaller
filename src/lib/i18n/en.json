@@ -17,7 +17,8 @@
     "safe": "Safe",
     "check": "Check",
     "personal": "Personal",
-    "restore": "Restore"
+    "restore": "Restore",
+    "close": "Close"
   },
   "home": {
     "greeting": "Hi there 👋",
@@ -113,7 +114,15 @@
     "empty": "Nothing to clean up here: your files look tidy.",
     "rescan": "Scan again",
     "failed": "The scan could not finish: {error}",
-    "retry": "Try again"
+    "retry": "Try again",
+    "moving": "Moving to quarantine…",
+    "moved": "Moved to Quarantine: {count}, {size}. You can restore everything for {days} days.",
+    "movedSkipped": "Left in place because in use or changed: {count}.",
+    "moveFailed": "The files could not be moved: {error}",
+    "nothingMoved": "Nothing was moved: the files were in use or had changed since the scan. Try scanning again.",
+    "undo": "Undo",
+    "undoing": "Putting everything back…",
+    "undone": "Done: everything is back where it was."
   },
   "leftovers": {
     "title": "Leftovers",
@@ -129,8 +138,24 @@
   "quarantine": {
     "title": "Quarantine",
     "subtitle": "Removed items are kept here for {days} days, then deleted for good.",
-    "removedOn": "removed {when}",
-    "expires": "deleted in {days} days"
+    "summary": "{count} · {size} in quarantine",
+    "removedOn": "Removed {when}",
+    "expires": "deleted for good {when}",
+    "expiresSoon": "deleted for good soon",
+    "from": "From {path}",
+    "showFiles": "Show files",
+    "hideFiles": "Hide files",
+    "more": "and {count} more",
+    "deleteNow": "Delete now",
+    "confirmDelete": "Delete {size} for good? This cannot be undone.",
+    "confirmDeleteButton": "Delete for good",
+    "empty": "Quarantine is empty. Anything you remove waits here for {days} days, so you can change your mind.",
+    "restoring": "Restoring…",
+    "restored": "Back where they were: {count}.",
+    "renamed": "Came back with “(restored)” in the name, because a file with the same name already exists: {count}.",
+    "restoreFailed": "Could not be put back and are still in Quarantine: {count}.",
+    "failed": "Something went wrong: {error}",
+    "deleted": "Deleted for good. {size} freed."
   },
   "settings": {
     "title": "Settings",
@@ -145,7 +170,16 @@
     "quarantineDays": "Keep removed items for",
     "days": "{days} days",
     "restorePoint": "Create a restore point before uninstalling",
-    "about": "Easy Uninstaller {version}"
+    "about": "Easy Uninstaller {version}",
+    "restorePointHint": "Windows asks for permission. A restore point protects programs and settings; your files are protected by Quarantine.",
+    "restorePointNow": "Create one now",
+    "restorePointStatus": {
+      "creating": "Creating a restore point…",
+      "created": "Restore point ready.",
+      "declined": "Not created: permission was not given.",
+      "disabled": "System Restore is turned off on this PC.",
+      "failed": "The restore point could not be created."
+    }
   },
   "categories": {
     "apps": "Apps",

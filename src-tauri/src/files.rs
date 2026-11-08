@@ -1,6 +1,7 @@
 //! Read-only scan for files the user may not need anymore, grouped by how safe
-//! they are to remove. Nothing here deletes or changes a file: removal will go
-//! through the quarantine module.
+//! they are to remove. Nothing here deletes or changes a file: the full list of
+//! each group is kept in [`LastScan`] so that `quarantine.rs` can move exactly
+//! what was found (the UI only names groups, never paths).
 //!
 //! Groups, in the order they are claimed (a file lands in one group at most):
 //! 1. `temp`: temporary files and app caches older than a day (Safe).
@@ -15,8 +16,10 @@ use std::fs::{self, File, Metadata};
 use std::hash::{BuildHasher, Hasher, RandomState};
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::ipc::Channel;
+use tauri::State;
 
 const DAY: Duration = Duration::from_secs(24 * 60 * 60);
 /// Temp and cache files younger than this may be in use, so they are left out.
@@ -92,6 +95,45 @@ pub struct ScanProgress {
     pub files_checked: u64,
 }
 
+/// A file found by the scan, with what it looked like then, so a later move can
+/// check that it is still the same file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScannedFile {
+    pub path: PathBuf,
+    pub size: u64,
+    pub modified: SystemTime,
+}
+
+impl ScannedFile {
+    fn new(path: PathBuf, meta: &Metadata) -> Self {
+        ScannedFile {
+            path,
+            size: meta.len(),
+            modified: meta.modified().unwrap_or(UNIX_EPOCH),
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct ScanResult {
+    /// What the UI shows.
+    pub groups: Vec<FileGroup>,
+    /// Every file of each group, by group id (the UI only gets the largest ones).
+    pub files: HashMap<String, Vec<ScannedFile>>,
+}
+
+/// The files of the last scan, by group id. A group can be moved again after an
+/// undo: files already moved are simply not there anymore and are skipped, and a
+/// file restored under a new name is not the scanned file.
+#[derive(Default)]
+pub struct LastScan(Mutex<HashMap<String, Vec<ScannedFile>>>);
+
+impl LastScan {
+    pub fn group(&self, group_id: &str) -> Option<Vec<ScannedFile>> {
+        self.0.lock().ok()?.get(group_id).cloned()
+    }
+}
+
 /// Where to look. Filled per platform by [`platform::locations`].
 #[derive(Debug, Default)]
 pub struct Locations {
@@ -103,8 +145,11 @@ pub struct Locations {
 }
 
 #[tauri::command]
-pub async fn scan_files(on_progress: Channel<ScanProgress>) -> Result<Vec<FileGroup>, String> {
-    tauri::async_runtime::spawn_blocking(move || {
+pub async fn scan_files(
+    on_progress: Channel<ScanProgress>,
+    last: State<'_, LastScan>,
+) -> Result<Vec<FileGroup>, String> {
+    let result = tauri::async_runtime::spawn_blocking(move || {
         let locations = platform::locations();
         let installed = platform::installed_app_names();
         scan(&locations, &installed, SystemTime::now(), &mut |p| {
@@ -113,7 +158,9 @@ pub async fn scan_files(on_progress: Channel<ScanProgress>) -> Result<Vec<FileGr
         })
     })
     .await
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+    *last.0.lock().map_err(|e| e.to_string())? = result.files;
+    Ok(result.groups)
 }
 
 /// A file seen during the scan.
@@ -135,6 +182,14 @@ impl Seen {
             size: meta.len(),
             modified,
             last_used: modified.max(accessed),
+        }
+    }
+
+    fn scanned(&self) -> ScannedFile {
+        ScannedFile {
+            path: self.path.clone(),
+            size: self.size,
+            modified: self.modified,
         }
     }
 
@@ -185,7 +240,7 @@ pub fn scan(
     installed: &[String],
     now: SystemTime,
     report: &mut dyn FnMut(ScanProgress),
-) -> Vec<FileGroup> {
+) -> ScanResult {
     let mut progress = Progress {
         report,
         step: STEPS[0],
@@ -193,21 +248,22 @@ pub fn scan(
     };
     let older_than = |t: SystemTime, age: Duration| now.duration_since(t).is_ok_and(|d| d >= age);
     let mut groups = Vec::new();
+    let mut files: HashMap<String, Vec<ScannedFile>> = HashMap::new();
     // Files already in a group, so that no file is counted twice.
     let mut claimed: HashSet<PathBuf> = HashSet::new();
 
     // 1. Temp files and caches: one item per folder.
     progress.start(ScanStep::Caches);
     let mut temp_items = Vec::new();
-    let mut temp_count = 0;
+    let mut temp_files = Vec::new();
     for dir in dedup_dirs(&loc.caches) {
         let mut size = 0;
         walk(&dir, &|_| false, &mut |path, meta| {
             progress.tick();
             if older_than(meta.modified().unwrap_or(now), TEMP_MIN_AGE) {
                 size += meta.len();
-                temp_count += 1;
-                claimed.insert(path);
+                claimed.insert(path.clone());
+                temp_files.push(ScannedFile::new(path, meta));
             }
         });
         if size > 0 {
@@ -219,7 +275,13 @@ pub fn scan(
             });
         }
     }
-    groups.push(group("temp", Safety::Safe, temp_count, temp_items));
+    groups.push(group(
+        "temp",
+        Safety::Safe,
+        temp_files.len() as u64,
+        temp_items,
+    ));
+    files.insert("temp".into(), temp_files);
 
     // 2 and 3. Downloads: installers of installed programs, then old files.
     progress.start(ScanStep::Downloads);
@@ -245,8 +307,18 @@ pub fn scan(
     }
     claimed.extend(installers.iter().map(|s| s.path.clone()));
     claimed.extend(old_downloads.iter().map(|s| s.path.clone()));
-    groups.push(files_group("installers", Safety::Safe, &installers));
-    groups.push(files_group("old-downloads", Safety::Check, &old_downloads));
+    groups.push(files_group(
+        "installers",
+        Safety::Safe,
+        &installers,
+        &mut files,
+    ));
+    groups.push(files_group(
+        "old-downloads",
+        Safety::Check,
+        &old_downloads,
+        &mut files,
+    ));
 
     // 4 and 5. The user's folders: duplicates, then large files.
     progress.start(ScanStep::Personal);
@@ -263,9 +335,11 @@ pub fn scan(
     progress.start(ScanStep::Duplicates);
     let duplicates = find_duplicates(&personal, &mut || progress.tick());
     let mut dup_items: Vec<FileItem> = Vec::new();
+    let mut dup_files = Vec::new();
     for (copy, original) in &duplicates {
         claimed.insert(copy.path.clone());
         dup_items.push(copy.item(Some(&original.path)));
+        dup_files.push(copy.scanned());
     }
     groups.push(group(
         "duplicates",
@@ -273,20 +347,33 @@ pub fn scan(
         duplicates.len() as u64,
         dup_items,
     ));
+    files.insert("duplicates".into(), dup_files);
 
     let large: Vec<Seen> = personal
         .into_iter()
         .filter(|s| s.size >= LARGE_FILE_BYTES && !claimed.contains(&s.path))
         .collect();
-    groups.push(files_group("large-files", Safety::Check, &large));
+    groups.push(files_group(
+        "large-files",
+        Safety::Check,
+        &large,
+        &mut files,
+    ));
 
     groups.retain(|g| g.item_count > 0);
-    groups
+    files.retain(|id, _| groups.iter().any(|g| &g.id == id));
+    ScanResult { groups, files }
 }
 
-fn files_group(id: &str, safety: Safety, files: &[Seen]) -> FileGroup {
-    let items = files.iter().map(|s| s.item(None)).collect();
-    group(id, safety, files.len() as u64, items)
+fn files_group(
+    id: &str,
+    safety: Safety,
+    seen: &[Seen],
+    files: &mut HashMap<String, Vec<ScannedFile>>,
+) -> FileGroup {
+    files.insert(id.into(), seen.iter().map(Seen::scanned).collect());
+    let items = seen.iter().map(|s| s.item(None)).collect();
+    group(id, safety, seen.len() as u64, items)
 }
 
 fn group(id: &str, safety: Safety, item_count: u64, mut items: Vec<FileItem>) -> FileGroup {
@@ -306,7 +393,7 @@ fn group(id: &str, safety: Safety, item_count: u64, mut items: Vec<FileItem>) ->
 }
 
 /// `old-downloads` -> `oldDownloads`, to match the i18n key style.
-fn to_camel(id: &str) -> String {
+pub fn to_camel(id: &str) -> String {
     let mut out = String::new();
     let mut upper = false;
     for c in id.chars() {
@@ -785,11 +872,11 @@ mod tests {
 
     const MB: usize = 1024 * 1024;
 
-    fn run(loc: &Locations, installed: &[&str]) -> (Vec<FileGroup>, Vec<ScanProgress>) {
+    fn run(loc: &Locations, installed: &[&str]) -> (ScanResult, Vec<ScanProgress>) {
         let installed: Vec<String> = installed.iter().map(|s| s.to_string()).collect();
         let mut updates = Vec::new();
-        let groups = scan(loc, &installed, SystemTime::now(), &mut |p| updates.push(p));
-        (groups, updates)
+        let result = scan(loc, &installed, SystemTime::now(), &mut |p| updates.push(p));
+        (result, updates)
     }
 
     fn find<'a>(groups: &'a [FileGroup], id: &str) -> Option<&'a FileGroup> {
@@ -829,25 +916,26 @@ mod tests {
             downloads: Some(downloads.clone()),
             personal: vec![profile.clone()],
         };
-        let (groups, updates) = run(&loc, &["Google Chrome", "VLC media player"]);
+        let (result, updates) = run(&loc, &["Google Chrome", "VLC media player"]);
+        let groups = &result.groups;
 
-        let temp = find(&groups, "temp").unwrap();
+        let temp = find(groups, "temp").unwrap();
         assert_eq!(temp.safety, Safety::Safe);
         assert_eq!((temp.item_count, temp.size_bytes), (2, 1500));
         assert_eq!(temp.items.len(), 1, "nested cache folders are merged");
         assert_eq!(temp.title_key, "files.groups.temp.title");
 
-        let installers = find(&groups, "installers").unwrap();
+        let installers = find(groups, "installers").unwrap();
         assert_eq!(installers.item_count, 1);
         assert!(installers.items[0].path.ends_with("ChromeSetup.exe"));
 
-        let old = find(&groups, "old-downloads").unwrap();
+        let old = find(groups, "old-downloads").unwrap();
         assert_eq!(old.safety, Safety::Check);
         assert_eq!(old.description_key, "files.groups.oldDownloads.description");
         assert_eq!(old.item_count, 1);
         assert!(old.items[0].path.ends_with("report-2019.pdf"));
 
-        let dups = find(&groups, "duplicates").unwrap();
+        let dups = find(groups, "duplicates").unwrap();
         assert_eq!(dups.item_count, 1);
         let copy = &dups.items[0];
         assert!(
@@ -857,10 +945,21 @@ mod tests {
         assert!(copy.duplicate_of.as_deref().unwrap().ends_with("photo.jpg"));
         assert_eq!(copy.size_bytes, 3 * MB as u64);
 
-        let large = find(&groups, "large-files").unwrap();
+        let large = find(groups, "large-files").unwrap();
         assert_eq!(large.item_count, 1);
         assert!(large.items[0].path.ends_with("movie.mkv"));
         assert_eq!(groups.len(), 5);
+
+        // Every group keeps its full file list for the quarantine, temp files one by one.
+        assert_eq!(result.files.len(), 5);
+        for g in groups {
+            let files = &result.files[&g.id];
+            assert_eq!(files.len() as u64, g.item_count, "{}", g.id);
+            assert_eq!(files.iter().map(|f| f.size).sum::<u64>(), g.size_bytes);
+        }
+        assert!(result.files["temp"]
+            .iter()
+            .any(|f| f.path.ends_with("older.tmp")));
 
         let steps: Vec<ScanStep> = updates.iter().map(|u| u.step).collect();
         assert_eq!(steps, STEPS);
@@ -874,7 +973,9 @@ mod tests {
             downloads: Some(PathBuf::from("/nor/here")),
             personal: vec![],
         };
-        assert!(run(&loc, &[]).0.is_empty());
+        let (result, _) = run(&loc, &[]);
+        assert!(result.groups.is_empty());
+        assert!(result.files.is_empty());
     }
 
     #[test]
