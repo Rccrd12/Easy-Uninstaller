@@ -3,16 +3,28 @@
 
 mod apps;
 mod disk;
+mod elevated;
 mod files;
+mod leftovers;
 mod quarantine;
+mod regkey;
 mod restore_point;
 mod review;
 mod space;
+mod uninstall;
+
+/// When started as the elevated helper (see `elevated.rs`), does its job and
+/// returns the exit code; `None` means start the app normally.
+pub fn run_elevated_job() -> Option<i32> {
+    elevated::run_from_args()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(files::LastScan::default())
+        .manage(leftovers::LastLeftovers::default())
+        .manage(uninstall::Pending::default())
         .setup(|app| {
             quarantine::init(app.handle())?;
             review::init(app.handle())
@@ -21,6 +33,8 @@ pub fn run() {
             apps::list_installed_apps,
             disk::get_system_disk,
             files::scan_files,
+            leftovers::list_leftovers,
+            leftovers::quarantine_leftovers,
             quarantine::quarantine_file_groups,
             quarantine::list_quarantine,
             quarantine::restore_quarantine,
@@ -35,7 +49,10 @@ pub fn run() {
             review::file_thumbnail,
             review::open_scanned_file,
             review::show_scanned_file,
-            space::scan_space
+            space::scan_space,
+            uninstall::uninstall_app,
+            uninstall::is_app_installed,
+            uninstall::find_app_leftovers
         ])
         .run(tauri::generate_context!())
         .expect("error while running Easy Uninstaller");

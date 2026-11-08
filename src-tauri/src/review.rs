@@ -13,7 +13,7 @@
 //! where it is: a request to move all of them leaves the oldest in place.
 
 use crate::files::{iso_date, FileGroup, FileItem, Kept, LastScan, ScannedFile, Seen, MAX_ITEMS};
-use crate::quarantine::{MoveReport, Quarantine, Title};
+use crate::quarantine::{Item, MoveReport, Quarantine, Title};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
@@ -537,8 +537,15 @@ pub async fn quarantine_file_selection(
         let quarantine = app.state::<Quarantine>();
         let mut report = MoveReport::default();
         for (title_key, files) in picked.into_iter().filter(|(_, f)| !f.is_empty()) {
+            let items: Vec<Item> = files.iter().map(Item::from).collect();
             quarantine
-                .add(Title::Key(title_key), &files, now_secs(), &mut report)
+                .add(
+                    Title::Key(title_key),
+                    &items,
+                    now_secs(),
+                    false,
+                    &mut report,
+                )
                 .map_err(|e| e.to_string())?;
         }
         Ok(report)

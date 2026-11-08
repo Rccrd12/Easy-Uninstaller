@@ -18,7 +18,10 @@
     "check": "Check",
     "personal": "Personal",
     "restore": "Restore",
-    "close": "Close"
+    "close": "Close",
+    "items": "{count} items",
+    "itemsOne": "1 item",
+    "needsAdmin": "Windows asks for permission"
   },
   "home": {
     "greeting": "Hi there 👋",
@@ -40,7 +43,10 @@
     "mapText": "See at a glance what takes up the most space.",
     "mapButton": "Open map",
     "quarantineTip": "Nothing is deleted right away: everything goes to <b>Quarantine</b> for {days} days and you can restore it with one click.",
-    "used": "Used"
+    "used": "Used",
+    "calculating": "Calculating…",
+    "calculatingNote": "I'm looking at your files: it takes a minute or two.",
+    "appsInstalled": "{count} apps · {size}"
   },
   "apps": {
     "title": "Apps",
@@ -123,6 +129,7 @@
     "undo": "Undo",
     "undoing": "Putting everything back…",
     "undone": "Done: everything is back where it was.",
+    "hiddenLink": "You hid {count}.",
     "review": {
       "start": "Review",
       "oneByOne": "Review one by one",
@@ -171,17 +178,53 @@
       },
       "hideSelected": "Hide ({count})"
     },
-    "hide": "Hide",
-    "hideItem": "Hide {name}",
     "groupMenu": "More for {name}",
+    "hideItem": "Hide {name}",
     "hideGroup": "Hide this group",
     "hideGroupHint": "It won't be suggested again. Nothing is deleted.",
-    "hiddenLink": "You hid {count}.",
+    "hide": "Hide",
     "hiddenLinkAction": "See and show again"
   },
   "leftovers": {
     "title": "Leftovers",
-    "subtitle": "Folders and registry entries left by programs that are no longer installed."
+    "subtitle": "Folders, registry entries and shortcuts left by programs that are no longer installed.",
+    "count": "{count} leftovers",
+    "countOne": "1 leftover",
+    "searching": "Looking for leftovers…",
+    "scanNote": "We only look: nothing is changed or deleted.",
+    "empty": "No leftovers found: your PC is tidy.",
+    "historyNote": "I also look for folders left by apps uninstalled earlier, by hand or with other tools.",
+    "rescan": "Search again",
+    "failed": "The search could not finish: {error}",
+    "retry": "Try again",
+    "from": "Left by {app}",
+    "maybeTitle": "Maybe leftovers",
+    "maybeText": "No installed app uses these folders, and nothing in them changed for at least 6 months. They could still belong to something you use: check before removing them.",
+    "lastChange": "last changed {when}",
+    "groups": {
+      "brokenShortcut": "Shortcuts that lead nowhere",
+      "brokenEntry": "In the app list, but the program is gone"
+    },
+    "selected": "Selected {size}",
+    "moving": "Moving to quarantine…",
+    "moved": "Moved to Quarantine: {count}. You can restore everything for {days} days.",
+    "nothingMoved": "Nothing was moved: these items are in use or have changed. Try searching again.",
+    "declined": "Left in place because permission was not given: {count}.",
+    "moveFailed": "The leftovers could not be moved: {error}",
+    "undo": "Undo",
+    "undoing": "Putting everything back…",
+    "undone": "Done: everything is back where it was.",
+    "reasons": {
+      "programFolder": "Program folder",
+      "localData": "Cache and local data",
+      "userSettings": "Your settings for this app",
+      "sharedData": "Data shared by all users",
+      "registry": "Registry settings",
+      "shortcut": "Shortcut",
+      "startMenu": "Start menu folder",
+      "brokenShortcut": "Shortcut to a program that no longer exists",
+      "brokenEntry": "Entry in the app list with no program"
+    }
   },
   "map": {
     "title": "Space map",
@@ -239,6 +282,8 @@
     "from": "From {path}",
     "showFiles": "Show files",
     "hideFiles": "Hide files",
+    "showItems": "Show items",
+    "hideItems": "Hide items",
     "more": "and {count} more",
     "deleteNow": "Delete now",
     "confirmDelete": "Delete {size} for good? This cannot be undone.",
@@ -249,7 +294,9 @@
     "renamed": "Came back with “(restored)” in the name, because a file with the same name already exists: {count}.",
     "restoreFailed": "Could not be put back and are still in Quarantine: {count}.",
     "failed": "Something went wrong: {error}",
-    "deleted": "Deleted for good. {size} freed."
+    "deleted": "Deleted for good. {size} freed.",
+    "permission": "Windows asks for permission to restore or delete these.",
+    "declined": "Not done: permission was not given."
   },
   "settings": {
     "title": "Settings",
@@ -275,8 +322,8 @@
       "failed": "The restore point could not be created."
     },
     "hidden": "Hidden items",
-    "hiddenHint": "Files, folders, groups and leftovers you don't want to see any more",
-    "manage": "Manage"
+    "manage": "Manage",
+    "hiddenHint": "Files, folders, groups and leftovers you don't want to see any more"
   },
   "categories": {
     "apps": "Apps",
@@ -285,6 +332,63 @@
     "system": "Windows and other",
     "reclaimable": "Reclaimable",
     "free": "Free space"
+  },
+  "uninstall": {
+    "stepConfirm": "Step 1 · Confirm",
+    "stepWorking": "Step 2 · Uninstalling",
+    "stepDone": "Step 3 · Done",
+    "progress": "App {n} of {total}",
+    "confirmTitle": "Uninstall {name}?",
+    "confirmMany": "Uninstall {count} apps?",
+    "totalSize": "Together {size}",
+    "restorePointNote": "Before starting I'll create a restore point. If something goes wrong, you can go back.",
+    "storeNote": "Windows removes this app together with its data.",
+    "storeAlso": "Microsoft Store apps are removed by Windows together with their data.",
+    "adminNote": "Windows will ask for permission for apps installed for everyone on this PC.",
+    "creatingRestorePoint": "Creating a restore point…",
+    "restorePointAsk": "Windows asks for permission.",
+    "restorePointNot": {
+      "declined": "The restore point was not created: permission was not given.",
+      "disabled": "The restore point was not created: System Restore is turned off on this PC.",
+      "failed": "The restore point could not be created."
+    },
+    "continueWithout": "Uninstall anyway",
+    "running": "Uninstalling {name}…",
+    "runningNote": "It usually takes a few seconds. If a window from {name} opens, follow its steps there.",
+    "waiting": "Waiting for {name}'s uninstaller to finish…",
+    "waitingNote": "{name} is finishing on its own. If you closed its window or chose to keep it, stop waiting.",
+    "stopWaiting": "Stop waiting",
+    "notRemoved": "{name} was not uninstalled",
+    "cancelled": "The uninstall was cancelled. Nothing was changed.",
+    "declined": "Permission was not given, so nothing was changed.",
+    "stillThere": "{name} is still installed. Nothing else was changed.",
+    "searching": "Looking for what {name} left behind…",
+    "searchingNote": "Only folders, registry keys and shortcuts with its exact name, not used by other apps.",
+    "quarantineNote": "Everything goes to Quarantine for {days} days: you can bring it back with one click.",
+    "adminLeftovers": "Windows will ask for permission for {count}.",
+    "cleaning": "Moving {count} to Quarantine…",
+    "removedTitle": "{name} was removed",
+    "noneRemoved": "No app was uninstalled",
+    "allRemoved": "{count} apps removed",
+    "someRemoved": "{n} of {total} apps removed",
+    "freed": "freed",
+    "movedNote": "I also removed {count}: they are in Quarantine and you can restore them for {days} days.",
+    "movedNoteSettings": "I also removed {count}, the app's settings included: they are in Quarantine and you can restore them for {days} days.",
+    "declinedNote": "Left in place because permission was not given: {count}.",
+    "skippedNote": "Left in place because in use or changed: {count}.",
+    "noLeftovers": "It left nothing behind.",
+    "undo": "Undo cleanup",
+    "undoing": "Putting them back…",
+    "undone": "The leftovers are back where they were.",
+    "done": "Done",
+    "errors": {
+      "notInstalled": "This app is no longer installed.",
+      "noUninstaller": "This app has no uninstaller. If it is gone, you'll find its entry in Leftovers.",
+      "itself": "Easy Uninstaller can't uninstall itself: use Windows Settings for that.",
+      "stillInstalled": "The app is still installed, so nothing was searched.",
+      "declined": "Permission was not given, so nothing was changed.",
+      "other": "Something went wrong: {error}"
+    }
   },
   "hidden": {
     "title": "Hidden items",

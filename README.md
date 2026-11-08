@@ -16,7 +16,8 @@ without a way back.
 - **Light.** Built with [Tauri 2](https://tauri.app): it uses the WebView2 engine already in
   Windows, so the installer stays at a few MB instead of 100+ MB.
 - **Safe.** Everything removed goes to a quarantine for 7 days and can be restored with one
-  click. A restore point is created before uninstalling programs.
+  click: files, whole folders and registry keys alike. A restore point can be created before
+  uninstalling programs (off by default, in Settings).
 - **Clear about risk.** Every file group is labelled *Safe*, *Check* or *Personal*.
 - **English and Italian.** Picked from the system language, changeable in Settings.
 - **Light and dark.** Follows the Windows mode by default, changeable in Settings.
@@ -31,6 +32,10 @@ without a way back.
 |---|---|---|
 | ![](docs/screenshots/home-dark.png) | ![](docs/screenshots/map-dark.png) | ![](docs/screenshots/settings-dark.png) |
 
+| Uninstall: one click | Uninstall: done | Leftovers |
+|---|---|---|
+| ![](docs/screenshots/uninstall-confirm.png) | ![](docs/screenshots/uninstall-done.png) | ![](docs/screenshots/leftovers.png) |
+
 The original design mockups are in [`docs/design`](docs/design).
 
 ## Roadmap
@@ -39,7 +44,10 @@ The original design mockups are in [`docs/design`](docs/design).
 2. ✅ Installed apps: read Win32/MSI programs from the registry and Store apps (read only)
 3. ✅ File scan: temp files, caches, used installers, old downloads, duplicates, large files (read only)
 4. ✅ Quarantine and restore: files are moved, kept 7 days, restorable with one click; Windows restore points
-5. ⬜ Uninstall + leftovers cleanup (after 2 and 4)
+5. ✅ One-click uninstall: quiet when the installer allows it (MSI, Inno Setup, NSIS, Squirrel,
+   WiX bundles), else the app's own uninstaller; Store apps via PackageManager. Then its leftover
+   folders, registry keys, shortcuts and settings go to quarantine on their own. The Leftovers screen also offers, unticked, folders no installed app owns and
+   untouched for 6 months (leftovers of uninstalls done by hand or with other tools)
 6. ✅ Space map with real data: apps, profile folders, app data, caches and Recycle Bin (read only)
 
 ## Development

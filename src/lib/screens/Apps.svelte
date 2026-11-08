@@ -1,5 +1,6 @@
 <script lang="ts">
   import SampleBanner from "../components/SampleBanner.svelte";
+  import UninstallDialog from "../components/UninstallDialog.svelte";
   import { listInstalledApps, usesSampleData } from "../api";
   import { formatBytes, formatDate } from "../format";
   import { t } from "../i18n/index.svelte";
@@ -65,6 +66,22 @@
   const largest = $derived(Math.max(1, ...apps.map((a) => a.sizeBytes)));
   const selectedBytes = $derived(apps.filter((a) => selected.has(a.id)).reduce((s, a) => s + a.sizeBytes, 0));
 
+  /** The apps being uninstalled, in the order shown; null when the dialog is closed. */
+  let uninstalling = $state<InstalledApp[] | null>(null);
+
+  function startUninstall(list: InstalledApp[]) {
+    if (list.length) uninstalling = list;
+  }
+
+  function finished(removed: string[]) {
+    uninstalling = null;
+    if (!removed.length) return;
+    selected = new Set([...selected].filter((id) => !removed.includes(id)));
+    // Show the change at once, then read the real list again.
+    apps = apps.filter((a) => !removed.includes(a.id));
+    listInstalledApps(true).then((a) => (apps = a), () => {});
+  }
+
   function toggle(id: string) {
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
@@ -112,7 +129,7 @@
         <span class="muted">–</span>
       {/if}
     </div>
-    <button class="btn btn-ghost">{t("common.uninstall")}</button>
+    <button class="btn btn-ghost" onclick={() => startUninstall([app])}>{t("common.uninstall")}</button>
   </div>
 {:else}
   <p class="muted empty">{t("apps.empty")}</p>
@@ -125,8 +142,12 @@
     <span class="muted">· {t("apps.willFree", { size: formatBytes(selectedBytes) })}</span>
     <span class="grow"></span>
     <button class="btn btn-ghost" onclick={() => (selected = new Set())}>{t("common.cancel")}</button>
-    <button class="btn btn-danger">{t("apps.uninstallSelected")}</button>
+    <button class="btn btn-danger" onclick={() => startUninstall(apps.filter((a) => selected.has(a.id)).toSorted((a, b) => b.sizeBytes - a.sizeBytes))}>{t("apps.uninstallSelected")}</button>
   </div>
+{/if}
+
+{#if uninstalling}
+  <UninstallDialog apps={uninstalling} onClose={finished} />
 {/if}
 
 <style>

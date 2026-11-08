@@ -4,7 +4,7 @@
 //! Read only: this module never changes or removes anything.
 
 pub(crate) mod icon;
-mod registry;
+pub mod registry;
 mod store;
 
 use serde::Serialize;
@@ -70,6 +70,22 @@ fn scan() -> Vec<InstalledApp> {
     apps
 }
 
+/// Microsoft Store apps of the current user: name, publisher and folders.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn store_list() -> Vec<store::Entry> {
+    store::list()
+}
+
+/// Whether a Store app (by package full name) is still installed for this user.
+pub fn store_installed(full_name: &str) -> bool {
+    store::is_installed(full_name)
+}
+
+/// Removes a Store app for this user, with its data.
+pub fn store_remove(full_name: &str) -> Result<(), String> {
+    store::remove(full_name)
+}
+
 fn from_registry(e: registry::Entry) -> InstalledApp {
     let size_bytes = match e.size_kb {
         Some(kb) => kb * 1024,
@@ -128,7 +144,7 @@ fn icon_color(name: &str) -> String {
 
 /// Returns the folder only if it looks like the app's own install folder, so a bad
 /// registry value like `C:\` or `C:\Program Files` never makes us measure the whole disk.
-fn own_install_dir(location: &str) -> Option<PathBuf> {
+pub fn own_install_dir(location: &str) -> Option<PathBuf> {
     let path = PathBuf::from(location.trim().trim_matches('"'));
     let depth = path
         .components()
@@ -176,7 +192,7 @@ fn same_path(a: &Path, b: &Path) -> bool {
 
 /// Total size of the files under `dir`. Does not follow links or junctions,
 /// skips what it cannot read, and stops after a very large number of entries.
-fn dir_size(dir: &Path) -> u64 {
+pub fn dir_size(dir: &Path) -> u64 {
     const MAX_ENTRIES: usize = 500_000;
     let mut total = 0;
     let mut seen = 0;

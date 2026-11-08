@@ -117,11 +117,39 @@ export function samplePreview(path: string): string | null {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
+const leftover = (id: string, appName: string | null, kind: LeftoverItem["kind"], path: string, sizeBytes: number, reason: string, safety: LeftoverItem["safety"] = "safe", needsAdmin = false): LeftoverItem => ({ id, appName, kind, path, sizeBytes, reason, safety, needsAdmin, unowned: false, modifiedAt: null });
+
+/** A folder (or key) that no installed app owns, last changed `daysAgo` days ago. */
+const unowned = (id: string, appName: string, kind: LeftoverItem["kind"], path: string, sizeBytes: number, reason: string, daysAgo: number | null, needsAdmin = false): LeftoverItem => ({
+  ...leftover(id, appName, kind, path, sizeBytes, reason, "check", needsAdmin),
+  unowned: true,
+  modifiedAt: daysAgo === null ? null : Math.floor(Date.now() / 1000) - daysAgo * 86400,
+});
+
+/** What the browser fallback "finds" after uninstalling `app`. */
+export function sampleAppLeftovers(app: string): LeftoverItem[] {
+  const slug = app.replace(/[^A-Za-z0-9]+/g, "");
+  return [
+    leftover(`${slug}-local`, app, "folder", `${U}\\AppData\\Local\\${slug}`, 310 * MB, "localData"),
+    leftover(`${slug}-pf`, app, "folder", `C:\\Program Files\\${app}`, 18 * MB, "programFolder", "safe", true),
+    leftover(`${slug}-reg`, app, "registry", `HKCU\\Software\\${slug}`, 0, "registry"),
+    leftover(`${slug}-lnk`, app, "shortcut", `${U}\\Desktop\\${app}.lnk`, 2048, "shortcut"),
+    leftover(`${slug}-roaming`, app, "folder", `${U}\\AppData\\Roaming\\${slug}`, 96 * MB, "userSettings", "check"),
+  ];
+}
+
 export const sampleLeftovers: LeftoverItem[] = [
-  { id: "l1", appName: "Zoom", path: "C:\\Users\\you\\AppData\\Roaming\\Zoom", sizeBytes: 640 * MB, kind: "folder" },
-  { id: "l2", appName: "Skype", path: "C:\\ProgramData\\Skype", sizeBytes: 210 * MB, kind: "folder" },
-  { id: "l3", appName: "Skype", path: "HKCU\\Software\\Skype", sizeBytes: 0, kind: "registry" },
-  { id: "l4", appName: "Old Game Launcher", path: "C:\\Users\\you\\Desktop\\Launcher.lnk", sizeBytes: 0, kind: "shortcut" },
+  leftover("l1", "Zoom", "folder", `${U}\\AppData\\Local\\Zoom`, 640 * MB, "localData"),
+  leftover("l2", "Zoom", "folder", `${U}\\AppData\\Roaming\\Zoom`, 120 * MB, "userSettings", "check"),
+  leftover("l3", "Zoom", "registry", "HKCU\\Software\\Zoom", 0, "registry"),
+  leftover("l4", "Skype", "folder", "C:\\ProgramData\\Skype", 210 * MB, "sharedData", "safe", true),
+  leftover("l5", "Skype", "registry", "HKLM\\Software\\WOW6432Node\\Skype", 0, "registry", "safe", true),
+  leftover("l6", "Old Game Launcher", "shortcut", `${U}\\Desktop\\Old Game Launcher.lnk`, 1400, "brokenShortcut"),
+  leftover("l7", "Photo Studio 2019", "registry", "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PhotoStudio", 0, "brokenEntry", "safe", true),
+  unowned("u1", "FotoMagic", "folder", "C:\\Program Files\\FotoMagic", 1.4 * GB, "programFolder", 820, true),
+  unowned("u2", "FotoMagic", "folder", `${U}\\AppData\\Roaming\\FotoMagic`, 36 * MB, "userSettings", 790),
+  unowned("u3", "FotoMagic", "registry", "HKCU\\Software\\FotoMagic", 0, "registry", null),
+  unowned("u4", "TurboRecorder", "folder", `${U}\\AppData\\Local\\TurboRecorder`, 420 * MB, "localData", 400),
 ];
 
 const folder = (id: string, key: string | null, label: string | null, size: number, category: SpaceFolder["category"], path: string | null): SpaceFolder => ({
@@ -168,18 +196,24 @@ export const sampleQuarantine: QuarantineEntry[] = [
     removedAt: daysAgo(2),
     expiresAt: daysAgo(2) + 7 * DAY,
     items: [
-      { originalPath: `${U}\\AppData\\Local\\NVIDIA\\DXCache\\nv_cache_old.bin`, sizeBytes: 2.1 * GB },
-      { originalPath: `${U}\\AppData\\Local\\Temp\\setup-log-2025.txt`, sizeBytes: 0.8 * GB },
+      { originalPath: `${U}\\AppData\\Local\\NVIDIA\\DXCache\\nv_cache_old.bin`, sizeBytes: 2.1 * GB, kind: "file" },
+      { originalPath: `${U}\\AppData\\Local\\Temp\\setup-log-2025.txt`, sizeBytes: 0.8 * GB, kind: "file" },
     ],
+    needsAdmin: false,
   },
   {
     id: "q2",
     titleKey: null,
     title: "Discord",
-    itemCount: 214,
+    itemCount: 3,
     sizeBytes: 406 * MB,
     removedAt: daysAgo(1),
     expiresAt: daysAgo(1) + 7 * DAY,
-    items: [{ originalPath: `${U}\\AppData\\Local\\Discord\\app-1.0.9187\\Discord.exe`, sizeBytes: 160 * MB }],
+    items: [
+      { originalPath: `${U}\\AppData\\Local\\Discord`, sizeBytes: 310 * MB, kind: "folder" },
+      { originalPath: `${U}\\AppData\\Roaming\\discord`, sizeBytes: 96 * MB, kind: "folder" },
+      { originalPath: "HKCU\\Software\\Discord", sizeBytes: 0, kind: "registry" },
+    ],
+    needsAdmin: false,
   },
 ];

@@ -1,6 +1,7 @@
 <script lang="ts">
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
   import FileReview from "../components/FileReview.svelte";
+  import StatusIcon from "../components/StatusIcon.svelte";
   import SafetyTag from "../components/SafetyTag.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
   import {
@@ -378,9 +379,7 @@
 {#if notice}
   {@const n = notice}
   <div class="card toast" class:error={n.kind === "error"} class:raised={reviewing !== null} role="status" aria-live="polite">
-    <span class="toast-icon" aria-hidden="true">
-      {#if n.kind === "hidden"}<EyeOffIcon size={20} />{:else}{n.kind === "error" ? "⚠️" : "✅"}{/if}
-    </span>
+    {#if n.kind === "hidden"}<span class="toast-icon"><EyeOffIcon size={20} /></span>{:else}<StatusIcon kind={n.kind === "error" ? "warn" : "ok"} />{/if}
     <div class="toast-text">
       {#each n.kind === "moved" ? movedLines(n.report) : n.lines as line, i (i)}<p>{line}</p>{/each}
     </div>
@@ -486,7 +485,7 @@
   .toast.error { border-left-color: var(--danger); }
   /* Above the review's sticky footer, so its buttons stay reachable. */
   .toast.raised { bottom: 96px; }
-  .toast-icon { font-size: 18px; display: flex; color: var(--text-muted); }
+  .toast-icon { display: flex; color: var(--text-muted); }
   .toast-text { flex: 1; font-size: 13px; line-height: 1.4; }
   .toast-text p + p { color: var(--text-muted); margin-top: 2px; }
   .toast .btn { flex: none; }
