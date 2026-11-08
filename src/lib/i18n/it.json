@@ -1,0 +1,104 @@
+{
+  "nav": {
+    "home": "Home",
+    "apps": "App",
+    "files": "File",
+    "leftovers": "Avanzi",
+    "map": "Mappa dello spazio",
+    "quarantine": "Quarantena",
+    "settings": "Impostazioni"
+  },
+  "common": {
+    "sampleData": "Modalità demo: le app e i file mostrati sono esempi, non provengono dal tuo PC. La scansione reale arriverà nelle prossime versioni.",
+    "uninstall": "Disinstalla",
+    "cancel": "Annulla",
+    "openFolder": "Apri cartella",
+    "moveToQuarantine": "Sposta in quarantena",
+    "safe": "Sicuro",
+    "check": "Controlla",
+    "personal": "Personale",
+    "restore": "Ripristina"
+  },
+  "home": {
+    "greeting": "Ciao 👋",
+    "subtitle": "Ecco cosa puoi fare per liberare spazio.",
+    "canFree": "Puoi liberare in sicurezza",
+    "freeNow": "✨ Libera spazio ora",
+    "disk": "Disco {drive}",
+    "diskUsage": "{used} usati su {total} · {free} liberi",
+    "used": "Usato",
+    "apps": "App",
+    "appsText": "Togli i programmi che non usi, insieme ai file che lasciano in giro.",
+    "appsButton": "Vedi le app",
+    "files": "File",
+    "filesText": "Download vecchi, file enormi, duplicati e installer dimenticati.",
+    "filesButton": "Controlla i file",
+    "leftovers": "Avanzi",
+    "leftoversText": "Cartelle rimaste da programmi che hai già disinstallato.",
+    "leftoversButton": "Pulisci",
+    "map": "Mappa dello spazio",
+    "mapText": "Guarda a colpo d'occhio cosa occupa più spazio.",
+    "mapButton": "Apri la mappa",
+    "quarantineTip": "Niente viene cancellato subito: tutto passa dalla <b>Quarantena</b> per {days} giorni e puoi ripristinarlo con un clic."
+  },
+  "apps": {
+    "title": "App",
+    "summary": "{count} app installate · {size}",
+    "search": "Cerca un'app… (es. Spotify)",
+    "filterAll": "Tutte",
+    "filterUnused": "Non usate da 6 mesi",
+    "filterPreinstalled": "Preinstallate",
+    "filterRecent": "Installate di recente",
+    "filterStore": "Microsoft Store",
+    "lastUsed": "usata {when}",
+    "neverUsed": "Mai usata",
+    "bloatware": "Bloatware",
+    "selected": "{count} selezionate",
+    "willFree": "libererai circa {size} (app + avanzi)",
+    "uninstallSelected": "Disinstalla selezionate",
+    "empty": "Nessuna app corrisponde alla ricerca."
+  },
+  "files": {
+    "title": "File",
+    "subtitle": "File che forse non ti servono più, raggruppati. I colori ti dicono quanto è sicuro toglierli.",
+    "safeSection": "Sicuri da togliere",
+    "checkSection": "Da controllare",
+    "selected": "Selezionati {size}",
+    "details": "Dettagli",
+    "size": "Dimensione",
+    "modified": "Ultima modifica",
+    "pickGroup": "Seleziona un gruppo per vedere cosa contiene."
+  },
+  "leftovers": {
+    "title": "Avanzi",
+    "subtitle": "Cartelle e voci di registro lasciate da programmi non più installati."
+  },
+  "map": {
+    "title": "Mappa dello spazio",
+    "subtitle": "Ogni riquadro è grande quanto lo spazio che usa.",
+    "onlyApps": "Solo app",
+    "onlyFiles": "Solo file",
+    "everything": "Tutto"
+  },
+  "quarantine": {
+    "title": "Quarantena",
+    "subtitle": "Gli elementi rimossi restano qui per {days} giorni, poi vengono eliminati definitivamente.",
+    "removedOn": "rimosso {when}",
+    "expires": "eliminato tra {days} giorni"
+  },
+  "settings": {
+    "title": "Impostazioni",
+    "language": "Lingua",
+    "quarantineDays": "Conserva gli elementi rimossi per",
+    "days": "{days} giorni",
+    "restorePoint": "Crea un punto di ripristino prima di disinstallare",
+    "about": "Easy Uninstaller {version}"
+  },
+  "categories": {
+    "apps": "App",
+    "games": "Giochi",
+    "personal": "File personali",
+    "system": "Windows",
+    "reclaimable": "Recuperabile"
+  }
+}

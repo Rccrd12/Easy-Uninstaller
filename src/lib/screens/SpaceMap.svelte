@@ -2,7 +2,7 @@
   import SampleBanner from "../components/SampleBanner.svelte";
   import { getSpaceMap } from "../api";
   import { formatBytes } from "../format";
-  import { t } from "../i18n";
+  import { t } from "../i18n/index.svelte";
   import { squarify } from "../treemap";
   import type { MapCategory, SpaceBlock } from "../types";
 

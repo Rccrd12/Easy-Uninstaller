@@ -1,6 +1,6 @@
 <script lang="ts">
   import { QUARANTINE_DAYS } from "../api";
-  import { availableLanguages, t } from "../i18n";
+  import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
 
   const version = "0.1.0";
 </script>
@@ -10,8 +10,8 @@
 <div class="card list">
   <label class="row">
     <span>{t("settings.language")}</span>
-    <select>
-      {#each availableLanguages as lang (lang)}<option>{lang}</option>{/each}
+    <select value={getLanguage()} onchange={(e) => setLanguage(e.currentTarget.value as Language)}>
+      {#each languages as lang (lang.code)}<option value={lang.code}>{lang.name}</option>{/each}
     </select>
   </label>
   <div class="row">

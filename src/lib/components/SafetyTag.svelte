@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from "../i18n";
+  import { t } from "../i18n/index.svelte";
   import type { Safety } from "../types";
 
   let { safety }: { safety: Safety } = $props();

@@ -3,7 +3,7 @@
   import SampleBanner from "../components/SampleBanner.svelte";
   import { listFileGroups } from "../api";
   import { formatBytes } from "../format";
-  import { t } from "../i18n";
+  import { t } from "../i18n/index.svelte";
   import type { FileGroup } from "../types";
 
   let groups = $state<FileGroup[]>([]);

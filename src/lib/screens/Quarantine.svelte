@@ -2,7 +2,7 @@
   import SampleBanner from "../components/SampleBanner.svelte";
   import { listQuarantine, QUARANTINE_DAYS } from "../api";
   import { formatBytes } from "../format";
-  import { t } from "../i18n";
+  import { t } from "../i18n/index.svelte";
   import type { QuarantineItem } from "../types";
 
   let items = $state<QuarantineItem[]>([]);

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from "../i18n";
+  import { t } from "../i18n/index.svelte";
   import type { Screen } from "../screens";
 
   let { current, onNavigate }: { current: Screen; onNavigate: (s: Screen) => void } = $props();

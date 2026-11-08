@@ -17,6 +17,7 @@ without a way back.
 - **Safe.** Everything removed goes to a quarantine for 7 days and can be restored with one
   click. A restore point is created before uninstalling programs.
 - **Clear about risk.** Every file group is labelled *Safe*, *Check* or *Personal*.
+- **English and Italian.** Picked from the system language, changeable in Settings.
 
 ## Screens
 
@@ -59,7 +60,7 @@ src/                    UI (Svelte 5 + TypeScript)
   lib/api.ts            the only place the UI talks to the system
   lib/types.ts          data shapes shared with Rust
   lib/mock.ts           sample data, removed piece by piece as scanners land
-  lib/i18n/             translations (en.json is the reference)
+  lib/i18n/             translations: en.json (reference), it.json
   lib/screens/          one component per screen
   styles/theme.css      design tokens (colors, radii)
 src-tauri/              backend (Rust)

@@ -2,7 +2,7 @@
   import SampleBanner from "../components/SampleBanner.svelte";
   import { getSystemDisk, listFileGroups, listInstalledApps, listLeftovers, QUARANTINE_DAYS } from "../api";
   import { formatBytes } from "../format";
-  import { t } from "../i18n";
+  import { t } from "../i18n/index.svelte";
   import type { Screen } from "../screens";
   import type { DiskInfo } from "../types";
 

@@ -5,8 +5,10 @@ space. Goals in order: **safe**, **simple for non-technical users**, **lightweig
 
 ## Rules
 
-- Everything in the repo is in English: code, comments, commits, docs, UI strings.
-- UI strings live in `src/lib/i18n/en.json`. Never hard-code user-visible text in components; use `t("key")`.
+- Code, comments, commits and docs are in English. The UI ships in English and Italian.
+- UI strings live in `src/lib/i18n/en.json` (reference) and `it.json`; every key must exist in both.
+  Never hard-code user-visible text in components; use `t("key")` from `src/lib/i18n/index.svelte.ts`.
+  Data coming from Rust that is shown to the user (e.g. file group titles) should be an i18n key, not English text.
 - The UI reaches the system only through `src/lib/api.ts`. Each function there calls a Rust
   command via `invoke` when `isTauri()` and falls back to `src/lib/mock.ts` in the browser.
   When you implement a real scanner, keep the browser fallback.

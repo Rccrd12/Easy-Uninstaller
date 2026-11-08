@@ -2,7 +2,7 @@
   import SampleBanner from "../components/SampleBanner.svelte";
   import { listInstalledApps } from "../api";
   import { formatBytes } from "../format";
-  import { t } from "../i18n";
+  import { t } from "../i18n/index.svelte";
   import type { InstalledApp } from "../types";
 
   type Filter = "all" | "unused" | "preinstalled" | "recent" | "store";
