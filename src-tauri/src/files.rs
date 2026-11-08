@@ -190,6 +190,11 @@ pub async fn scan_files(
     Ok(result.groups)
 }
 
+/// Display names of installed programs (also used by the AI help's checks).
+pub fn installed_app_names() -> Vec<String> {
+    platform::installed_app_names()
+}
+
 /// Temp and cache folders apps recreate on their own (also used by the space map).
 pub fn cache_dirs() -> Vec<PathBuf> {
     platform::locations().caches
