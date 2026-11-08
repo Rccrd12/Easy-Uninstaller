@@ -1,15 +1,17 @@
 // Single entry point for everything the UI asks the system.
 // Inside the Tauri app calls go to Rust commands; in a plain browser
 // (npm run dev) they fall back to sample data so the UI can be designed fast.
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import { GB } from "./format";
 import { sampleApps, sampleFileGroups, sampleLeftovers, sampleQuarantine, sampleSpace } from "./mock";
-import type { DiskInfo, FileGroup, InstalledApp, LeftoverItem, QuarantineItem, SpaceBlock } from "./types";
+import type { DiskInfo, FileGroup, InstalledApp, LeftoverItem, QuarantineItem, ScanProgress, SpaceBlock } from "./types";
 
 export const QUARANTINE_DAYS = 7;
 
-/** True in a plain browser (npm run dev), where every screen shows sample data. */
-export const usesSampleData = (): boolean => !isTauri();
+/** True in a plain browser, where every function returns sample data. */
+export function usesSampleData(): boolean {
+  return !isTauri();
+}
 
 /** Real: implemented in src-tauri/src/disk.rs. */
 export async function getSystemDisk(): Promise<DiskInfo> {
@@ -35,8 +37,45 @@ export function listInstalledApps(refresh = false): Promise<InstalledApp[]> {
   return appsCache;
 }
 
-/** Sample until the file scanner lands. */
-export async function listFileGroups(): Promise<FileGroup[]> {
+// One file scan at a time: Home and Files share it, and the result is kept
+// until a new scan is asked for.
+let fileScan: Promise<FileGroup[]> | null = null;
+const scanListeners = new Set<(p: ScanProgress) => void>();
+
+/**
+ * Real: implemented in src-tauri/src/files.rs (read only).
+ * `onProgress` gets updates while a scan runs; `rescan` starts a new scan.
+ */
+export function listFileGroups(opts: { onProgress?: (p: ScanProgress) => void; rescan?: boolean } = {}): Promise<FileGroup[]> {
+  const { onProgress, rescan = false } = opts;
+  if (onProgress) scanListeners.add(onProgress);
+  if (!fileScan || rescan) {
+    const notify = (p: ScanProgress) => scanListeners.forEach((l) => l(p));
+    const scan = isTauri() ? scanFilesNative(notify) : sampleScan(notify);
+    fileScan = scan;
+    // A failed scan is not kept, so the next call tries again.
+    scan.catch(() => fileScan === scan && (fileScan = null));
+  }
+  const done = () => onProgress && scanListeners.delete(onProgress);
+  fileScan.then(done, done);
+  return fileScan;
+}
+
+function scanFilesNative(notify: (p: ScanProgress) => void): Promise<FileGroup[]> {
+  const onProgress = new Channel<ScanProgress>();
+  onProgress.onmessage = notify;
+  return invoke<FileGroup[]>("scan_files", { onProgress });
+}
+
+/** Browser fallback: plays the scan steps quickly so the progress view can be designed. */
+async function sampleScan(notify: (p: ScanProgress) => void): Promise<FileGroup[]> {
+  const steps = ["caches", "downloads", "personal", "duplicates"] as const;
+  for (const [i, step] of steps.entries()) {
+    for (let n = 0; n < 4; n++) {
+      notify({ step, stepIndex: i + 1, stepCount: steps.length, filesChecked: n * 1250 });
+      await new Promise((r) => setTimeout(r, 120));
+    }
+  }
   return sampleFileGroups;
 }
 

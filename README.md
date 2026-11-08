@@ -6,8 +6,9 @@ without a way back.
 
 ![Home](docs/screenshots/home.png)
 
-> **Status: early skeleton.** The interface is in place. The disk usage and the list of
-> installed apps are real; the other screens still show sample data. See the roadmap below.
+> **Status: early skeleton.** The interface is in place. The disk usage, the list of
+> installed apps and the file scan are real; the other screens still show sample data.
+> See the roadmap below.
 
 ## Principles
 
@@ -31,7 +32,7 @@ The original design mockups are in [`docs/design`](docs/design).
 
 1. ✅ App skeleton: sidebar, screens, sample data, Windows CI build
 2. ✅ Installed apps: read Win32/MSI programs from the registry and Store apps (read only)
-3. ⬜ File scan: temp files, caches, used installers, old downloads, duplicates (read only)
+3. ✅ File scan: temp files, caches, used installers, old downloads, duplicates, large files (read only)
 4. ⬜ Quarantine and restore
 5. ⬜ Uninstall + leftovers cleanup (after 2 and 4)
 6. ⬜ Space map with real data
@@ -66,5 +67,7 @@ src/                    UI (Svelte 5 + TypeScript)
 src-tauri/              backend (Rust)
   src/lib.rs            registers the commands
   src/disk.rs           system drive usage
+  src/apps.rs           installed apps: registry (Win32/MSI) and Microsoft Store, with icons
+  src/files.rs          file scan: temp, installers, old downloads, duplicates, large files
 docs/                   screenshots and design mockups
 ```

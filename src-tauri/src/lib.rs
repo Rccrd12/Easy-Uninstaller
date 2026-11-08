@@ -3,13 +3,15 @@
 
 mod apps;
 mod disk;
+mod files;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             apps::list_installed_apps,
-            disk::get_system_disk
+            disk::get_system_disk,
+            files::scan_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running Easy Uninstaller");
