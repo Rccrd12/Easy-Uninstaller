@@ -102,13 +102,18 @@ const sampleExtraGroups: [id: string, key: string, safety: FileGroup["safety"], 
     { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\Explorer\\thumbcache_256.db`, 380 * MB, "2025-07-01"), explainId: "thumbCache" },
     { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\Explorer\\thumbcache_1280.db`, 210 * MB, "2025-07-01"), explainId: "thumbCache" },
   ]],
-  ["unknown-folders", "unknownFolders", "check", 6, [
+  ["unknown-folders", "unknownFolders", "check", 11, [
     folderItem("C:\\ProgramData\\Package Cache", 4.2 * GB, "packageCache"),
     folderItem(`${U}\\AppData\\Roaming\\Zoom`, 1.1 * GB, "zoom"),
     folderItem(`${U}\\AppData\\Local\\ABX_7731`, 820 * MB, null),
     folderItem(`${U}\\AppData\\Local\\Spotify`, 640 * MB, "spotify"),
     folderItem(`${U}\\AppData\\Local\\NVIDIA`, 450 * MB, "shaderCache"),
     folderItem(`${U}\\AppData\\Local\\npm-cache`, 380 * MB, "devCache"),
+    folderItem(`${U}\\AppData\\Roaming\\anythingllm-desktop`, 360 * MB, null),
+    folderItem(`${U}\\AppData\\Roaming\\Code`, 350 * MB, "vscode"),
+    folderItem("C:\\ProgramData\\NVIDIA Corporation", 340 * MB, "gpuDrivers"),
+    folderItem(`${U}\\AppData\\Local\\Docker`, 330 * MB, "docker"),
+    folderItem(`${U}\\AppData\\Local\\uv`, 320 * MB, null),
   ]],
 ];
 

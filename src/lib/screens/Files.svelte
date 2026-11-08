@@ -9,6 +9,7 @@
     DELETE_NOW_GROUPS,
     keepFileGroups,
     listFileGroups,
+    quarantineAppFolder,
     quarantineFileSelection,
     refreshFileGroups,
     removeFileGroups,
@@ -27,6 +28,7 @@
   /** What the toast at the bottom says after a move or an undo. */
   type Notice =
     | { kind: "moved"; report: MoveReport }
+    | { kind: "folderMoved"; report: MoveReport; item: FileItem }
     | { kind: "info"; lines: string[] }
     | { kind: "error"; lines: string[] };
 
@@ -35,6 +37,8 @@
   let focusedId = $state<string | null>(null);
   /** The item whose "What is this?" explanation the side panel shows. */
   let explained = $state<FileItem | null>(null);
+  /** Whether the side panel lists every item of the group, not just the largest. */
+  let showAll = $state(false);
   let scanning = $state(true);
   let progress = $state<ScanProgress | null>(null);
   let error = $state<string | null>(null);
@@ -74,6 +78,7 @@
   $effect(() => load());
 
   function focus(id: string) {
+    if (focusedId !== id) showAll = false;
     focusedId = id;
     explained = null;
   }
@@ -176,6 +181,29 @@
     }
   }
 
+  /** Moves one folder of a review-only group (unknown folders) into quarantine. */
+  async function moveFolder(group: FileGroup, item: FileItem) {
+    if (moving) return;
+    moving = true;
+    notice = null;
+    const name = nameOf(item.path);
+    try {
+      const report = await quarantineAppFolder(item);
+      if (report.movedCount === 0) {
+        const key = report.declinedCount ? "files.folderDeclined" : "files.folderSkipped";
+        notice = { kind: "info", lines: [t(key, { name })] };
+        return;
+      }
+      explained = null;
+      notice = { kind: "folderMoved", report, item };
+      await refresh();
+    } catch (e) {
+      notice = { kind: "error", lines: [String(e) === "declined" ? t("files.folderDeclined", { name }) : t("files.moveFailed", { error: String(e) })] };
+    } finally {
+      moving = false;
+    }
+  }
+
   /** Updates the list here and the scan result kept for the other screens. */
   function setGroups(next: FileGroup[]) {
     groups = next;
@@ -186,6 +214,9 @@
     if (!focusedId) explained = null;
   }
 
+  function folderMovedLines(r: MoveReport, item: FileItem): string[] {
+    return [t("files.folderMoved", { name: nameOf(item.path), size: formatBytes(r.movedBytes), days: quarantine.keepDays })];
+  }
   /** The last two parts of a path, which say the most in little room: "…\\Pictures\\photo.jpg". */
   const shortPath = (path: string) => {
     const parts = path.split(/[\\/]/);
@@ -203,7 +234,8 @@
 
   /** Groups listed by folder or Recycle Bin entry (no dates) rather than file by file. */
   const byFolder = (g: FileGroup) => g.items.every((i) => i.lastUsed === null);
-  const moreItems = (g: FileGroup) => Math.max((byFolder(g) ? g.items.length : g.itemCount) - SHOWN_ITEMS, 0);
+  /** Items the scan found but did not send (it sends the largest 200). */
+  const notListed = (g: FileGroup) => (byFolder(g) ? 0 : Math.max(g.itemCount - g.items.length, 0));
   /** Unknown folders count folders; Recycle Bin entries count deleted items; the rest count files. */
   function countLabel(g: FileGroup): string {
     if (g.reviewOnly) return g.itemCount === 1 ? t("files.folderCountOne") : t("files.folderCount", { count: count(g.itemCount) });
@@ -295,7 +327,12 @@
 
   <aside class="card side">
     {#if focused && explained}
-      <ExplainCard item={explained} groupTitle={t(focused.titleKey)} onBack={() => (explained = null)} />
+      {@const group = focused}
+      {@const item = explained}
+      {#key item.path}
+        <ExplainCard {item} groupTitle={t(group.titleKey)} onBack={() => (explained = null)}
+          onMove={group.reviewOnly ? () => moveFolder(group, item) : undefined} {moving} />
+      {/key}
     {:else if focused}
       <div class="label">{t("explain.title")}</div>
       <h3>{t(focused.titleKey)}</h3>
@@ -309,8 +346,8 @@
         {#if !focused.reviewOnly}<dt>{t("files.files")}</dt><dd>{count(focused.itemCount)}</dd>{/if}
       </dl>
       <div class="label list-label">{t("files.largest")}</div>
-      <ul class="items">
-        {#each focused.items.slice(0, SHOWN_ITEMS) as item (item.path)}
+      <ul class="items" class:all={showAll}>
+        {#each showAll ? focused.items : focused.items.slice(0, SHOWN_ITEMS) as item (item.path)}
           {@const canExplain = explainable(focused, item)}
           <li title={item.duplicateOf ? `${item.path}\n${t("files.copyOf", { path: item.duplicateOf })}` : (item.originalPath ?? item.path)}>
             <svelte:element this={canExplain ? "button" : "div"} class="item-row" class:clickable={canExplain}
@@ -325,8 +362,13 @@
           </li>
         {/each}
       </ul>
-      {#if moreItems(focused) > 0}
-        <div class="muted more">{t("files.more", { count: count(moreItems(focused)) })}</div>
+      {#if focused.items.length > SHOWN_ITEMS}
+        <button class="show-all" onclick={() => (showAll = !showAll)}>
+          {showAll ? t("files.showLess") : t("files.showAll", { count: count(focused.items.length) })}
+        </button>
+      {/if}
+      {#if notListed(focused) > 0 && (showAll || focused.items.length <= SHOWN_ITEMS)}
+        <div class="muted more">{t("files.notListed", { count: count(notListed(focused)) })}</div>
       {/if}
       <div class="grow"></div>
       {#if reviewable(focused)}
@@ -355,9 +397,9 @@
   <div class="card toast" class:error={n.kind === "error"} class:raised={reviewing !== null} role="status" aria-live="polite">
     <span class="toast-icon" aria-hidden="true">{n.kind === "error" ? "⚠️" : "✅"}</span>
     <div class="toast-text">
-      {#each n.kind === "moved" ? removedLines(n.report, quarantine.keepDays) : n.lines as line, i (i)}<p>{line}</p>{/each}
+      {#each n.kind === "moved" ? removedLines(n.report, quarantine.keepDays) : n.kind === "folderMoved" ? folderMovedLines(n.report, n.item) : n.lines as line, i (i)}<p>{line}</p>{/each}
     </div>
-    {#if n.kind === "moved" && n.report.entryIds.length}
+    {#if (n.kind === "moved" || n.kind === "folderMoved") && n.report.entryIds.length}
       <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(n.report)}>
         {undoing ? t("files.undoing") : `↩ ${t("files.undo")}`}
       </button>
@@ -422,6 +464,8 @@
   .item-note { font-size: 11px; }
   .item-size { font-size: 12px; font-weight: 600; flex: none; }
   .more { font-size: 12px; margin-top: 6px; }
+  .items.all { max-height: 46vh; overflow-y: auto; padding-right: 6px; }
+  .show-all { border: none; background: none; color: var(--accent); font-size: 12.5px; padding: 6px 0 0; text-align: left; cursor: pointer; }
   .wide { width: 100%; padding: 10px; margin-top: 14px; }
   .wide + .wide { margin-top: 8px; }
   .review-link { border: none; background: none; color: var(--accent); font-size: 12.5px; font-weight: 600; padding: 4px 6px; border-radius: var(--radius-sm); white-space: nowrap; }

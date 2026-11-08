@@ -134,11 +134,12 @@ fn files_group(kept: &Kept, g: &FileGroup) -> Option<FileGroup> {
     let excluded = |p: &str| is_excluded(kept, Path::new(p));
     let files = kept.files.get(&g.id).filter(|f| !f.is_empty());
     let Some(files) = files else {
-        // Nothing to move, only to look at: shown as scanned, minus excluded items.
+        // Nothing to move as a group, only to look at (unknown folders): shown as
+        // scanned, minus excluded items and folders moved one by one since the scan.
         let items: Vec<FileItem> = g
             .items
             .iter()
-            .filter(|i| !excluded(&i.path))
+            .filter(|i| !excluded(&i.path) && fs::symlink_metadata(&i.path).is_ok())
             .cloned()
             .collect();
         let removed = (g.items.len() - items.len()) as u64;

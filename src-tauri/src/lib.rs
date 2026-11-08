@@ -1,6 +1,7 @@
 //! Easy Uninstaller backend. Each area of the app gets its own module and
 //! exposes Tauri commands that the UI calls through `src/lib/api.ts`.
 
+mod app_folders;
 mod apps;
 mod cleanup;
 mod disk;
@@ -32,6 +33,7 @@ pub fn run() {
             review::init(app.handle())
         })
         .invoke_handler(tauri::generate_handler![
+            app_folders::quarantine_app_folder,
             apps::list_installed_apps,
             cleanup::remove_file_groups,
             disk::get_system_disk,

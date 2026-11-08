@@ -22,6 +22,7 @@ import type {
   DiskInfo,
   Exclusion,
   FileGroup,
+  FileItem,
   FileSelection,
   GroupReview,
   InstalledApp,
@@ -422,6 +423,32 @@ export async function openScannedFile(path: string): Promise<void> {
 /** Opens the file's folder in Explorer with the file selected. */
 export async function showScannedFile(path: string): Promise<void> {
   if (isTauri()) return invoke("show_scanned_file", { path });
+}
+
+/**
+ * Real: src-tauri/src/app_folders.rs. Moves one folder of the "unknown folders" group into
+ * quarantine as one entry. Rust checks the path again; folders outside the user's
+ * profile (ProgramData) make Windows ask for permission.
+ */
+export async function quarantineAppFolder(item: FileItem): Promise<MoveReport> {
+  if (isTauri()) return invoke<MoveReport>("quarantine_app_folder", { path: item.path });
+  await sleep(700);
+  const now = Math.floor(Date.now() / 1000);
+  const id = `${now}-folder-${sampleQuarantine.length}`;
+  const name = item.path.split(/[\\/]/).pop() ?? item.path;
+  sampleQuarantine.push({
+    id,
+    titleKey: null,
+    title: name,
+    itemCount: 1,
+    sizeBytes: item.sizeBytes,
+    removedAt: now,
+    expiresAt: now + sampleQuarantineSettings.keepDays * DAY,
+    items: [{ originalPath: item.path, sizeBytes: item.sizeBytes, kind: "folder" }],
+    needsAdmin: !/\\AppData\\/i.test(item.path),
+  });
+  sampleGone.add(item.path);
+  return { entryIds: [id], movedCount: 1, movedBytes: item.sizeBytes, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
 }
 
 /** Puts the files of these entries back where they were. */

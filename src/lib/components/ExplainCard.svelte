@@ -1,17 +1,33 @@
 <script lang="ts">
+  import { quarantine } from "../settings.svelte";
   import { knownFolder } from "../explain";
   import { formatBytes } from "../format";
   import { t } from "../i18n/index.svelte";
   import type { FileItem } from "../types";
 
-  /** The "What is this?" panel for one folder or file, from the list built into the app. */
-  let { item, groupTitle, onBack }: { item: FileItem; groupTitle: string; onBack: () => void } = $props();
+  /**
+   * The "What is this?" panel for one folder or file, from the list built into the app.
+   * With `onMove`, it also offers to move the folder into quarantine, after a confirmation
+   * that warns more strongly when the folder is better kept or unknown.
+   */
+  let {
+    item,
+    groupTitle,
+    onBack,
+    onMove,
+    moving = false,
+  }: { item: FileItem; groupTitle: string; onBack: () => void; onMove?: () => void; moving?: boolean } = $props();
 
   const folder = $derived(knownFolder(item.explainId));
   const shown = $derived(item.originalPath ?? item.path);
   const name = $derived(shown.split(/[\\/]/).pop() || shown);
   const parent = $derived(shown.slice(0, Math.max(shown.length - name.length - 1, 0)));
   const verdictIcon = { safe: "✅", check: "⚠️", keep: "🛑" } as const;
+
+  let confirming = $state(false);
+  /** Outside AppData (ProgramData): Windows asks for permission. */
+  const needsAdmin = $derived(!/[\\/]AppData[\\/]/i.test(item.path));
+  const risk = $derived(!folder ? "unknown" : folder.verdict === "keep" ? "keep" : "normal");
 </script>
 
 <button class="back" onclick={onBack}>← {t("explain.back", { group: groupTitle })}</button>
@@ -44,6 +60,31 @@
   </div>
 {/if}
 
+{#if onMove}
+  <div class="grow"></div>
+  {#if confirming}
+    <div class="confirm {risk}" role="alertdialog" aria-label={t("explain.move.title", { name })}>
+      <b>{t(`explain.move.${risk}Title`, { name })}</b>
+      {#if risk === "keep" && folder}
+        <p>{t("explain.move.keepText")} {t(`explain.folders.${folder.id}.ifRemoved`)}</p>
+      {:else if risk === "unknown"}
+        <p>{t("explain.move.unknownText")}</p>
+      {/if}
+      <p>{t("explain.move.restore", { days: quarantine.keepDays })}{needsAdmin ? ` ${t("explain.move.admin")}` : ""}</p>
+      <div class="buttons">
+        <button class="btn {risk === 'normal' ? 'btn-primary' : 'btn-danger'}" disabled={moving} onclick={onMove}>
+          {moving ? t("files.moving") : t(risk === "normal" ? "explain.move.confirm" : "explain.move.confirmAnyway")}
+        </button>
+        <button class="btn btn-ghost" disabled={moving} onclick={() => (confirming = false)}>{t("common.cancel")}</button>
+      </div>
+    </div>
+  {:else}
+    <button class="btn {risk === 'normal' ? 'btn-primary' : 'btn-ghost'} wide" onclick={() => (confirming = true)}>
+      {t("common.moveToQuarantine")} ({formatBytes(item.sizeBytes)})
+    </button>
+  {/if}
+{/if}
+
 <style>
   .back { border: none; background: none; color: var(--accent); font-size: 12.5px; padding: 0; margin-bottom: 12px; text-align: left; cursor: pointer; }
   .label { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; color: var(--text-muted); text-transform: uppercase; }
@@ -64,4 +105,12 @@
   .ai { margin-top: 14px; border: 1px dashed var(--tip-border); background: var(--tip-bg); border-radius: var(--radius-sm); padding: 10px 12px; }
   .ai p { font-size: 12.5px; margin: 0 0 8px; }
   .ai .btn:disabled { opacity: 0.6; cursor: default; }
+  .grow { flex: 1; min-height: 16px; }
+  .wide { width: 100%; padding: 10px; }
+  .confirm { border-radius: var(--radius-sm); padding: 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--border-strong); }
+  .confirm.keep { background: var(--keep-bg); color: var(--keep-fg); border-color: transparent; }
+  .confirm.unknown { background: var(--check-bg); color: var(--check-fg); border-color: var(--check-border); }
+  .confirm p { font-size: 12.5px; margin-top: 6px; }
+  .buttons { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
 </style>
