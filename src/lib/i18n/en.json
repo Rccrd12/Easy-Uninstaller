@@ -18,7 +18,10 @@
     "check": "Check",
     "personal": "Personal",
     "restore": "Restore",
-    "close": "Close"
+    "close": "Close",
+    "items": "{count} items",
+    "itemsOne": "1 item",
+    "needsAdmin": "Windows asks for permission"
   },
   "home": {
     "greeting": "Hi there 👋",
@@ -126,7 +129,41 @@
   },
   "leftovers": {
     "title": "Leftovers",
-    "subtitle": "Folders and registry entries left by programs that are no longer installed."
+    "subtitle": "Folders, registry entries and shortcuts left by programs that are no longer installed.",
+    "count": "{count} leftovers",
+    "countOne": "1 leftover",
+    "searching": "Looking for leftovers…",
+    "scanNote": "We only look: nothing is changed or deleted.",
+    "empty": "No leftovers found: your PC is tidy.",
+    "historyNote": "Apps you uninstall with Easy Uninstaller are remembered, so anything they leave behind shows up here too.",
+    "rescan": "Search again",
+    "failed": "The search could not finish: {error}",
+    "retry": "Try again",
+    "from": "Left by {app}",
+    "groups": {
+      "brokenShortcut": "Shortcuts that lead nowhere",
+      "brokenEntry": "In the app list, but the program is gone"
+    },
+    "selected": "Selected {size}",
+    "moving": "Moving to quarantine…",
+    "moved": "Moved to Quarantine: {count}. You can restore everything for {days} days.",
+    "nothingMoved": "Nothing was moved: these items are in use or have changed. Try searching again.",
+    "declined": "Left in place because permission was not given: {count}.",
+    "moveFailed": "The leftovers could not be moved: {error}",
+    "undo": "Undo",
+    "undoing": "Putting everything back…",
+    "undone": "Done: everything is back where it was.",
+    "reasons": {
+      "programFolder": "Program folder",
+      "localData": "Cache and local data",
+      "userSettings": "Your settings for this app",
+      "sharedData": "Data shared by all users",
+      "registry": "Registry settings",
+      "shortcut": "Shortcut",
+      "startMenu": "Start menu folder",
+      "brokenShortcut": "Shortcut to a program that no longer exists",
+      "brokenEntry": "Entry in the app list with no program"
+    }
   },
   "map": {
     "title": "Space map",
@@ -194,7 +231,9 @@
     "renamed": "Came back with “(restored)” in the name, because a file with the same name already exists: {count}.",
     "restoreFailed": "Could not be put back and are still in Quarantine: {count}.",
     "failed": "Something went wrong: {error}",
-    "deleted": "Deleted for good. {size} freed."
+    "deleted": "Deleted for good. {size} freed.",
+    "permission": "Windows asks for permission to restore or delete these.",
+    "declined": "Not done: permission was not given."
   },
   "settings": {
     "title": "Settings",
@@ -227,5 +266,62 @@
     "system": "Windows and other",
     "reclaimable": "Reclaimable",
     "free": "Free space"
+  },
+  "uninstall": {
+    "stepConfirm": "Step 1 · Confirm",
+    "stepLeftovers": "Step 2 · Leftovers found",
+    "stepDone": "Step 3 · Done",
+    "progress": "App {n} of {total}",
+    "confirmTitle": "Uninstall {name}?",
+    "restorePointNote": "Before starting I'll create a restore point. If something goes wrong, you can go back.",
+    "uninstallerNote": "{name}'s own uninstaller may open: follow its steps. Then I'll look for what it leaves behind.",
+    "storeNote": "Windows removes this app together with its data.",
+    "adminNote": "Windows will ask for permission: this app is installed for everyone on this PC.",
+    "creatingRestorePoint": "Creating a restore point…",
+    "restorePointAsk": "Windows asks for permission.",
+    "restorePointNot": {
+      "declined": "The restore point was not created: permission was not given.",
+      "disabled": "The restore point was not created: System Restore is turned off on this PC.",
+      "failed": "The restore point could not be created."
+    },
+    "continueWithout": "Uninstall anyway",
+    "running": "Uninstalling {name}…",
+    "runningNote": "If a window from {name} opens, follow its steps there.",
+    "waiting": "Waiting for {name}'s uninstaller to finish…",
+    "waitingNote": "If you closed it or chose to keep the app, stop waiting.",
+    "stopWaiting": "Stop waiting",
+    "notRemoved": "{name} was not uninstalled",
+    "cancelled": "The uninstall was cancelled. Nothing was changed.",
+    "declined": "Permission was not given, so nothing was changed.",
+    "stillThere": "{name} is still installed. Nothing else was changed.",
+    "searching": "Looking for what {name} left behind…",
+    "foundTitle": "Found {count}",
+    "foundText": "The official uninstaller left these behind. Remove them?",
+    "quarantineNote": "Everything goes to Quarantine for {days} days: you can bring it back with one click.",
+    "adminLeftovers": "Windows will ask for permission for {count}.",
+    "skip": "Keep them",
+    "cleanUp": "Clean up {size}",
+    "cleanUpNoSize": "Clean up",
+    "cleaning": "Moving to quarantine…",
+    "removedTitle": "{name} was removed",
+    "freed": "freed",
+    "movedNote": "Leftovers moved to Quarantine: {count}. You can restore them for {days} days.",
+    "declinedNote": "Left in place because permission was not given: {count}.",
+    "skippedNote": "Left in place because in use or changed: {count}.",
+    "noLeftovers": "It left nothing behind.",
+    "keptLeftovers": "Leftovers kept. You'll find them in Leftovers if you change your mind.",
+    "undo": "Undo cleanup",
+    "undoing": "Putting them back…",
+    "undone": "The leftovers are back where they were.",
+    "done": "Done",
+    "next": "Next app",
+    "errors": {
+      "notInstalled": "This app is no longer installed.",
+      "noUninstaller": "This app has no uninstaller. If it is gone, you'll find its entry in Leftovers.",
+      "itself": "Easy Uninstaller can't uninstall itself: use Windows Settings for that.",
+      "stillInstalled": "The app is still installed, so nothing was searched.",
+      "declined": "Permission was not given, so nothing was changed.",
+      "other": "Something went wrong: {error}"
+    }
   }
 }
