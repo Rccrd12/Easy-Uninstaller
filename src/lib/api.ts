@@ -4,8 +4,14 @@
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GB } from "./format";
-import { sampleApps, sampleAppLeftovers, sampleFileGroups, sampleLeftovers, sampleQuarantine, sampleSpaceUsage } from "./mock";
+import { sampleAiAnswer, sampleAiModels, sampleAiServices, sampleApps, sampleAppLeftovers, sampleFileGroups, sampleFolderSummary, sampleLeftovers, sampleQuarantine, sampleSpaceUsage } from "./mock";
 import type {
+  AiAnswer,
+  AiConfig,
+  AiModel,
+  AiPreview,
+  AiServiceStatus,
+  AiStats,
   DiskInfo,
   FileGroup,
   FileItem,
@@ -312,4 +318,88 @@ export async function createRestorePoint(): Promise<RestorePointOutcome> {
   if (isTauri()) return invoke<RestorePointOutcome>("create_restore_point");
   await new Promise((r) => setTimeout(r, 1200));
   return "created";
+}
+
+// ── AI help (src-tauri/src/ai.rs) ──────────────────────────────────────────
+// Errors are i18n keys under "ai.error", sometimes followed by "|" and the service's words.
+
+const sampleKeys = new Set<string>();
+const sampleAnswersByPath = new Map<string, AiAnswer>();
+let sampleAsked = 0;
+const lower = (p: string) => p.toLowerCase();
+
+/** Every service and whether it can be used now. `urls`: the user's addresses, by service. */
+export async function aiServices(urls: Record<string, string>): Promise<AiServiceStatus[]> {
+  if (isTauri()) return invoke<AiServiceStatus[]>("ai_services", { urls });
+  await sleep(500);
+  return sampleAiServices.map((s) => ({ ...s, hasKey: sampleKeys.has(s.id) }));
+}
+
+/** The models a service offers (installed ones, for a server on this PC). */
+export async function aiModels(config: AiConfig): Promise<AiModel[]> {
+  if (isTauri()) return invoke<AiModel[]>("ai_models", { config });
+  await sleep(400);
+  const needsKey = ["anthropic", "openai", "google", "openrouter", "unsloth"].includes(config.service);
+  if (needsKey && !sampleKeys.has(config.service)) throw "ai.error.noKey";
+  return sampleAiModels[config.service] ?? [];
+}
+
+/** Saves an API key in Windows' Credential Manager. */
+export async function aiSetKey(service: string, key: string): Promise<void> {
+  if (isTauri()) return invoke("ai_set_key", { service, key });
+  if (key.trim().length < 8 || /\s/.test(key.trim())) throw "ai.error.keyFormat";
+  sampleKeys.add(service);
+}
+
+export async function aiRemoveKey(service: string): Promise<void> {
+  if (isTauri()) return invoke("ai_remove_key", { service });
+  sampleKeys.delete(service);
+}
+
+/** Sends a tiny question; resolves with how long the answer took, in milliseconds. */
+export async function aiTest(config: AiConfig): Promise<number> {
+  if (isTauri()) return invoke<number>("ai_test", { config });
+  await sleep(1200);
+  return config.service === "ollama" || config.service === "lmstudio" ? 14_000 : 6_000;
+}
+
+/** What would be sent about this folder, read again by Rust from the disk. */
+export async function aiPreview(item: FileItem, lang: string): Promise<AiPreview> {
+  if (isTauri()) return invoke<AiPreview>("ai_preview", { path: item.path, lang });
+  await sleep(150);
+  const summary = sampleFolderSummary(item.path, item.sizeBytes);
+  return { summary, question: `Folder: ${summary.path}\nSubfolders: ${summary.subfolders.join(", ")}\nSome file names: ${summary.names.join(", ")}` };
+}
+
+/** Asks the AI about one unknown folder. The answer is kept on this PC. */
+export async function aiAsk(config: AiConfig, item: FileItem, lang: string): Promise<AiAnswer> {
+  if (isTauri()) return invoke<AiAnswer>("ai_ask", { config, path: item.path, lang });
+  await sleep(1600);
+  const answer = sampleAiAnswer(item.path, lang, config.service, config.model);
+  sampleAnswersByPath.set(lower(item.path), answer);
+  sampleAsked++;
+  return answer;
+}
+
+/** The answers kept on this PC for these folders. */
+export async function aiSavedAnswers(paths: string[]): Promise<AiAnswer[]> {
+  if (isTauri()) return invoke<AiAnswer[]>("ai_saved_answers", { paths });
+  return paths.flatMap((p) => sampleAnswersByPath.get(lower(p)) ?? []);
+}
+
+export async function aiStats(): Promise<AiStats> {
+  if (isTauri()) return invoke<AiStats>("ai_stats");
+  return { answers: sampleAnswersByPath.size, askedThisMonth: sampleAsked };
+}
+
+/** Forgets kept answers: those of `paths`, or all of them. */
+export async function aiForgetAnswers(paths?: string[]): Promise<void> {
+  if (isTauri()) return invoke("ai_forget_answers", { paths: paths ?? null });
+  if (!paths) sampleAnswersByPath.clear();
+  else for (const p of paths) sampleAnswersByPath.delete(lower(p));
+}
+
+/** Opens a fixed help page (where to get a key, how to install a program) in the browser. */
+export async function aiOpenPage(page: string): Promise<void> {
+  if (isTauri()) return invoke("ai_open_page", { page });
 }

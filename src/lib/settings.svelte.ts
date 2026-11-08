@@ -1,22 +1,45 @@
 // User preferences kept in the webview's local storage.
 // Reactive: components reading `settings` re-render when a value changes.
 
+import type { AiMode } from "./types";
+
 const STORAGE_KEY = "settings";
+
+/** The AI help (src/lib/ai.svelte.ts). The API keys are not here: Windows keeps them. */
+export interface AiSettings {
+  /** Off until the user turns it on. */
+  mode: AiMode;
+  /** A service id from src-tauri/src/ai/services.rs, e.g. "claude-code" or "ollama". */
+  service: string;
+  model: string;
+  /** How the service names that model ("Claude Sonnet 5.5"). */
+  modelLabel: string;
+  /** Addresses typed by the user, by service ("other service", servers on this PC). */
+  urls: Record<string, string>;
+  /** Show what is sent before each question. */
+  confirm: boolean;
+}
 
 interface Settings {
   /** Make a Windows restore point before uninstalling apps. */
   restorePoint: boolean;
+  ai: AiSettings;
 }
 
 // Off by default: it needs administrator rights and System Restore is often off on new PCs.
-const defaults: Settings = { restorePoint: false };
+const defaults: Settings = {
+  restorePoint: false,
+  ai: { mode: "off", service: "", model: "", modelLabel: "", urls: {}, confirm: true },
+};
 
 function load(): Settings {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-    return { ...defaults, ...(typeof saved === "object" && saved ? saved : {}) };
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+    const saved = typeof parsed === "object" && parsed ? parsed : {};
+    const ai = typeof saved.ai === "object" && saved.ai ? saved.ai : {};
+    return { ...defaults, ...saved, ai: { ...defaults.ai, ...ai, urls: { ...(ai.urls ?? {}) } } };
   } catch {
-    return { ...defaults };
+    return { ...defaults, ai: { ...defaults.ai, urls: {} } };
   }
 }
 

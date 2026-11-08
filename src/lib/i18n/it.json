@@ -397,8 +397,6 @@
     "source": "Spiegazione integrata nell'app · nessun dato inviato",
     "unknownTitle": "Per “{name}” non ho una spiegazione",
     "unknownHint": "Di solito una cartella ha il nome dell'app o dell'azienda che l'ha creata. Se non la riconosci, lasciala dov'è.",
-    "aiSoon": "In futuro potrai chiederla all'assistente AI, se lo attivi.",
-    "askAi": "Chiedi all'AI · in arrivo",
     "back": "Torna a {group}",
     "folders": {
       "temp": {
@@ -568,6 +566,273 @@
       "admin": "Windows ti chiederà il permesso.",
       "confirm": "Sposta in Quarantena",
       "confirmAnyway": "Spostala comunque"
+    }
+  },
+  "ai": {
+    "services": {
+      "claude-code": {
+        "name": "Claude Code",
+        "sub": "Abbonamento Claude Pro o Max"
+      },
+      "codex": {
+        "name": "Codex",
+        "sub": "Abbonamento ChatGPT Plus o Pro"
+      },
+      "antigravity-cli": {
+        "name": "Antigravity CLI",
+        "sub": "Abbonamento Google AI Pro o Ultra"
+      },
+      "anthropic": {
+        "name": "Claude",
+        "sub": "Anthropic",
+        "keyHint": "sk-ant-…"
+      },
+      "openai": {
+        "name": "OpenAI",
+        "sub": "GPT",
+        "keyHint": "sk-…"
+      },
+      "google": {
+        "name": "Google Gemini",
+        "sub": "Google AI Studio",
+        "keyHint": "AIza…"
+      },
+      "openrouter": {
+        "name": "OpenRouter",
+        "sub": "Molti modelli con una sola chiave",
+        "keyHint": "sk-or-…"
+      },
+      "custom": {
+        "name": "Altro servizio",
+        "sub": "Compatibile con OpenAI: indirizzo e chiave",
+        "keyHint": "Chiave, se il servizio la chiede"
+      },
+      "ollama": {
+        "name": "Ollama",
+        "sub": "localhost:11434"
+      },
+      "lmstudio": {
+        "name": "LM Studio",
+        "sub": "localhost:1234"
+      },
+      "unsloth": {
+        "name": "Unsloth Studio",
+        "sub": "serve la chiave sk-unsloth",
+        "keyHint": "sk-unsloth-…"
+      },
+      "local-custom": {
+        "name": "Altro server",
+        "sub": "Compatibile con OpenAI: indirizzo",
+        "keyHint": "Chiave, se il server la chiede"
+      }
+    },
+    "error": {
+      "notInstalled": "{service} non è installato su questo PC.",
+      "notSignedIn": "{service} non è collegato al tuo account. Aprilo una volta in un terminale e fai l'accesso, poi riprova.",
+      "noKey": "Prima aggiungi la chiave API.",
+      "badKey": "Il servizio ha rifiutato la chiave. Controlla che sia giusta e ancora attiva.",
+      "keyFormat": "Non sembra una chiave: incollala di nuovo, senza spazi.",
+      "offline": "{service} non risponde. Controlla che sia acceso (o di essere online).",
+      "timeout": "{service} ci ha messo troppo a rispondere.",
+      "badAnswer": "Non riesco a leggere la risposta. Riprova, o scegli un altro modello.",
+      "refused": "L'app non chiede all'AI di questa cartella.",
+      "server": "{service} ha risposto con un errore",
+      "notFound": "{service} non conosce questo modello",
+      "tooMany": "Troppe domande in poco tempo, o hai raggiunto il limite del piano. Riprova più tardi.",
+      "noService": "Prima scegli un servizio.",
+      "noModel": "Prima scegli un modello.",
+      "badAddress": "Indirizzo non valido. Esempio: http://localhost:8000/v1",
+      "notLocal": "L'indirizzo deve essere su questo PC (localhost o 127.0.0.1).",
+      "needsHttps": "L'indirizzo deve iniziare con https://",
+      "other": "Qualcosa è andato storto: {error}"
+    },
+    "verdict": {
+      "removable": "Probabilmente si può togliere",
+      "keep": "Meglio tenerla",
+      "unknown": "Non lo sa"
+    },
+    "confidence": {
+      "low": "fiducia bassa",
+      "medium": "fiducia media",
+      "high": "fiducia alta"
+    },
+    "box": {
+      "title": "Chiedo all'AI?",
+      "hint": "L'AI può capire cos'è questa cartella dal suo nome e dai nomi che contiene. È un consiglio: decidi tu.",
+      "hintOff": "L'AI può capire cos'è questa cartella dal suo nome e dai nomi che contiene. È spenta: scegli tu quale usare.",
+      "ask": "Chiedi all'AI",
+      "retry": "Riprova",
+      "via": "Tramite {service}",
+      "asking": "Chiedo a {service}…",
+      "askingHint": "Di solito pochi secondi.",
+      "askingLocal": "Un modello sul PC può metterci un minuto, di più la prima volta."
+    },
+    "confirm": {
+      "title": "Chiedo all'AI?",
+      "intro": "Invierò a {service} solo questo:",
+      "folder": "Cartella",
+      "size": "Dimensione",
+      "modified": "Ultima modifica",
+      "subfolders": "Sottocartelle",
+      "names": "Alcuni nomi ({shown} di {total})",
+      "showText": "Vedi il testo esatto",
+      "hideText": "Nascondi il testo esatto",
+      "never": "Non invio mai: il contenuto dei file, il tuo nome utente, l'elenco delle tue app.",
+      "noTools": "{service} parte senza strumenti: non può leggere né cambiare file.",
+      "costCli": "Nessun costo extra: usa i limiti del tuo abbonamento.",
+      "costApi": "Si paga a domanda al servizio, circa 1 centesimo.",
+      "costLocal": "Nessun dato esce dal PC, ed è gratis.",
+      "dontAsk": "Non chiedermelo più (si cambia in Impostazioni)"
+    },
+    "answer": {
+      "title": "Risposta dell'AI",
+      "madeBy": "Probabilmente creata da {name}",
+      "overridden": "L'AI pensava si potesse togliere, ma {app} è installata: meglio tenerla.",
+      "checked": "Controllato sul tuo PC",
+      "appInstalled": "{app} è installata",
+      "noApp": "Nessuna app installata ha questo nome",
+      "modified": "Ultima modifica dentro: {date}",
+      "notWindows": "Non è una cartella di Windows",
+      "mayBeWrong": "L'AI può sbagliare: per questo la cartella passa dalla Quarantena e puoi ripristinarla per {days} giorni.",
+      "sentOnly": "Inviati solo nomi e numeri, mai il contenuto dei file.",
+      "askAgain": "Chiedi di nuovo"
+    },
+    "move": {
+      "keepText": "L'AI consiglia di tenerla:"
+    },
+    "all": {
+      "intro": "{count} cartelle qui l'app non le conosce. L'AI può capire cosa sono.",
+      "introOne": "Una cartella qui l'app non la conosce. L'AI può capire cos'è.",
+      "askAll": "Chiedi all'AI per tutte",
+      "askRest": "Chiedi per le altre {count}",
+      "looked": "L'AI ha guardato {count} cartelle che l'app non conosceva",
+      "lookedOne": "L'AI ha guardato 1 cartella che l'app non conosceva",
+      "forget": "Annulla risposte",
+      "confirm": "Invierò a {service} nomi e numeri di {count} cartelle, mai il contenuto dei file.",
+      "ask": "Chiedi per {count}",
+      "asking": "Chiedo all'AI: {done} di {total}…",
+      "stop": "Ferma",
+      "failed": "Per {count} non è arrivata una risposta. Apri una cartella per vedere perché."
+    },
+    "picker": {
+      "intro": {
+        "cli": "Programmi già installati sul PC, collegati al tuo account. L'app li usa come faresti tu.",
+        "api": "Paghi solo quello che usi, direttamente al servizio.",
+        "local": "Programmi per modelli sul PC. L'app controlla quelli accesi."
+      },
+      "found": "Trovato",
+      "notInstalled": "Non installato",
+      "keySaved": "Chiave salvata",
+      "on": "Acceso",
+      "off": "Spento",
+      "needsKey": "Chiave",
+      "models": "{count} modelli",
+      "oneModel": "1 modello",
+      "howToInstall": "Come si installa {name}",
+      "checkAgain": "Cerca di nuovo",
+      "checking": "Cerco…",
+      "address": "Indirizzo",
+      "addressHint": {
+        "api": "Per esempio https://api.groq.com/openai/v1",
+        "local": "Lascialo vuoto per quello solito."
+      },
+      "key": "Chiave API",
+      "unslothKey": "Chiave di Unsloth Studio",
+      "optional": "facoltativa",
+      "saveKey": "Salva",
+      "keyStored": "Salvata in Windows (Gestione credenziali)",
+      "removeKey": "Rimuovi",
+      "getKey": "Come ottengo una chiave?",
+      "model": "Modello",
+      "loadingModels": "Carico i modelli…",
+      "keyFirst": "Aggiungi la chiave: l'elenco arriva dal servizio.",
+      "addressFirst": "Scrivi l'indirizzo: l'elenco arriva dal server.",
+      "recommended": "consigliato",
+      "modelHint": {
+        "claudeCode": "Anche Opus (più preciso, consuma più limiti) o Haiku (più veloce).",
+        "cli": "I modelli del tuo abbonamento.",
+        "api": "L'elenco arriva dal servizio.",
+        "local": "I modelli che hai già scaricato. Più grande = più preciso ma più lento."
+      },
+      "modelName": "Nome del modello",
+      "noList": "Non riesco a leggere l'elenco: scrivi il nome del modello.",
+      "test": "Prova",
+      "testing": "Provo…",
+      "works": "Funziona. Risposta in {seconds} secondi.",
+      "notes": {
+        "cliCost": "💶 Nessun costo extra: usa i limiti del tuo abbonamento.",
+        "cliTools": "🔒 Parte in una cartella vuota e senza strumenti: non può leggere, cambiare o cancellare file.",
+        "apiCost": "💶 Circa 1 centesimo a domanda con i modelli consigliati.",
+        "apiDirect": "🔒 La domanda va dal tuo PC al servizio, senza server nostri in mezzo.",
+        "localPrivate": "🔒 Nessun dato esce dal PC.",
+        "localFree": "💶 Gratis."
+      }
+    },
+    "setup": {
+      "title": "Vuoi attivare l'aiuto AI?",
+      "step": "Passo {step} di 2",
+      "lead": "L'AI ti spiega le cartelle che l'app non conosce e ti dice se sembrano utili o no.",
+      "leadBold": "Non sposta niente da sola",
+      "leadEnd": ": decidi sempre tu, e tutto passa dalla Quarantena.",
+      "online": {
+        "title": "Online",
+        "a": "👍 Risposte migliori e veloci",
+        "b": "🎟️ Usa un abbonamento che hai già (Claude, ChatGPT, Google) tramite il suo programma, oppure una chiave API",
+        "c": "📤 Escono percorso e nomi dei file, mai il contenuto"
+      },
+      "local": {
+        "title": "Sul PC",
+        "a": "🔒 Nessun dato esce dal PC",
+        "b": "📦 Usa un programma che hai già: Ollama, LM Studio, Unsloth Studio…",
+        "c": "🐢 Più lento, e sbaglia più spesso sulle cartelle rare"
+      },
+      "off": {
+        "title": "No, grazie",
+        "a": "📚 L'app continua con le sue spiegazioni integrate"
+      },
+      "changeLater": "Puoi cambiare idea quando vuoi in Impostazioni.",
+      "continue": "Continua",
+      "onlineTitle": "Scegli il servizio online",
+      "localTitle": "Scegli il programma sul PC",
+      "tabCli": "Con il tuo abbonamento",
+      "tabApi": "Con una chiave API",
+      "back": "Indietro",
+      "done": "Fatto",
+      "doneAsk": "Fatto, chiedi all'AI"
+    },
+    "settings": {
+      "title": "Aiuto AI",
+      "new": "Nuovo",
+      "mode": "Dove lavora l'AI",
+      "modeHint": {
+        "off": "Spento: l'app usa solo le sue spiegazioni integrate.",
+        "online": "Un servizio online: tramite il programma del tuo abbonamento o con una chiave API.",
+        "local": "Un modello sul PC: non esce niente."
+      },
+      "modes": {
+        "off": "Spento",
+        "online": "Online",
+        "local": "Sul PC"
+      },
+      "confirm": "Chiedimi conferma prima di ogni invio",
+      "confirmHint": "Ti mostra cosa esce esattamente dal PC.",
+      "month": "Questo mese",
+      "monthCount": "{count} domande",
+      "monthOne": "1 domanda",
+      "costCli": "nessun costo extra (abbonamento)",
+      "costApi": "si paga al servizio, circa 1 centesimo l'una",
+      "costLocal": "gratis, sul PC",
+      "saved": "Risposte salvate sul PC",
+      "savedCount": "{count} cartelle: non vengono chieste di nuovo.",
+      "savedOne": "1 cartella: non viene chiesta di nuovo.",
+      "clear": "Cancella",
+      "never": "Cosa non esce mai dal PC",
+      "neverItems": {
+        "contents": "Il contenuto dei file",
+        "username": "Il tuo nome utente",
+        "apps": "L'elenco delle tue app",
+        "personal": "Documenti, Immagini, Desktop, Download"
+      }
     }
   }
 }

@@ -40,6 +40,7 @@ pub fn run() {
             ai::ai_saved_answers,
             ai::ai_stats,
             ai::ai_forget_answers,
+            ai::ai_open_page,
             app_folders::quarantine_app_folder,
             apps::list_installed_apps,
             disk::get_system_disk,

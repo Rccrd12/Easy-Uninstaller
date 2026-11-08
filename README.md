@@ -19,6 +19,8 @@ without a way back.
   click: files, whole folders and registry keys alike. A restore point can be created before
   uninstalling programs (off by default, in Settings).
 - **Clear about risk.** Every file group is labelled *Safe*, *Check* or *Personal*.
+- **AI only if you want it.** Off by default. When on, it explains folders the app does not know,
+  from their names only; the built-in explanations always come first.
 - **English and Italian.** Picked from the system language, changeable in Settings.
 - **Light and dark.** Follows the Windows mode by default, changeable in Settings.
 
@@ -40,6 +42,10 @@ without a way back.
 |---|
 | ![](docs/screenshots/files-explain.png) |
 
+| AI help: choose the service | See what is sent | The AI's answer | Every unknown folder |
+|---|---|---|---|
+| ![](docs/screenshots/ai-setup.png) | ![](docs/screenshots/ai-confirm.png) | ![](docs/screenshots/ai-answer.png) | ![](docs/screenshots/ai-all-folders.png) |
+
 The original design mockups are in [`docs/design`](docs/design).
 
 ## Roadmap
@@ -54,6 +60,10 @@ The original design mockups are in [`docs/design`](docs/design).
    untouched for 6 months (leftovers of uninstalls done by hand or with other tools)
 6. ✅ Space map with real data: apps, profile folders, app data, caches and Recycle Bin (read only)
 7. ✅ "What is this?": built-in explanations (EN/IT) for common folders; new groups for old Recycle Bin items, error reports, thumbnail cache and big unknown folders
+8. ✅ AI help for unknown folders, off by default: through a subscription's own program (Claude Code,
+   Codex, Antigravity CLI), an API key (Claude, OpenAI, Gemini, OpenRouter, any OpenAI-compatible
+   service) or a model on this PC (Ollama, LM Studio, Unsloth Studio). Only names and numbers are
+   sent; the answer is advice in its own purple tag and never moves or ticks anything
 
 ## Development
 

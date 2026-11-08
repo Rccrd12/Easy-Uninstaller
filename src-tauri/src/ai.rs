@@ -411,9 +411,69 @@ pub fn ai_forget_answers(
     answers.save(&app)
 }
 
+/// Help pages the UI may open: where to get a key, how to install a program.
+const PAGES: &[(&str, &str)] = &[
+    (
+        "key:anthropic",
+        "https://console.anthropic.com/settings/keys",
+    ),
+    ("key:openai", "https://platform.openai.com/api-keys"),
+    ("key:google", "https://aistudio.google.com/apikey"),
+    ("key:openrouter", "https://openrouter.ai/keys"),
+    (
+        "install:claude-code",
+        "https://code.claude.com/docs/en/setup",
+    ),
+    ("install:codex", "https://developers.openai.com/codex/cli"),
+    ("install:antigravity-cli", "https://antigravity.google/"),
+    ("install:ollama", "https://ollama.com/download"),
+    ("install:lmstudio", "https://lmstudio.ai/"),
+    ("install:unsloth", "https://unsloth.ai/"),
+];
+
+/// Opens one of the help pages in the browser. Only these fixed addresses.
+#[tauri::command]
+pub fn ai_open_page(page: String) -> Result<(), String> {
+    let url = PAGES
+        .iter()
+        .find(|(id, _)| *id == page)
+        .map(|(_, url)| *url)
+        .ok_or("unknown page")?;
+    open_url(url);
+    Ok(())
+}
+
+#[cfg(windows)]
+fn open_url(url: &str) {
+    use windows::core::{w, HSTRING, PCWSTR};
+    use windows::Win32::UI::Shell::ShellExecuteW;
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    // SAFETY: plain strings that outlive the call.
+    unsafe {
+        ShellExecuteW(
+            None,
+            w!("open"),
+            &HSTRING::from(url),
+            PCWSTR::null(),
+            PCWSTR::null(),
+            SW_SHOWNORMAL,
+        );
+    }
+}
+
+#[cfg(not(windows))]
+fn open_url(_url: &str) {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_fixed_https_pages_open() {
+        assert!(PAGES.iter().all(|(_, u)| u.starts_with("https://")));
+        assert!(ai_open_page("key:anthropic".into()).is_ok());
+        assert!(ai_open_page("https://evil.example".into()).is_err());
+    }
 
     #[test]
     fn installed_apps_are_matched_by_name() {

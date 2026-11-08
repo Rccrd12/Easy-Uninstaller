@@ -25,6 +25,7 @@
   --check-bg: #fff4ce;  --check-fg: #835b00;  --check-border: #f1d675;
   --keep-bg: #fde7e9;   --keep-fg: #a4262c;
   --tip-bg: #f3eefc;    --tip-border: #e3d8f7;
+  --ai: #7a4fd6;        --on-ai: #ffffff;     --ai-fg: #5b2fb0;
 
   --tint-apps: #e8f1fb;
   --tint-files: #fff4ce;
@@ -68,6 +69,7 @@
   --check-bg: #3b3115;  --check-fg: #f3cd5a;  --check-border: #6a5619;
   --keep-bg: #45222a;   --keep-fg: #ff9ca3;
   --tip-bg: #2c2640;    --tip-border: #40365e;
+  --ai: #a585f0;        --on-ai: #1a1030;     --ai-fg: #c6b2ff;
 
   --tint-apps: #1e3550;
   --tint-files: #3b3115;
@@ -106,6 +108,7 @@ select { background: var(--surface); }
 
 .btn { border: none; border-radius: var(--radius-sm); padding: 8px 16px; }
 .btn-primary { background: var(--accent); color: var(--on-accent); }
+.btn-ai { background: var(--ai); color: var(--on-ai); }
 .btn-danger { background: var(--danger); color: var(--on-danger); }
 .btn-ghost { background: var(--surface); border: 1px solid var(--border-strong); color: var(--text); }
 .btn:hover { filter: brightness(var(--hover-brightness)); }
@@ -116,6 +119,7 @@ select { background: var(--surface); }
 .tag-check { background: var(--check-bg); color: var(--check-fg); }
 .tag-keep { background: var(--keep-bg); color: var(--keep-fg); }
 .tag-info { background: var(--accent-soft); color: var(--accent); }
+.tag-ai { background: var(--tip-bg); color: var(--ai-fg); border: 1px solid var(--tip-border); }
 .tag-gray { background: var(--track); color: var(--text-muted); }
 
 .sample-banner {
