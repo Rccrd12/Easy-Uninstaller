@@ -5,8 +5,8 @@
 Easy Uninstaller is a small, free app for everyone, not just for tech people. It speaks
 plain language, offers a few big clear choices, and never deletes anything without a way
 back: everything it removes waits in a quarantine (7 days by default) and comes back with
-one click. The only exception is temporary files and caches, which Windows and apps
-recreate on their own: those are deleted right away.
+one click. The only exceptions are temporary files, caches, thumbnails, crash reports and
+old Recycle Bin items, which nobody needs back: those are deleted right away.
 
 ![Easy Uninstaller home screen](docs/screenshots/home.png)
 
@@ -76,8 +76,9 @@ Safety is the first goal of this project, ahead of features and speed.
 - **Moved, not deleted.** When you remove files, folders, leftover registry keys or
   shortcuts, they are moved into a quarantine folder
   (`%LOCALAPPDATA%\com.rccrd12.easyuninstaller\Quarantine`, or another drive you pick in
-  Settings) together with a list of where each one came from. Temporary files and caches
-  are the only exception: they are deleted right away, because Windows and apps recreate them.
+  Settings) together with a list of where each one came from. Temporary files, caches,
+  thumbnails, crash reports and old Recycle Bin items are the only exception: they are
+  deleted right away, because nobody needs them back (Windows and apps recreate the first three).
 - **Time to change your mind.** Everything in quarantine can be restored to its original
   place with one click, or deleted earlier if you want the space back now. After 7 days
   (or 3 or 30, as you choose in Settings) it is deleted for good.
@@ -160,7 +161,7 @@ src-tauri/              backend (Rust)
   src/space.rs          space map: what takes up the system drive
   src/uninstall.rs      runs uninstallers (quietly when possible) and Store app removal
   src/leftovers.rs      finds what an app left behind: folders, registry keys, shortcuts
-  src/cleanup.rs        removes scanned files: temp and caches deleted, the rest to quarantine
+  src/cleanup.rs        removes scanned files: some groups deleted, the rest to quarantine
   src/quarantine.rs     moves items to quarantine, restores and expires them
   src/elevated.rs       the few steps that need administrator rights
   src/restore_point.rs  Windows restore points
