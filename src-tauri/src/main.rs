@@ -2,5 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+    if let Some(code) = easy_uninstaller_lib::run_elevated_job() {
+        std::process::exit(code);
+    }
     easy_uninstaller_lib::run()
 }

@@ -40,10 +40,29 @@ export function relativeTime(unixSecs: number, nowMs: number = Date.now()): stri
   return rtf.format(Math.round(diff / 86400), "day");
 }
 
+/** "3 months ago", "2 years ago": for things left untouched a long time. */
+export function longAgo(unixSecs: number, nowMs: number = Date.now()): string {
+  const rtf = new Intl.RelativeTimeFormat(locale(), { numeric: "auto" });
+  const days = (unixSecs - nowMs / 1000) / 86400;
+  if (Math.abs(days) >= 365) return rtf.format(Math.round(days / 365), "year");
+  if (Math.abs(days) >= 30) return rtf.format(Math.round(days / 30), "month");
+  return rtf.format(Math.round(days), "day");
+}
+
 /** What happened when files were put back, one sentence per case that applies. */
 export function restoreSummary(r: RestoreReport): string[] {
   const lines = [t("quarantine.restored", { count: fileCount(r.restoredCount) })];
   if (r.renamedCount) lines.push(t("quarantine.renamed", { count: fileCount(r.renamedCount) }));
   if (r.failedCount) lines.push(t("quarantine.restoreFailed", { count: fileCount(r.failedCount) }));
   return lines;
+}
+
+/** "1 item", "12 items": for quarantine entries that hold folders or registry keys. */
+export function itemCount(n: number): string {
+  return n === 1 ? t("common.itemsOne") : t("common.items", { count: n.toLocaleString(locale()) });
+}
+
+/** "1 leftover", "5 leftovers", in the chosen language. */
+export function leftoverCount(n: number): string {
+  return n === 1 ? t("leftovers.countOne") : t("leftovers.count", { count: n.toLocaleString(locale()) });
 }

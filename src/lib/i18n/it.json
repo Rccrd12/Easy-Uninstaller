@@ -18,7 +18,10 @@
     "check": "Controlla",
     "personal": "Personale",
     "restore": "Ripristina",
-    "close": "Chiudi"
+    "close": "Chiudi",
+    "items": "{count} elementi",
+    "itemsOne": "1 elemento",
+    "needsAdmin": "Windows chiede il permesso"
   },
   "home": {
     "greeting": "Ciao 👋",
@@ -129,7 +132,44 @@
   },
   "leftovers": {
     "title": "Avanzi",
-    "subtitle": "Cartelle e voci di registro lasciate da programmi non più installati."
+    "subtitle": "Cartelle, voci di registro e collegamenti lasciati da programmi che non sono più installati.",
+    "count": "{count} avanzi",
+    "countOne": "1 avanzo",
+    "searching": "Cerco gli avanzi…",
+    "scanNote": "Guardiamo soltanto: non cambiamo né cancelliamo nulla.",
+    "empty": "Nessun avanzo trovato: il tuo PC è in ordine.",
+    "historyNote": "Cerco anche le cartelle lasciate da app disinstallate in passato, a mano o con altri programmi.",
+    "rescan": "Cerca di nuovo",
+    "failed": "La ricerca non è riuscita: {error}",
+    "retry": "Riprova",
+    "from": "Lasciati da {app}",
+    "maybeTitle": "Forse avanzi",
+    "maybeText": "Nessuna app installata usa queste cartelle e niente al loro interno è cambiato da almeno 6 mesi. Potrebbero comunque servire a qualcosa che usi: controlla prima di toglierle.",
+    "lastChange": "ultima modifica {when}",
+    "groups": {
+      "brokenShortcut": "Collegamenti che non portano a nulla",
+      "brokenEntry": "Nell'elenco delle app, ma il programma non c'è più"
+    },
+    "selected": "Selezionati {size}",
+    "moving": "Sposto in quarantena…",
+    "moved": "Spostati in Quarantena: {count}. Puoi ripristinare tutto per {days} giorni.",
+    "nothingMoved": "Non è stato spostato nulla: questi elementi sono in uso o sono cambiati. Prova a cercare di nuovo.",
+    "declined": "Lasciati al loro posto perché il permesso non è stato dato: {count}.",
+    "moveFailed": "Non è stato possibile spostare gli avanzi: {error}",
+    "undo": "Annulla",
+    "undoing": "Rimetto tutto a posto…",
+    "undone": "Fatto: è tutto tornato dov'era.",
+    "reasons": {
+      "programFolder": "Cartella del programma",
+      "localData": "Cache e dati locali",
+      "userSettings": "Le tue impostazioni dell'app",
+      "sharedData": "Dati condivisi tra gli utenti",
+      "registry": "Impostazioni nel registro",
+      "shortcut": "Collegamento",
+      "startMenu": "Cartella del menu Start",
+      "brokenShortcut": "Collegamento a un programma che non esiste più",
+      "brokenEntry": "Voce nell'elenco delle app senza programma"
+    }
   },
   "map": {
     "title": "Mappa dello spazio",
@@ -187,6 +227,8 @@
     "from": "Da {path}",
     "showFiles": "Mostra i file",
     "hideFiles": "Nascondi i file",
+    "showItems": "Mostra gli elementi",
+    "hideItems": "Nascondi gli elementi",
     "more": "e altri {count}",
     "deleteNow": "Elimina ora",
     "confirmDelete": "Eliminare definitivamente {size}? Non si potrà annullare.",
@@ -197,7 +239,9 @@
     "renamed": "Tornati con “(restored)” nel nome, perché esiste già un file con lo stesso nome: {count}.",
     "restoreFailed": "Non è stato possibile rimetterli a posto, sono ancora in Quarantena: {count}.",
     "failed": "Qualcosa è andato storto: {error}",
-    "deleted": "Eliminato definitivamente. Liberati {size}."
+    "deleted": "Eliminato definitivamente. Liberati {size}.",
+    "permission": "Windows chiede il permesso per ripristinarli o eliminarli.",
+    "declined": "Non fatto: il permesso non è stato dato."
   },
   "settings": {
     "title": "Impostazioni",
@@ -230,5 +274,62 @@
     "system": "Windows e altro",
     "reclaimable": "Recuperabile",
     "free": "Spazio libero"
+  },
+  "uninstall": {
+    "stepConfirm": "Passo 1 · Conferma",
+    "stepWorking": "Passo 2 · Disinstallazione",
+    "stepDone": "Passo 3 · Fatto",
+    "progress": "App {n} di {total}",
+    "confirmTitle": "Disinstallare {name}?",
+    "confirmMany": "Disinstallare {count} app?",
+    "totalSize": "In tutto {size}",
+    "restorePointNote": "Prima di iniziare creo un punto di ripristino. Se qualcosa va storto, torni indietro.",
+    "storeNote": "Windows rimuove questa app insieme ai suoi dati.",
+    "storeAlso": "Le app del Microsoft Store le rimuove Windows insieme ai loro dati.",
+    "adminNote": "Windows chiederà il permesso per le app installate per tutti gli utenti del PC.",
+    "creatingRestorePoint": "Creo un punto di ripristino…",
+    "restorePointAsk": "Windows chiede il permesso.",
+    "restorePointNot": {
+      "declined": "Il punto di ripristino non è stato creato: il permesso non è stato dato.",
+      "disabled": "Il punto di ripristino non è stato creato: Ripristino configurazione di sistema è disattivato su questo PC.",
+      "failed": "Non è stato possibile creare il punto di ripristino."
+    },
+    "continueWithout": "Disinstalla comunque",
+    "running": "Disinstallo {name}…",
+    "runningNote": "Di solito bastano pochi secondi. Se si apre una finestra di {name}, segui i suoi passi.",
+    "waiting": "Aspetto che la disinstallazione di {name} finisca…",
+    "waitingNote": "{name} sta finendo da sola. Se hai chiuso la sua finestra o hai scelto di tenerla, smetti di aspettare.",
+    "stopWaiting": "Smetti di aspettare",
+    "notRemoved": "{name} non è stata disinstallata",
+    "cancelled": "La disinstallazione è stata annullata. Non è cambiato nulla.",
+    "declined": "Il permesso non è stato dato, quindi non è cambiato nulla.",
+    "stillThere": "{name} è ancora installata. Non è cambiato nient'altro.",
+    "searching": "Cerco quello che {name} ha lasciato…",
+    "searchingNote": "Solo cartelle, chiavi di registro e collegamenti con il suo nome esatto, non usati da altre app.",
+    "quarantineNote": "Tutto va in Quarantena per {days} giorni: puoi riportarlo indietro con un clic.",
+    "adminLeftovers": "Windows chiederà il permesso per {count}.",
+    "cleaning": "Sposto {count} in Quarantena…",
+    "removedTitle": "{name} è stata rimossa",
+    "noneRemoved": "Nessuna app è stata disinstallata",
+    "allRemoved": "{count} app rimosse",
+    "someRemoved": "{n} app su {total} rimosse",
+    "freed": "liberati",
+    "movedNote": "Ho tolto anche {count}: sono in Quarantena e puoi ripristinarli per {days} giorni.",
+    "movedNoteSettings": "Ho tolto anche {count}, comprese le impostazioni dell'app: sono in Quarantena e puoi ripristinarli per {days} giorni.",
+    "declinedNote": "Lasciati al loro posto perché il permesso non è stato dato: {count}.",
+    "skippedNote": "Lasciati al loro posto perché in uso o cambiati: {count}.",
+    "noLeftovers": "Non ha lasciato nulla.",
+    "undo": "Annulla pulizia",
+    "undoing": "Li rimetto a posto…",
+    "undone": "Gli avanzi sono tornati dov'erano.",
+    "done": "Fine",
+    "errors": {
+      "notInstalled": "Questa app non è più installata.",
+      "noUninstaller": "Questa app non ha un programma di disinstallazione. Se non c'è più, trovi la sua voce in Avanzi.",
+      "itself": "Easy Uninstaller non può disinstallare sé stesso: usa le Impostazioni di Windows.",
+      "stillInstalled": "L'app è ancora installata, quindi non ho cercato nulla.",
+      "declined": "Il permesso non è stato dato, quindi non è cambiato nulla.",
+      "other": "Qualcosa è andato storto: {error}"
+    }
   }
 }

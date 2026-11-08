@@ -64,13 +64,40 @@ export interface ScanProgress {
   filesChecked: number;
 }
 
+export type LeftoverKind = "folder" | "registry" | "shortcut";
+
+/** Something a program left behind. Mirrors `LeftoverItem` in src-tauri/src/leftovers.rs. */
 export interface LeftoverItem {
   id: string;
-  appName: string;
+  /** The app it belonged to; for a broken shortcut, the shortcut's name. */
+  appName: string | null;
+  kind: LeftoverKind;
+  /** A path, or a registry key such as HKCU\Software\App. */
   path: string;
+  /** 0 for registry keys. */
   sizeBytes: number;
-  kind: "folder" | "registry" | "shortcut";
+  /** i18n key under `leftovers.reasons`. */
+  reason: string;
+  /** "check" for the user's own settings of the app: not selected by default. */
+  safety: Safety;
+  /** Outside the user's folder (Program Files, ProgramData, HKLM): Windows asks for permission. */
+  needsAdmin: boolean;
+  /** Belongs to no installed app, but no uninstall is known (removed by hand or elsewhere): for the user to check. */
+  unowned: boolean;
+  /** Last change inside the folder, in seconds since 1970, when known. */
+  modifiedAt: number | null;
 }
+
+/** How an uninstall ended. Mirrors `UninstallOutcome` in src-tauri/src/uninstall.rs. */
+export type UninstallOutcome =
+  /** Gone from the app list. */
+  | "removed"
+  /** The uninstaller closed but the app is still listed: it may still be working, or was stopped. */
+  | "stillInstalled"
+  /** Cancelled in the app's own uninstaller. */
+  | "cancelled"
+  /** The Windows permission prompt was answered no. */
+  | "declined";
 
 export type MapCategory = "apps" | "games" | "personal" | "system" | "reclaimable" | "free";
 
@@ -111,8 +138,10 @@ export interface SpaceProgress {
 }
 
 export interface QuarantinedFile {
+  /** A path, or a registry key such as HKCU\Software\App. */
   originalPath: string;
   sizeBytes: number;
+  kind: "file" | "folder" | "registry";
 }
 
 /** One move into quarantine (for example, one file group). */
@@ -128,6 +157,8 @@ export interface QuarantineEntry {
   expiresAt: number;
   /** Largest first, at most 50. */
   items: QuarantinedFile[];
+  /** Made with administrator rights: Windows asks for permission to restore or delete it. */
+  needsAdmin: boolean;
 }
 
 export interface MoveReport {
@@ -137,6 +168,8 @@ export interface MoveReport {
   movedBytes: number;
   /** Left in place: in use, changed since the scan, or gone. */
   skippedCount: number;
+  /** Left in place because the Windows permission prompt was answered no. */
+  declinedCount: number;
 }
 
 export interface RestoreReport {
