@@ -657,6 +657,11 @@
         "label": "Gestore di pacchetti",
         "what": "Chocolatey o Scoop e i programmi che hanno installato.",
         "ifRemoved": "I programmi installati con loro smetterebbero di funzionare o non si aggiornerebbero più."
+      },
+      "easyUninstaller": {
+        "label": "Dati di Easy Uninstaller",
+        "what": "La cartella di questa app: le impostazioni, le risposte dell'AI e la Quarantena, cioè i file che hai tolto negli ultimi giorni, tenuti per poterli rimettere a posto. Per questo può pesare tanto.",
+        "ifRemoved": "Non potresti più ripristinare quello che è in Quarantena. Per liberare spazio apri la Quarantena ed elimina quello che non ti serve, oppure scegli meno giorni o un altro disco nelle Impostazioni."
       }
     },
     "move": {

@@ -657,6 +657,11 @@
         "label": "Package manager",
         "what": "Chocolatey or Scoop and the programs they installed.",
         "ifRemoved": "Programs installed with them would stop working or could no longer be updated."
+      },
+      "easyUninstaller": {
+        "label": "Easy Uninstaller's data",
+        "what": "This app's own folder: its settings, the AI answers and the Quarantine, that is the files you removed in the last few days, kept so you can still put them back. That is why it can be large.",
+        "ifRemoved": "You could no longer restore what is in the Quarantine. To free this space, open Quarantine and delete what you no longer need, or pick fewer days or another drive in Settings."
       }
     },
     "move": {

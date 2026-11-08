@@ -61,7 +61,7 @@
   </div>
 {/if}
 
-{#if onMove}
+{#if onMove && !folder?.noMove}
   <div class="grow"></div>
   {#if confirming}
     <div class="confirm {risk}" role="alertdialog" aria-label={t("explain.move.title", { name })}>
