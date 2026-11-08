@@ -40,7 +40,10 @@
     "mapText": "See at a glance what takes up the most space.",
     "mapButton": "Open map",
     "quarantineTip": "Nothing is deleted right away: everything goes to <b>Quarantine</b> for {days} days and you can restore it with one click.",
-    "used": "Used"
+    "used": "Used",
+    "calculating": "Calculating…",
+    "calculatingNote": "I'm looking at your files: it takes a minute or two.",
+    "appsInstalled": "{count} apps · {size}"
   },
   "apps": {
     "title": "Apps",
