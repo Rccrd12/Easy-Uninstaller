@@ -133,7 +133,46 @@
     "subtitle": "Each block is as big as the space it uses.",
     "onlyApps": "Apps only",
     "onlyFiles": "Files only",
-    "everything": "Everything"
+    "everything": "Everything",
+    "summary": "Each block is as big as the space it uses. Drive {drive} · {used} used of {total}.",
+    "rescan": "Measure again",
+    "measuring": "Measuring the space on your disk…",
+    "checked": "{count} files checked",
+    "readOnly": "Looking only: nothing is changed or deleted.",
+    "failed": "The space could not be measured: {error}",
+    "retry": "Try again",
+    "shownTotal": "Shown: {size}",
+    "ofDisk": "{share} of the disk",
+    "pickBlock": "Click a block to see what it is.",
+    "openApps": "Go to Apps",
+    "openFiles": "Go to Files",
+    "blocks": {
+      "desktop": "Desktop",
+      "documents": "Documents",
+      "downloads": "Downloads",
+      "pictures": "Pictures",
+      "videos": "Videos",
+      "music": "Music",
+      "oneDrive": "OneDrive",
+      "appData": "App data",
+      "caches": "Temporary files and caches",
+      "recycleBin": "Recycle Bin",
+      "system": "Windows and other",
+      "free": "Free space",
+      "other": {
+        "apps": "Other apps ({count})",
+        "games": "Other games ({count})",
+        "personal": "Other folders ({count})",
+        "reclaimable": "Other reclaimable ({count})"
+      }
+    },
+    "hints": {
+      "caches": "Windows, browsers and apps recreate them on their own. You can free them from Files.",
+      "recycle-bin": "Files you deleted in Windows. Empty the Recycle Bin to get this space back.",
+      "system": "Windows itself, its memory and sleep files, and the folders of other users.",
+      "free": "Space you can still use.",
+      "other": "Small items put together so the map stays readable."
+    }
   },
   "quarantine": {
     "title": "Quarantine",
@@ -185,7 +224,8 @@
     "apps": "Apps",
     "games": "Games",
     "personal": "Personal files",
-    "system": "Windows",
-    "reclaimable": "Reclaimable"
+    "system": "Windows and other",
+    "reclaimable": "Reclaimable",
+    "free": "Free space"
   }
 }

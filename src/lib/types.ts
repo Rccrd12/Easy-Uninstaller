@@ -72,13 +72,42 @@ export interface LeftoverItem {
   kind: "folder" | "registry" | "shortcut";
 }
 
-export type MapCategory = "apps" | "games" | "personal" | "system" | "reclaimable";
+export type MapCategory = "apps" | "games" | "personal" | "system" | "reclaimable" | "free";
 
+/** A block of the space map, built by src/lib/spacemap.ts. */
 export interface SpaceBlock {
   id: string;
-  label: string;
+  /** i18n key, or null to show `label` as is (an app or folder name). */
+  labelKey: string | null;
+  label: string | null;
   sizeBytes: number;
   category: MapCategory;
+  path: string | null;
+  /** How many items a grouped "Other ..." block holds; 0 otherwise. */
+  groupedCount: number;
+}
+
+/** A measured folder. Mirrors `SpaceFolder` in src-tauri/src/space.rs. */
+export interface SpaceFolder {
+  id: string;
+  labelKey: string | null;
+  label: string | null;
+  path: string | null;
+  sizeBytes: number;
+  category: "apps" | "personal" | "reclaimable";
+}
+
+/** Mirrors `SpaceUsage` in src-tauri/src/space.rs. */
+export interface SpaceUsage {
+  mountPoint: string;
+  totalBytes: number;
+  freeBytes: number;
+  /** Biggest first. */
+  folders: SpaceFolder[];
+}
+
+export interface SpaceProgress {
+  filesChecked: number;
 }
 
 export interface QuarantinedFile {
