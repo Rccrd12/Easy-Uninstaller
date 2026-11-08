@@ -224,7 +224,10 @@
       "startMenu": "Start menu folder",
       "brokenShortcut": "Shortcut to a program that no longer exists",
       "brokenEntry": "Entry in the app list with no program"
-    }
+    },
+    "hideApp": "Hide {app}'s leftovers",
+    "hideGroup": "Hide this group",
+    "hideHint": "They stay where they are and won't be suggested again."
   },
   "map": {
     "title": "Space map",
@@ -418,6 +421,7 @@
     "doneMany": "Hidden: {count}. They stay where they are and won't be suggested again.",
     "shownAgain": "Shown again.",
     "shownAgainMany": "Shown again: {count}.",
-    "failed": "Couldn't save: {error}"
+    "failed": "Couldn't save: {error}",
+    "leftoverOf": "{app} leftover"
   }
 }

@@ -1,13 +1,30 @@
 <script lang="ts">
+  import EyeOffIcon from "../components/EyeOffIcon.svelte";
   import StatusIcon from "../components/StatusIcon.svelte";
   import LeftoverRow from "../components/LeftoverRow.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
-  import { listLeftovers, QUARANTINE_DAYS, quarantineLeftovers, restoreQuarantine, usesSampleData } from "../api";
+  import {
+    addExclusions,
+    hiddenItem,
+    listExclusions,
+    listLeftovers,
+    QUARANTINE_DAYS,
+    quarantineLeftovers,
+    removeExclusions,
+    restoreQuarantine,
+    usesSampleData,
+  } from "../api";
   import { formatBytes, leftoverCount, longAgo, restoreSummary } from "../format";
   import { t } from "../i18n/index.svelte";
-  import type { LeftoverItem, MoveReport } from "../types";
+  import type { Screen } from "../screens";
+  import type { Exclusion, LeftoverItem, MoveReport } from "../types";
 
-  type Notice = { kind: "moved"; report: MoveReport } | { kind: "info" | "error"; lines: string[] };
+  let { onNavigate }: { onNavigate: (s: Screen) => void } = $props();
+
+  type Notice =
+    | { kind: "moved"; report: MoveReport }
+    | { kind: "hidden"; items: Exclusion[]; lines: string[] }
+    | { kind: "info" | "error"; lines: string[] };
 
   let items = $state<LeftoverItem[]>([]);
   let picked = $state<Set<string>>(new Set());
@@ -16,6 +33,10 @@
   let moving = $state(false);
   let undoing = $state(false);
   let notice = $state<Notice | null>(null);
+  /** How many leftovers are hidden. */
+  let hiddenCount = $state(0);
+  /** The ⋯ menu of a group. */
+  let menu = $state<{ group: Group; x: number; y: number } | null>(null);
 
   function load() {
     loading = true;
@@ -31,6 +52,55 @@
   }
 
   $effect(() => load());
+  $effect(() => countHidden());
+
+  function countHidden() {
+    listExclusions()
+      .then((list) => (hiddenCount = list.filter((e) => e.kind === "leftover").length))
+      .catch(() => {});
+  }
+
+  /** "Hide": the leftovers stay where they are and are not suggested again. */
+  async function hide(list: LeftoverItem[]) {
+    if (!list.length) return;
+    const hidden = list.map((i) => hiddenItem("leftover", i.path, i.appName));
+    try {
+      await addExclusions(hidden);
+      const line = list.length === 1
+        ? t("hidden.done", { name: t(`leftovers.reasons.${list[0].reason}`) })
+        : t("hidden.doneMany", { count: leftoverCount(list.length) });
+      notice = { kind: "hidden", items: hidden, lines: [line] };
+    } catch (e) {
+      notice = { kind: "error", lines: [t("hidden.failed", { error: String(e) })] };
+    } finally {
+      countHidden();
+      reloadQuietly();
+    }
+  }
+
+  async function unhide(list: Exclusion[]) {
+    undoing = true;
+    try {
+      await removeExclusions(list);
+      notice = { kind: "info", lines: [t("hidden.shownAgain")] };
+    } catch (e) {
+      notice = { kind: "error", lines: [t("hidden.failed", { error: String(e) })] };
+    } finally {
+      undoing = false;
+      countHidden();
+      reloadQuietly();
+    }
+  }
+
+  function openMenu(e: MouseEvent, group: Group) {
+    e.stopPropagation();
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const width = 300;
+    menu = { group, x: Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8)), y: r.bottom + 4 };
+  }
+
+  /** The app a group belongs to, when it is one app's leftovers. */
+  const appOf = (g: Group) => (g.key.startsWith("#") ? null : (g.items[0]?.appName ?? null));
 
   type Group = { key: string; title: string; items: LeftoverItem[]; size: number; modifiedAt: number | null };
 
@@ -183,9 +253,10 @@
         {#if group.modifiedAt}<span class="muted">· {t("leftovers.lastChange", { when: longAgo(group.modifiedAt) })}</span>{/if}
         <span class="grow"></span>
         <span class="group-size" class:muted={!group.size}>{group.size ? formatBytes(group.size) : "—"}</span>
+        <button class="dots" aria-label={t("files.groupMenu", { name: group.title })} aria-haspopup="menu" onclick={(e) => openMenu(e, group)}>⋯</button>
       </div>
       {#each group.items as item (item.id)}
-        <LeftoverRow {item} checked={picked.has(item.id)} onToggle={() => toggle(item.id)} />
+        <LeftoverRow {item} checked={picked.has(item.id)} onToggle={() => toggle(item.id)} onHide={() => hide([item])} />
       {/each}
     </div>
   {/snippet}
@@ -211,13 +282,41 @@
   </div>
 {/if}
 
+{#if !loading && hiddenCount > 0}
+  <button class="hidden-link" onclick={() => onNavigate("hidden")}>
+    <EyeOffIcon />
+    <span>{t("files.hiddenLink", { count: leftoverCount(hiddenCount) })}</span>
+    <span class="link-action">{t("files.hiddenLinkAction")} ›</span>
+  </button>
+{/if}
+
+{#if menu}
+  {@const m = menu}
+  {@const app = appOf(m.group)}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="card menu" style="left:{m.x}px;top:{m.y}px" role="menu" tabindex="-1" onclick={(e) => e.stopPropagation()}>
+    <button role="menuitem" class="menu-hide" onclick={() => { const list = m.group.items; menu = null; hide(list); }}>
+      <EyeOffIcon />
+      <span>
+        {app ? t("leftovers.hideApp", { app }) : t("leftovers.hideGroup")}
+        <span class="muted menu-hint">{t("leftovers.hideHint")}</span>
+      </span>
+    </button>
+  </div>
+{/if}
+
+<svelte:window onclick={() => (menu = null)} onkeydown={(e) => e.key === "Escape" && (menu = null)} onresize={() => (menu = null)} />
+
 {#if notice}
   {@const n = notice}
   <div class="card toast" class:error={n.kind === "error"} role="status" aria-live="polite">
-    <StatusIcon kind={n.kind === "error" ? "warn" : "ok"} />
+    {#if n.kind === "hidden"}<span class="toast-icon"><EyeOffIcon size={20} /></span>{:else}<StatusIcon kind={n.kind === "error" ? "warn" : "ok"} />{/if}
     <div class="toast-text">
       {#each n.kind === "moved" ? movedLines(n.report) : n.lines as line, i (i)}<p>{line}</p>{/each}
     </div>
+    {#if n.kind === "hidden"}
+      <button class="btn btn-ghost" disabled={undoing} onclick={() => unhide(n.items)}>↩ {t("leftovers.undo")}</button>
+    {/if}
     {#if n.kind === "moved"}
       <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(n.report)}>
         {undoing ? t("leftovers.undoing") : `↩ ${t("leftovers.undo")}`}
@@ -248,6 +347,18 @@
   .spinner { flex: none; width: 18px; height: 18px; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  .dots { flex: none; border: none; background: none; font-size: 18px; line-height: 1; padding: 2px 8px; margin-right: -6px; border-radius: var(--radius-sm); color: var(--text-muted); }
+  .dots:hover { background: var(--hover); color: var(--text); }
+  .hidden-link { display: flex; align-items: center; gap: 8px; margin-top: 6px; border: none; background: none; padding: 6px 2px; font-size: 13px; color: var(--text-muted); text-align: left; }
+  .link-action { color: var(--accent); font-weight: 600; }
+  .hidden-link:hover .link-action { text-decoration: underline; }
+  .menu { position: fixed; z-index: 20; width: 300px; padding: 6px; box-shadow: var(--shadow-pop); display: flex; flex-direction: column; }
+  .menu button { border: none; background: none; text-align: left; padding: 8px 10px; border-radius: 5px; font-size: 13px; }
+  .menu button:hover, .menu button:focus-visible { background: var(--hover); outline: none; }
+  .menu-hide { display: flex; align-items: flex-start; gap: 8px; }
+  .menu-hide :global(.eye-off) { margin-top: 2px; }
+  .menu-hint { display: block; font-size: 12px; margin-top: 2px; }
+  .toast-icon { display: flex; color: var(--text-muted); }
   .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
   .toast.error { border-left-color: var(--danger); }
   .toast-text { flex: 1; font-size: 13px; line-height: 1.4; }

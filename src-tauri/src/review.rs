@@ -450,8 +450,7 @@ fn apply(last: &LastScan, list: &[Exclusion]) {
         .collect();
 }
 
-/// The leftovers the user hid, by id, for the leftovers screen to leave out.
-#[allow(dead_code)] // Used by the leftovers screen once it reads real leftovers.
+/// The leftovers the user hid, by path (or registry key), for the leftovers to leave out.
 pub fn hidden_leftovers(app: &AppHandle) -> Vec<String> {
     app.state::<Exclusions>()
         .list()
@@ -459,6 +458,12 @@ pub fn hidden_leftovers(app: &AppHandle) -> Vec<String> {
         .filter(|e| e.kind == HiddenKind::Leftover)
         .map(|e| e.path)
         .collect()
+}
+
+/// Whether a leftover at `path` was hidden. Windows paths and registry keys
+/// ignore case, so the comparison does too.
+pub fn hides_leftover(hidden: &[String], path: &str) -> bool {
+    hidden.iter().any(|h| h.eq_ignore_ascii_case(path))
 }
 
 /// Writes to a temporary file first, so a crash never leaves half a list.
@@ -953,6 +958,21 @@ mod tests {
         assert!(!can_open(Path::new(r"C:\x\setup.exe")));
         assert!(!can_open(Path::new(r"C:\x\run.bat")));
         assert!(!can_open(Path::new(r"C:\x\noext")));
+    }
+
+    #[test]
+    fn hides_leftovers_by_path_ignoring_case() {
+        let hidden = vec![
+            r"C:\Users\me\AppData\Roaming\Zoom".to_string(),
+            r"HKCU\Software\Zoom".to_string(),
+        ];
+        assert!(hides_leftover(&hidden, r"c:\users\me\appdata\roaming\zoom"));
+        assert!(hides_leftover(&hidden, r"HKCU\SOFTWARE\Zoom"));
+        assert!(!hides_leftover(
+            &hidden,
+            r"C:\Users\me\AppData\Roaming\Zoom\Logs"
+        ));
+        assert!(!hides_leftover(&[], r"HKCU\Software\Zoom"));
     }
 
     #[test]

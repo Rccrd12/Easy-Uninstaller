@@ -41,7 +41,7 @@
 
   function nameOfItem(e: Exclusion): string {
     if (e.kind === "group") return t(e.label ?? e.path);
-    if (e.kind === "leftover") return e.label ?? nameOf(e.path);
+    if (e.kind === "leftover") return e.label ? t("hidden.leftoverOf", { app: e.label }) : nameOf(e.path) || e.path;
     return nameOf(e.path);
   }
 

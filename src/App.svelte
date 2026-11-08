@@ -20,7 +20,7 @@
     {#if screen === "home"}<Home onNavigate={go} />
     {:else if screen === "apps"}<Apps />
     {:else if screen === "files"}<Files onNavigate={go} />
-    {:else if screen === "leftovers"}<Leftovers />
+    {:else if screen === "leftovers"}<Leftovers onNavigate={go} />
     {:else if screen === "map"}<SpaceMap onNavigate={go} />
     {:else if screen === "quarantine"}<Quarantine />
     {:else if screen === "settings"}<Settings onNavigate={go} />

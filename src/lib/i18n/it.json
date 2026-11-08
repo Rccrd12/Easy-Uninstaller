@@ -224,7 +224,10 @@
       "startMenu": "Cartella del menu Start",
       "brokenShortcut": "Collegamento a un programma che non esiste più",
       "brokenEntry": "Voce nell'elenco delle app senza programma"
-    }
+    },
+    "hideApp": "Nascondi gli avanzi di {app}",
+    "hideGroup": "Nascondi questo gruppo",
+    "hideHint": "Restano dove sono e non te li proponiamo più."
   },
   "map": {
     "title": "Mappa dello spazio",
@@ -418,6 +421,7 @@
     "doneMany": "Nascosti: {count}. Restano dove sono e non verranno più proposti.",
     "shownAgain": "Di nuovo visibile.",
     "shownAgainMany": "Di nuovo visibili: {count}.",
-    "failed": "Non è stato possibile salvare: {error}"
+    "failed": "Non è stato possibile salvare: {error}",
+    "leftoverOf": "Avanzo di {app}"
   }
 }

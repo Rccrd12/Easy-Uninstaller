@@ -23,6 +23,7 @@ use crate::elevated::{self, Job};
 use crate::files::Safety;
 use crate::quarantine::{self, now_secs, Item, MoveReport, Quarantine, Target, Title};
 use crate::regkey::{Hive, RegKeyPath};
+use crate::review;
 use crate::uninstall::split_command;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -1087,11 +1088,16 @@ fn working_link_targets(roots: &Roots) -> Vec<PathBuf> {
 pub struct LastLeftovers(Mutex<HashMap<String, Found>>);
 
 impl LastLeftovers {
-    fn keep(&self, found: &[Found], roots: &Roots) -> Vec<LeftoverItem> {
+    /// Keeps what was found for a later move, minus what the user hid:
+    /// hidden leftovers are neither shown nor moved.
+    fn keep(&self, found: &[Found], roots: &Roots, hidden: &[String]) -> Vec<LeftoverItem> {
         let mut map = self.0.lock().unwrap_or_else(|e| e.into_inner());
         let mut items = Vec::new();
         for f in found {
-            if let Some(item) = f.item(roots) {
+            if let Some(item) = f
+                .item(roots)
+                .filter(|i| !review::hides_leftover(hidden, &i.path))
+            {
                 map.insert(item.id.clone(), f.clone());
                 items.push(item);
             }
@@ -1150,7 +1156,8 @@ pub fn search_app(
     if let Some(key) = stale.filter(|k| registry_allowed(k)) {
         found.push(stale_entry(key, &hints.name));
     }
-    app.state::<LastLeftovers>().keep(&found, &roots)
+    app.state::<LastLeftovers>()
+        .keep(&found, &roots, &review::hidden_leftovers(app))
 }
 
 /// Everything the Leftovers screen shows.
@@ -1178,7 +1185,8 @@ pub async fn list_leftovers(app: AppHandle) -> Result<Vec<LeftoverItem>, String>
         let mut seen = HashSet::new();
         found.retain(|f| seen.insert(leftover_id(&f.target)));
         found.sort_by_key(|f| std::cmp::Reverse(f.size));
-        app.state::<LastLeftovers>().keep(&found, &roots)
+        app.state::<LastLeftovers>()
+            .keep(&found, &roots, &review::hidden_leftovers(&app))
     })
     .await
     .map_err(|e| e.to_string())

@@ -158,14 +158,16 @@ export async function findAppLeftovers(id: string): Promise<LeftoverItem[]> {
   if (isTauri()) return invoke<LeftoverItem[]>("find_app_leftovers", { id });
   await sleep(900);
   const app = sampleApps.find((a) => a.id === id);
-  return app && app.source !== "store" ? sampleAppLeftovers(app.name) : [];
+  return app && app.source !== "store" ? sampleAppLeftovers(app.name).filter((l) => !sampleHidesLeftover(l.path)) : [];
 }
 
 /** Leftovers of programs no longer installed: broken shortcuts and app-list entries, and leftovers of apps uninstalled here. */
 export async function listLeftovers(): Promise<LeftoverItem[]> {
   if (isTauri()) return invoke<LeftoverItem[]>("list_leftovers");
-  return sampleLeftovers.filter((l) => !sampleMovedLeftovers.has(l.id));
+  return sampleLeftovers.filter((l) => !sampleMovedLeftovers.has(l.id) && !sampleHidesLeftover(l.path));
 }
+
+const sampleHidesLeftover = (path: string) => sampleHidden.some((e) => e.kind === "leftover" && e.path.toLowerCase() === path.toLowerCase());
 
 const sampleMovedLeftovers = new Set<string>();
 
