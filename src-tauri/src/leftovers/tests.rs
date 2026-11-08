@@ -446,6 +446,8 @@ fn items_serialize_like_the_typescript_type() {
         reason: "registry",
         safety: Safety::Safe,
         size: 0,
+        unowned: false,
+        modified: None,
     };
     let json = serde_json::to_string(&f.item(&pc.roots).unwrap()).unwrap();
     for part in [
@@ -459,4 +461,55 @@ fn items_serialize_like_the_typescript_type() {
     ] {
         assert!(json.contains(part), "{json}");
     }
+}
+
+#[test]
+fn unowned_folders_from_manual_uninstalls() {
+    let pc = Pc::new("unowned");
+    let year = 365 * 24 * 60 * 60;
+    let now = now_secs() + 2 * year; // Everything on disk looks two years old.
+    pc.file("Program Files/Old Tool/tool.exe", 100);
+    pc.file("Users/me/AppData/Roaming/Old Tool/settings.ini", 10);
+    // Installed apps, their look-alikes, Windows' and drivers' folders.
+    pc.file("Users/me/AppData/Local/Spotify/cache.bin", 5);
+    pc.file("Users/me/AppData/Local/SpotifyWidget/x.bin", 5);
+    pc.file("ProgramData/NVIDIA Corporation/x.bin", 5);
+    pc.file("Users/me/AppData/Local/ConnectedDevicesPlatform/x.bin", 5);
+    pc.file("ProgramData/Vendor Service/svc.exe", 5);
+    // Still used: changed recently, or a working shortcut leads into it.
+    let busy = pc.file("Program Files/Busy/data.bin", 5);
+    let recent = std::time::UNIX_EPOCH + std::time::Duration::from_secs(now - 10 * 24 * 60 * 60);
+    fs::File::options()
+        .write(true)
+        .open(&busy)
+        .unwrap()
+        .set_modified(recent)
+        .unwrap();
+    let linked = pc.file("Program Files/Linked/app.exe", 5);
+
+    let mut in_use = InUse::default();
+    in_use.add("Spotify", "Spotify AB", None, &[]);
+    in_use.add("", "", None, &[pc.base.join("ProgramData/Vendor Service")]);
+    let reg = FakeReg::default()
+        .key(r"HKCU\Software", &["Old Tool", "Spotify"], 0)
+        .key(r"HKLM\Software", &["Classes"], 0);
+
+    let found = find_unowned(&pc.roots, &in_use, &[linked], &reg, now);
+    assert_eq!(
+        ends(&pc, &found),
+        [
+            "AppData/Roaming/Old Tool",
+            r"HKCU\Software\Old Tool",
+            "Program Files/Old Tool",
+        ]
+    );
+    assert!(found.iter().all(|f| f.unowned && f.safety == Safety::Check));
+    assert!(found
+        .iter()
+        .all(|f| f.app_name.as_deref() == Some("Old Tool")));
+    let tool = found.iter().find(|f| f.size == 100).unwrap();
+    assert!(tool.modified.is_some_and(|m| m <= now - year));
+
+    // Nothing is offered when everything is recent.
+    assert!(find_unowned(&pc.roots, &in_use, &[], &reg, now_secs()).is_empty());
 }

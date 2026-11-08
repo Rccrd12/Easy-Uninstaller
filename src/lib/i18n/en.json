@@ -135,11 +135,14 @@
     "searching": "Looking for leftovers…",
     "scanNote": "We only look: nothing is changed or deleted.",
     "empty": "No leftovers found: your PC is tidy.",
-    "historyNote": "Apps you uninstall with Easy Uninstaller are remembered, so anything they leave behind shows up here too.",
+    "historyNote": "I also look for folders left by apps uninstalled earlier, by hand or with other tools.",
     "rescan": "Search again",
     "failed": "The search could not finish: {error}",
     "retry": "Try again",
     "from": "Left by {app}",
+    "maybeTitle": "Maybe leftovers",
+    "maybeText": "No installed app uses these folders, and nothing in them changed for at least 6 months. They could still belong to something you use: check before removing them.",
+    "lastChange": "last changed {when}",
     "groups": {
       "brokenShortcut": "Shortcuts that lead nowhere",
       "brokenEntry": "In the app list, but the program is gone"

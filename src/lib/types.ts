@@ -82,6 +82,10 @@ export interface LeftoverItem {
   safety: Safety;
   /** Outside the user's folder (Program Files, ProgramData, HKLM): Windows asks for permission. */
   needsAdmin: boolean;
+  /** Belongs to no installed app, but no uninstall is known (removed by hand or elsewhere): for the user to check. */
+  unowned: boolean;
+  /** Last change inside the folder, in seconds since 1970, when known. */
+  modifiedAt: number | null;
 }
 
 /** How an uninstall ended. Mirrors `UninstallOutcome` in src-tauri/src/uninstall.rs. */

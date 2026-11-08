@@ -8,7 +8,10 @@
 //!   whose name is exactly the uninstalled app's name (or its install folder's name),
 //!   possibly inside a folder named after its publisher;
 //! - shortcuts whose target is gone;
-//! - entries in the app list whose uninstaller is gone.
+//! - entries in the app list whose uninstaller is gone;
+//! - "unowned" folders (from uninstalls done elsewhere or by hand): no installed
+//!   app, service or working shortcut uses them, their name is nobody's, and nothing
+//!   inside changed for six months. These are never ticked by default.
 //!
 //! A folder or key is never proposed when another installed app has the same name,
 //! uses a path inside it, or (for a publisher folder) comes from the same publisher.
@@ -55,6 +58,10 @@ pub struct LeftoverItem {
     pub reason: String,
     pub safety: Safety,
     pub needs_admin: bool,
+    /// Belongs to no installed app, but no uninstall is known: for the user to check.
+    pub unowned: bool,
+    /// Last change inside the folder, in seconds since 1970, when known.
+    pub modified_at: Option<u64>,
 }
 
 /// An app as it was just before it was uninstalled: enough to find what it leaves.
@@ -221,6 +228,10 @@ pub struct Found {
     pub reason: &'static str,
     pub safety: Safety,
     pub size: u64,
+    /// Found without any uninstalled app to go by: belongs to no installed app.
+    pub unowned: bool,
+    /// Last change inside a folder, in seconds since 1970 (unowned folders only).
+    pub modified: Option<u64>,
 }
 
 impl Found {
@@ -239,6 +250,8 @@ impl Found {
             reason: self.reason.to_string(),
             safety: self.safety,
             needs_admin: roots.needs_admin(&self.target),
+            unowned: self.unowned,
+            modified_at: self.modified,
         })
     }
 }
@@ -668,6 +681,8 @@ pub fn find_for_app(h: &AppHints, roots: &Roots, in_use: &InUse, reg: &dyn RegVi
             app_name: app.clone(),
             reason: root.reason,
             safety: root.safety,
+            unowned: false,
+            modified: None,
         });
         taken.push(p);
     }
@@ -704,6 +719,8 @@ pub fn find_for_app(h: &AppHints, roots: &Roots, in_use: &InUse, reg: &dyn RegVi
                     reason: "registry",
                     safety: Safety::Safe,
                     size: 0,
+                    unowned: false,
+                    modified: None,
                 });
             }
         }
@@ -737,6 +754,8 @@ pub fn find_for_app(h: &AppHints, roots: &Roots, in_use: &InUse, reg: &dyn RegVi
                     reason: "startMenu",
                     safety: Safety::Safe,
                     size: apps::dir_size(&dir),
+                    unowned: false,
+                    modified: None,
                 });
                 shortcut_folders.push(dir);
             }
@@ -770,6 +789,8 @@ fn shortcut(link: PathBuf, app_name: Option<String>, reason: &'static str) -> Fo
         app_name,
         reason,
         safety: Safety::Safe,
+        unowned: false,
+        modified: None,
     }
 }
 
@@ -842,6 +863,8 @@ pub fn find_orphans(roots: &Roots, list: &[ListEntry]) -> Vec<Found> {
                 reason: "brokenEntry",
                 safety: Safety::Safe,
                 size: 0,
+                unowned: false,
+                modified: None,
             });
         }
     }
@@ -856,7 +879,203 @@ fn stale_entry(key: &RegKeyPath, name: &str) -> Found {
         reason: "brokenEntry",
         safety: Safety::Safe,
         size: 0,
+        unowned: false,
+        modified: None,
     }
+}
+
+/// How long a folder must have been left untouched to be offered as unowned.
+pub const UNOWNED_AFTER_DAYS: u64 = 180;
+/// Folders with more entries than this are too big to judge, and skipped.
+const UNOWNED_MAX_ENTRIES: usize = 200_000;
+
+/// Names (normalized) that Windows, drivers and developer tools use in AppData,
+/// ProgramData and Program Files without being in the app list.
+const SYSTEM_NAMES: &[&str] = &[
+    "assembly",
+    "chocolatey",
+    "comms",
+    "connecteddevicesplatform",
+    "docker",
+    "elevateddiagnostics",
+    "fontcache",
+    "gamedvr",
+    "git",
+    "gobuild",
+    "identitynexusintegration",
+    "jupyter",
+    "lowtemp",
+    "node",
+    "nodegyp",
+    "npm",
+    "npmcache",
+    "nuget",
+    "peernetworking",
+    "pip",
+    "placeholdertilelogofolder",
+    "pnpm",
+    "publishers",
+    "pypa",
+    "python",
+    "regid199106commicrosoft",
+    "scoop",
+    "softwaredistribution",
+    "squirreltemp",
+    "ssh",
+    "usoprivate",
+    "usoshared",
+    "virtualstore",
+    "wsl",
+    "yarn",
+];
+/// Name beginnings of the same kind: Windows itself and hardware drivers.
+const SYSTEM_PREFIXES: &[&str] = &[
+    "acer",
+    "amd",
+    "asus",
+    "cache",
+    "crash",
+    "dell",
+    "hp",
+    "intel",
+    "lenovo",
+    "log",
+    "logitech",
+    "microsoft",
+    "msedge",
+    "nvidia",
+    "package",
+    "realtek",
+    "temp",
+    "windows",
+];
+
+/// Whether a folder name can be an unowned leftover: not generic, not Windows',
+/// and not close to the name or publisher of anything installed.
+fn unowned_name(n: &str, in_use: &InUse) -> bool {
+    let close = |a: &String| {
+        a == n || (a.len() >= 4 && n.contains(a.as_str())) || (n.len() >= 4 && a.contains(n))
+    };
+    usable(n)
+        && !SYSTEM_NAMES.contains(&n)
+        && !SYSTEM_PREFIXES.iter().any(|p| n.starts_with(p))
+        && !in_use.names.iter().chain(&in_use.publishers).any(close)
+}
+
+/// Seconds since 1970 of a file's last change.
+fn mtime(meta: &fs::Metadata) -> u64 {
+    meta.modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map_or(0, |d| d.as_secs())
+}
+
+/// Size and last change of a folder, or `None` when anything inside changed after
+/// `cutoff` (or it is too big to tell).
+fn stale_size(dir: &Path, cutoff: u64) -> Option<(u64, u64)> {
+    let mut newest = mtime(&fs::symlink_metadata(dir).ok()?);
+    let (mut size, mut seen) = (0, 0);
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(current) = stack.pop() {
+        for entry in entries(&current) {
+            seen += 1;
+            let Ok(meta) = entry.path().symlink_metadata() else {
+                continue;
+            };
+            newest = newest.max(mtime(&meta));
+            if newest > cutoff || seen > UNOWNED_MAX_ENTRIES {
+                return None;
+            }
+            if meta.is_dir() {
+                stack.push(entry.path());
+            } else if meta.is_file() {
+                size += meta.len();
+            }
+        }
+    }
+    Some((size, newest))
+}
+
+/// Folders (and keys with their names) that no installed app owns: leftovers of
+/// apps removed by hand or by another tool. `links` are the targets of the
+/// shortcuts that still work: a folder they point into is in use.
+pub fn find_unowned(
+    roots: &Roots,
+    in_use: &InUse,
+    links: &[PathBuf],
+    reg: &dyn RegView,
+    now: u64,
+) -> Vec<Found> {
+    let cutoff = now.saturating_sub(UNOWNED_AFTER_DAYS * 24 * 60 * 60);
+    let mut out = Vec::new();
+    let mut names: HashMap<String, String> = HashMap::new();
+    for root in &roots.folders {
+        for dir in subdirs(&root.path) {
+            let n = name_of(&dir);
+            let candidate = unowned_name(&n, in_use)
+                && allowed(&Target::Folder(dir.clone()), roots)
+                && !in_use.uses(&dir)
+                && !links.iter().any(|l| inside(l, &dir));
+            if !candidate {
+                continue;
+            }
+            let Some((size, modified)) = stale_size(&dir, cutoff) else {
+                continue;
+            };
+            let shown = dir
+                .file_name()
+                .map(|f| f.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            names.entry(n).or_insert_with(|| shown.clone());
+            out.push(Found {
+                target: Target::Folder(dir),
+                app_name: Some(shown),
+                reason: root.reason,
+                safety: Safety::Check,
+                size,
+                unowned: true,
+                modified: Some(modified),
+            });
+        }
+    }
+    let bases = [
+        RegKeyPath::new(Hive::Hkcu, "Software"),
+        RegKeyPath::new(Hive::Hklm, "Software"),
+        RegKeyPath::new(Hive::Hklm, r"Software\WOW6432Node"),
+    ];
+    for base in &bases {
+        for name in reg.subkeys(base) {
+            let Some(shown) = names.get(&norm(&name)) else {
+                continue;
+            };
+            let key = RegKeyPath::new(base.hive, &format!("{}\\{name}", base.path));
+            if registry_allowed(&key) {
+                out.push(Found {
+                    target: Target::Registry(key),
+                    app_name: Some(shown.clone()),
+                    reason: "registry",
+                    safety: Safety::Check,
+                    size: 0,
+                    unowned: true,
+                    modified: None,
+                });
+            }
+        }
+    }
+    out
+}
+
+/// Where the shortcuts that still work lead.
+fn working_link_targets(roots: &Roots) -> Vec<PathBuf> {
+    let mut links = Vec::new();
+    for dir in &roots.shortcuts {
+        shortcuts_in(dir, SHORTCUT_DEPTH, &mut links);
+    }
+    links
+        .iter()
+        .filter_map(|l| shortcut_target(l))
+        .filter(|t| t.exists())
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -947,6 +1166,15 @@ pub async fn list_leftovers(app: AppHandle) -> Result<Vec<LeftoverItem>, String>
             }
             found.extend(find_for_app(&h, &roots, &in_use, &platform::Registry));
         }
+        // Last, so that what is known about an app wins over a guess.
+        let links = working_link_targets(&roots);
+        found.extend(find_unowned(
+            &roots,
+            &in_use,
+            &links,
+            &platform::Registry,
+            now_secs(),
+        ));
         let mut seen = HashSet::new();
         found.retain(|f| seen.insert(leftover_id(&f.target)));
         found.sort_by_key(|f| std::cmp::Reverse(f.size));
@@ -1059,6 +1287,20 @@ mod platform {
         for app in crate::apps::store_list() {
             in_use.add(&app.name, &app.publisher, None, &app.dirs);
         }
+        // Services and drivers: often not in the app list, but their folders are used.
+        let services = RegKeyPath::new(
+            crate::regkey::Hive::Hklm,
+            r"SYSTEM\CurrentControlSet\Services",
+        );
+        let dirs: Vec<PathBuf> = registry::platform::subkeys(&services)
+            .iter()
+            .filter_map(|name| {
+                let key = RegKeyPath::new(services.hive, &format!("{}\\{name}", services.path));
+                open(&key)?.get_value::<String, _>("ImagePath").ok()
+            })
+            .filter_map(|image| crate::uninstall::program_dir(&image))
+            .collect();
+        in_use.add("", "", None, &dirs);
         in_use
     }
 
