@@ -688,7 +688,7 @@ export interface SearchResult {
 
 /** Light: 4-bit model. Better: 8-bit. Best: 16-bit, three times the size. */
 export type IndexQuality = "light" | "better" | "best";
-/** Quick: the video's preview. Partial: 8 frames. Full: one frame every 5 seconds. */
+/** Quick: the video's preview. Partial: 8 frames. Full: a frame every second, kept when the scene changes. */
 export type IndexDepth = "quick" | "partial" | "full";
 
 /** Download: EmbeddingGemma 2, fetched by the app. Files: GGUF files already on this PC. Server: a llama.cpp server on this PC. */

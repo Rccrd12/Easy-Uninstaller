@@ -176,7 +176,7 @@ show ("holidays at the sea"), even when they are called W20251201RM.mp4. The app
 EmbeddingGemma 2 and llama.cpp once (about 750 MB, or 1.5 GB for the most precise model,
 each file checked by SHA-256), then indexes your photos and video frames in the background,
 at low priority, with pause. You choose the model size, how many frames of each video
-(the preview, 8 frames, or one every 5 seconds), what to index and where (your folders or
+(the preview, 8 frames, or scene by scene: a frame every second, kept only when the picture changed), what to index and where (your folders or
 the whole PC). Documents are found by their text through the index Windows already keeps.
 Instead of the download you can use your own embedding model: a GGUF file already on the PC
 (found in the LM Studio, llama.cpp and Hugging Face folders) or a llama.cpp server running on

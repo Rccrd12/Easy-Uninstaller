@@ -53,7 +53,7 @@ pub enum Depth {
     /// A few frames spread over the video.
     #[default]
     Partial,
-    /// One frame every few seconds: the whole video.
+    /// A frame every second, kept when the scene changes: the whole video.
     Full,
 }
 
