@@ -1276,13 +1276,14 @@
       "offline": "Download non riuscito: nessuna connessione.",
       "download": "Download non riuscito ({detail}).",
       "badFile": "File scaricato non valido ({detail}): eliminato.",
-      "engine": "Avvio del modello non riuscito ({detail}).",
+      "engine": "Errore del modello ({detail}).",
       "engineSlow": "Il modello non risponde. Riprovare.",
       "notReady": "Modello non ancora scaricato.",
       "serverOff": "Nessuna risposta dall'indirizzo indicato.",
       "notFound": "File o indirizzo non validi (solo su questo PC).",
       "noVision": "Solo testo: manca il file mmproj.",
-      "needEngine": "Richiede llama.cpp, scaricato con «Usa questo»."
+      "needEngine": "Richiede llama.cpp, scaricato con «Usa questo».",
+      "start": "Avvio del modello non riuscito ({detail})."
     },
     "source": {
       "label": "Modello",
@@ -1303,7 +1304,8 @@
       "ok": "Funziona · vettori da {dim}",
       "use": "Usa questo",
       "inUse": "In uso"
-    }
+    },
+    "retry": "Riprova"
   },
   "tidy": {
     "title": "Riordina i Download",

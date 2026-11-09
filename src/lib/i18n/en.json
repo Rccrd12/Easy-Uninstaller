@@ -1276,13 +1276,14 @@
       "offline": "Download failed: no connection.",
       "download": "The download failed ({detail}).",
       "badFile": "Downloaded file invalid ({detail}): deleted.",
-      "engine": "Model failed to start ({detail}).",
+      "engine": "Model error ({detail}).",
       "engineSlow": "The model is not responding. Try again.",
       "notReady": "Model not downloaded yet.",
       "serverOff": "No response from that address.",
       "notFound": "File or address not valid (only on this PC).",
       "noVision": "Text only: the mmproj file is missing.",
-      "needEngine": "Requires llama.cpp, downloaded with “Use this”."
+      "needEngine": "Requires llama.cpp, downloaded with “Use this”.",
+      "start": "Model failed to start ({detail})."
     },
     "source": {
       "label": "Model",
@@ -1303,7 +1304,8 @@
       "ok": "Works · {dim} numbers per vector",
       "use": "Use this",
       "inUse": "In use"
-    }
+    },
+    "retry": "Retry"
   },
   "tidy": {
     "title": "Tidy up Downloads",

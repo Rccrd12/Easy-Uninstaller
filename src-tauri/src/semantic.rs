@@ -41,6 +41,8 @@ const MIN_PHOTO_BYTES: u64 = 30 * 1024;
 const MAX_WALK: u64 = 3_000_000;
 /// The index is written at least this often while it grows.
 const SAVE_EVERY: Duration = Duration::from_secs(60);
+/// Files in a row the model cannot read before a round stops.
+const MAX_FAILURES: u32 = 5;
 /// The index starts this long after the app, so opening it stays quick.
 const START_DELAY: Duration = Duration::from_secs(20);
 
@@ -473,7 +475,8 @@ fn fetch(
         i.download = Some(DownloadInfo {
             done_bytes: before + f.size,
             total_bytes: total,
-            verifying: true,
+            // Each file is checked as it arrives; only the last check is shown.
+            verifying: before + f.size >= total,
         })
     });
     emit(app, true);
@@ -712,6 +715,7 @@ fn index_round(app: &AppHandle, generation: u64) -> Result<(), String> {
     emit(app, true);
     let mut saved = Instant::now();
     let mut result = Ok(());
+    let mut failures = 0;
     for (n, item) in todo.iter().enumerate() {
         if !current() {
             break;
@@ -726,6 +730,7 @@ fn index_round(app: &AppHandle, generation: u64) -> Result<(), String> {
         emit(app, false);
         let pictures = frames::pictures(&item.path, item.kind, settings.depth);
         let mut each: Vec<Vec<i8>> = Vec::new();
+        let mut failed = None;
         for png in &pictures {
             if !current() {
                 break;
@@ -733,14 +738,23 @@ fn index_round(app: &AppHandle, generation: u64) -> Result<(), String> {
             match engine::embed(&engine, &engine::Input::Picture(png)) {
                 Ok(v) => each.extend(store::quantize(&v)),
                 Err(e) => {
-                    result = Err(e);
+                    failed = Some(e);
                     break;
                 }
             }
         }
-        if result.is_err() {
-            break;
+        if let Some(e) = failed {
+            // One file the model cannot read is skipped (and tried again next round);
+            // many in a row, or a model that is not running, stop the round.
+            failures += 1;
+            let answered = e.starts_with("index.error.engine:");
+            if !answered || failures >= MAX_FAILURES {
+                result = Err(e);
+                break;
+            }
+            continue;
         }
+        failures = 0;
         if !current() {
             break;
         }
@@ -1078,6 +1092,17 @@ pub async fn index_find_models() -> Vec<OwnModel> {
     tauri::async_runtime::spawn_blocking(|| models_in(&model_dirs()))
         .await
         .unwrap_or_default()
+}
+
+/// After a problem: the same round again (the model is started anew if it stopped).
+#[tauri::command]
+pub fn index_retry(app: AppHandle) -> IndexStatus {
+    let state = app.state::<LocalIndex>();
+    state.update(|i| i.error = None);
+    start_round(&app);
+    let status = state.status(&app);
+    let _ = app.emit(EVENT, status.clone());
+    status
 }
 
 /// Stops the download; what came already is kept for the next try.

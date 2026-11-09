@@ -1150,6 +1150,15 @@ export async function indexRemove(): Promise<IndexStatus> {
   return structuredClone(sampleIndex);
 }
 
+/** After a problem: indexing starts again. */
+export async function indexRetry(): Promise<IndexStatus> {
+  if (isTauri()) return invoke<IndexStatus>("index_retry");
+  sampleIndex.error = null;
+  sampleIndexRound();
+  sampleIndexChanged();
+  return structuredClone(sampleIndex);
+}
+
 /** Tries a model before it is used: a few words, then a small picture. */
 export async function indexCheck(settings: IndexSettings): Promise<IndexCheck> {
   if (isTauri()) return invoke<IndexCheck>("index_check", { settings });

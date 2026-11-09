@@ -65,17 +65,22 @@ pub enum Input<'a> {
     Picture(&'a [u8]),
 }
 
+/// The marker that stands for a picture in the prompt. llama.cpp picks a random
+/// one at each start unless `LLAMA_MEDIA_MARKER` sets it: the app's server gets
+/// this one; a person's own server says its own in `/props`.
+pub const MARKER: &str = "<__media__>";
+
 /// The request body for llama.cpp's own `/embeddings` endpoint. Pictures go as
-/// base64 with the media marker in the prompt; EmbeddingGemma wants no prefix for
-/// them, and `task: search result | query: ` before a search.
-pub fn body(input: &Input, gemma: bool) -> Value {
+/// base64 with the media `marker` in the prompt; EmbeddingGemma wants no prefix
+/// for them, and `task: search result | query: ` before a search.
+pub fn body(input: &Input, gemma: bool, marker: &str) -> Value {
     match input {
         Input::Query(text) if gemma => {
             json!({ "content": format!("task: search result | query: {text}") })
         }
         Input::Query(text) => json!({ "content": text }),
         Input::Picture(png) => json!({
-            "content": [{ "prompt_string": "<__media__>", "multimodal_data": [crate::apps::icon::base64(png)] }]
+            "content": [{ "prompt_string": marker, "multimodal_data": [crate::apps::icon::base64(png)] }]
         }),
     }
 }
@@ -188,11 +193,12 @@ fn start(setup: &Setup) -> Result<Running, String> {
         cmd.current_dir(dir);
     }
     platform::quiet(&mut cmd);
-    let mut child = cmd.spawn().map_err(|e| format!("index.error.engine:{e}"))?;
+    cmd.env("LLAMA_MEDIA_MARKER", MARKER);
+    let mut child = cmd.spawn().map_err(|e| format!("index.error.start:{e}"))?;
     let deadline = Instant::now() + START_LIMIT;
     loop {
         if let Ok(Some(_)) = child.try_wait() {
-            return Err(format!("index.error.engine:{}", log_tail(&setup.log)));
+            return Err(format!("index.error.start:{}", log_tail(&setup.log)));
         }
         match http::request(
             "GET",
@@ -221,16 +227,47 @@ fn start(setup: &Setup) -> Result<Running, String> {
 /// Where a person's own server takes embeddings: llama.cpp's `/embeddings`, also
 /// when the address given ends in `/v1` (that one reads no pictures).
 pub fn server_endpoint(base: &Url) -> Url {
+    server_root(base).join("embeddings")
+}
+
+fn server_root(base: &Url) -> Url {
     let mut root = base.clone();
     let path = base.path.trim_end_matches('/');
     root.path = path.strip_suffix("/v1").unwrap_or(path).to_string();
-    root.join("embeddings")
+    root
+}
+
+/// The media marker a person's server uses (its `/props`), or the usual one.
+fn server_marker(base: &Url) -> String {
+    http::request(
+        "GET",
+        &server_root(base).join("props"),
+        &[],
+        None,
+        Duration::from_secs(10),
+    )
+    .ok()
+    .filter(|r| r.status == 200)
+    .and_then(|r| serde_json::from_slice::<Value>(&r.body).ok())
+    .and_then(|v| marker_of(&v))
+    .unwrap_or_else(|| MARKER.to_string())
+}
+
+/// `media_marker` in llama.cpp's `/props`, when it looks like one.
+pub fn marker_of(props: &Value) -> Option<String> {
+    let m = props.get("media_marker")?.as_str()?;
+    (m.starts_with('<') && m.ends_with('>') && m.len() <= 128).then(|| m.to_string())
 }
 
 /// One vector, unit length. Starts the app's server when it is not running (or
 /// runs another model). Blocking; one request at a time.
 pub fn embed(engine: &Engine, input: &Input) -> Result<Vec<f32>, String> {
-    let body = serde_json::to_vec(&body(input, engine.gemma)).map_err(|e| e.to_string())?;
+    let marker = match (&engine.backend, input) {
+        (Backend::Server(base), Input::Picture(_)) => server_marker(base),
+        _ => MARKER.to_string(),
+    };
+    let body =
+        serde_json::to_vec(&body(input, engine.gemma, &marker)).map_err(|e| e.to_string())?;
     let answer = match &engine.backend {
         Backend::Own(setup) => ask_own(setup, &body)?,
         Backend::Server(base) => match http::request(
@@ -352,15 +389,22 @@ mod tests {
 
     #[test]
     fn requests_follow_embeddinggemma_and_llama_cpp() {
-        let q = body(&Input::Query("vacanze al mare"), true);
+        let q = body(&Input::Query("vacanze al mare"), true, MARKER);
         assert_eq!(q["content"], "task: search result | query: vacanze al mare");
-        let other = body(&Input::Query("vacanze al mare"), false);
+        let other = body(&Input::Query("vacanze al mare"), false, MARKER);
         assert_eq!(
             other["content"], "vacanze al mare",
             "another model: the words alone"
         );
-        let p = body(&Input::Picture(b"png"), true);
-        assert_eq!(p["content"][0]["prompt_string"], "<__media__>");
+        let p = body(&Input::Picture(b"png"), true, "<__media_x__>");
+        assert_eq!(p["content"][0]["prompt_string"], "<__media_x__>");
+        let props = json!({ "media_marker": "<__media_YoNhud46__>", "modalities": {} });
+        assert_eq!(marker_of(&props).as_deref(), Some("<__media_YoNhud46__>"));
+        assert_eq!(
+            marker_of(&json!({})),
+            None,
+            "an older server: the usual marker"
+        );
         assert_eq!(p["content"][0]["multimodal_data"][0], "cG5n");
     }
 

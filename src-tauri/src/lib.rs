@@ -124,6 +124,7 @@ pub fn run() {
             semantic::index_remove,
             semantic::index_check,
             semantic::index_find_models,
+            semantic::index_retry,
             space::scan_space,
             startup::list_startup_apps,
             startup::set_startup_apps,
