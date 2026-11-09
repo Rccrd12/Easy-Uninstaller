@@ -657,7 +657,9 @@ mod sys {
             .map(|(ptr, len)| {
                 // SAFETY: `ptr` and `len` (bytes) describe a block inside `data`.
                 let t = unsafe { std::slice::from_raw_parts(ptr, len) };
-                t.chunks_exact(4)
+                t.as_chunks::<4>()
+                    .0
+                    .iter()
                     .map(|c| {
                         let lang = u16::from_le_bytes([c[0], c[1]]);
                         let page = u16::from_le_bytes([c[2], c[3]]);
