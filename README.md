@@ -11,10 +11,11 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 ![Easy Uninstaller home screen](docs/screenshots/home.png)
 
 > [!NOTE]
-> **Early preview.** Every screen works with real data: one-click uninstall with leftover
-> cleanup, Quick clean, the file scan with "What is this?" explanations, the space map,
-> the quarantine and restore points. It still needs more testing on real PCs before a
-> stable release. See the [roadmap](#roadmap).
+> **Version 0.2, first public preview.** Every screen works with real data: one-click
+> uninstall with leftover cleanup, Quick clean, the file scan with "What is this?"
+> explanations and optional AI help, the space map, the quarantine and restore points.
+> It updates itself from Settings. It still needs more testing on real PCs before a
+> stable 1.0. See the [roadmap](#roadmap).
 
 ## Why another uninstaller?
 
@@ -65,6 +66,10 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 | **The AI's answer** | **Every unknown folder** |
 | ![The AI's answer, with what the app checked on this PC shown apart](docs/screenshots/ai-answer.png) | ![Asking the AI about every unknown folder at once](docs/screenshots/ai-all-folders.png) |
 
+| **Updates from Settings** |
+|---|
+| ![Settings: a new version is available, Update now](docs/screenshots/settings-updates.png) |
+
 <sub>Screenshots use sample data.</sub>
 
 ## Download and install
@@ -80,6 +85,9 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 > protected your PC"*. Click **More info**, then **Run anyway**. Signing is planned before
 > the first stable release. Each release lists the SHA-256 checksum of the installer, so you
 > can check that the file you downloaded is the one built here.
+
+After that, the app keeps itself up to date: it checks for a new version each time it
+opens, and *Settings > Updates > Update now* installs it in a few seconds.
 
 To uninstall Easy Uninstaller itself, use *Settings > Apps > Installed apps* in Windows,
 like any other program.
@@ -161,8 +169,10 @@ maintainer privately for anything sensitive.
     Codex, Antigravity CLI), an API key (Claude, OpenAI, Gemini, OpenRouter, any OpenAI-compatible
     service) or a model on this PC (Ollama, LM Studio, Unsloth Studio). Only names and numbers are
     sent; the answer is advice in its own purple tag and never moves or ticks anything
-13. ✅ In-app updates from Settings, signed and checked before installing
-14. ⬜ Signed installer and first stable release
+13. ✅ A more formal look: monochrome line icons instead of emoji
+14. ✅ In-app updates from Settings, signed and checked before installing
+15. ✅ First public release, 0.2.0
+16. ⬜ Code-signed installer (SignPath) and a stable 1.0
 
 ## Development
 
