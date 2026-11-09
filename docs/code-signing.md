@@ -3,7 +3,8 @@
 Without a signature, Windows SmartScreen shows *"Windows protected your PC"* when someone
 runs the installer, and the publisher appears as *Unknown*. For an app that asks people to
 trust it with their files, that warning matters. This page compares the ways to sign it.
-Nothing has been bought or set up yet.
+Nothing has been bought yet. The README now has the *Code signing policy* and *Privacy*
+sections that SignPath asks for, so the application to SignPath Foundation can be sent.
 
 Two facts apply to every option:
 

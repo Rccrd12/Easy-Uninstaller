@@ -173,6 +173,8 @@ jobs:
 
           SHA-256: ``$hash``
 
+          [Code signing policy](https://github.com/${{ github.repository }}#code-signing-policy) · [Privacy](https://github.com/${{ github.repository }}#privacy)
+
           "@ -replace '(?m)^          ', '' | Set-Content -Path release-notes.md -Encoding utf8
           "$name ($size), SHA-256 $hash" >> $env:GITHUB_STEP_SUMMARY
 

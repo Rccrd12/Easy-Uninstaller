@@ -84,7 +84,8 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 > The installer is **not code-signed yet**, so Windows SmartScreen may say *"Windows
 > protected your PC"*. Click **More info**, then **Run anyway**. Signing is planned before
 > the first stable release. Each release lists the SHA-256 checksum of the installer, so you
-> can check that the file you downloaded is the one built here.
+> can check that the file you downloaded is the one built here. See the
+> [code signing policy](#code-signing-policy).
 
 After that, the app keeps itself up to date: it checks for a new version each time it
 opens, and *Settings > Updates > Update now* installs it in a few seconds.
@@ -147,6 +148,41 @@ a "can be removed" answer is turned into "keep it".
 
 Found a problem that could put someone's files at risk? Please open an issue, or contact the
 maintainer privately for anything sensitive.
+
+## Privacy
+
+Easy Uninstaller has no telemetry, no accounts and no ads. Your settings, the quarantine,
+hidden items and AI answers stay on your PC. The app goes online only in these cases:
+
+- **Update check.** Each time it opens (unless you turn it off in *Settings > Updates*),
+  the app downloads a small file, `latest.json`, from this project's GitHub Releases to see
+  whether a newer version exists. Nothing about you or your PC is sent with it; GitHub sees
+  the request like any other download, under the
+  [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
+  A new version is downloaded only when you press *Update now*.
+- **AI help**, only if you turn it on, and only to the service you choose. What is sent is
+  described in [AI help](#ai-help); that service's own privacy policy applies.
+- **The installer** downloads the Microsoft WebView2 runtime if Windows does not have it.
+
+## Code signing policy
+
+Windows builds are signed with free code signing provided by
+[SignPath.io](https://about.signpath.io/), certificate by
+[SignPath Foundation](https://signpath.org/). Until that is in place, releases are not
+signed (0.2.0 is not), and each release lists the SHA-256 checksum of its installer.
+
+Only what GitHub Actions builds from this repository is signed, by the
+[Release workflow](.github/workflows/release.yml), and every release is approved by hand
+before it is signed.
+
+| Role | Members |
+|---|---|
+| Committers and reviewers | [Rccrd12](https://github.com/Rccrd12) |
+| Approvers | [Rccrd12](https://github.com/Rccrd12) (repository owner) |
+
+Every change reaches the `main` branch through a pull request merged by a committer,
+including changes drafted with AI coding tools and contributions from other people, which
+a reviewer checks first. See also [Privacy](#privacy).
 
 ## Roadmap
 
