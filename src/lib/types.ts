@@ -349,3 +349,16 @@ export interface AiStats {
   answers: number;
   askedThisMonth: number;
 }
+
+/** A newer version of the app. Mirrors `UpdateInfo` in src-tauri/src/updater.rs. */
+export interface UpdateInfo {
+  version: string;
+  currentVersion: string;
+}
+
+/** Sent while an update downloads. Mirrors `UpdateProgress` in src-tauri/src/updater.rs. */
+export interface UpdateProgress {
+  downloadedBytes: number;
+  /** null when the size is not known. */
+  totalBytes: number | null;
+}

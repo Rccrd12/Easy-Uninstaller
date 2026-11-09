@@ -11,10 +11,11 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 ![Easy Uninstaller home screen](docs/screenshots/home.png)
 
 > [!NOTE]
-> **Early preview.** Every screen works with real data: one-click uninstall with leftover
-> cleanup, Quick clean, the file scan with "What is this?" explanations, the space map,
-> the quarantine and restore points. It still needs more testing on real PCs before a
-> stable release. See the [roadmap](#roadmap).
+> **Version 0.2, first public preview.** Every screen works with real data: one-click
+> uninstall with leftover cleanup, Quick clean, the file scan with "What is this?"
+> explanations and optional AI help, the space map, the quarantine and restore points.
+> It updates itself from Settings. It still needs more testing on real PCs before a
+> stable 1.0. See the [roadmap](#roadmap).
 
 ## Why another uninstaller?
 
@@ -30,8 +31,12 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
   its own purple tag: it never ticks or moves anything. See [AI help](#ai-help).
 - **Light.** Built with [Tauri 2](https://tauri.app): it uses the WebView2 engine that is
   already part of Windows, so the installer is a few MB instead of 100+ MB.
-- **Private.** It works entirely on your PC. No account, no ads, no tracking. The optional
-  AI help is the only thing that ever sends anything, and only when you ask it to.
+- **Private.** It works entirely on your PC. No account, no ads, no tracking. When it opens,
+  it asks GitHub whether a new version exists (you can turn that off in Settings). The
+  optional AI help is the only thing that ever sends anything about your PC, and only when
+  you ask it to.
+- **Updates itself.** *Settings > Check for updates*: one click, and it opens again on the
+  new version, with your settings and Quarantine as they were.
 - **English and Italian.** Picked from your system language, changeable in Settings.
 - **Light and dark.** Follows the Windows mode by default, changeable in Settings.
 
@@ -61,6 +66,10 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 | **The AI's answer** | **Every unknown folder** |
 | ![The AI's answer, with what the app checked on this PC shown apart](docs/screenshots/ai-answer.png) | ![Asking the AI about every unknown folder at once](docs/screenshots/ai-all-folders.png) |
 
+| **Updates from Settings** |
+|---|
+| ![Settings: a new version is available, Update now](docs/screenshots/settings-updates.png) |
+
 <sub>Screenshots use sample data.</sub>
 
 ## Download and install
@@ -76,6 +85,9 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 > protected your PC"*. Click **More info**, then **Run anyway**. Signing is planned before
 > the first stable release. Each release lists the SHA-256 checksum of the installer, so you
 > can check that the file you downloaded is the one built here.
+
+After that, the app keeps itself up to date: it checks for a new version each time it
+opens, and *Settings > Updates > Update now* installs it in a few seconds.
 
 To uninstall Easy Uninstaller itself, use *Settings > Apps > Installed apps* in Windows,
 like any other program.
@@ -157,7 +169,10 @@ maintainer privately for anything sensitive.
     Codex, Antigravity CLI), an API key (Claude, OpenAI, Gemini, OpenRouter, any OpenAI-compatible
     service) or a model on this PC (Ollama, LM Studio, Unsloth Studio). Only names and numbers are
     sent; the answer is advice in its own purple tag and never moves or ticks anything
-13. ⬜ Signed installer and first stable release
+13. ✅ A more formal look: monochrome line icons instead of emoji
+14. ✅ In-app updates from Settings, signed and checked before installing
+15. ✅ First public release, 0.2.0
+16. ⬜ Code-signed installer (SignPath) and a stable 1.0
 
 ## Development
 
@@ -183,10 +198,13 @@ is attached to the run as an artifact. Contributors (and coding agents) should r
    `src-tauri/tauri.conf.json`, and merge that to `main`.
 2. Push a tag for it: `git tag v0.2.0 && git push origin v0.2.0`.
 3. The [Release workflow](.github/workflows/release.yml) builds the installer on Windows and
-   creates a **draft** release with the installer and its checksum. Review it on GitHub and
-   press *Publish*. Tags with a suffix (such as `v0.2.0-beta.1`) become pre-releases.
+   creates a **draft** release with the installer, its checksum and the files the in-app
+   updater reads (`latest.json` and a `.sig` signature). Review it on GitHub and press
+   *Publish*: from then on, installed copies offer the update. Tags with a suffix (such as
+   `v0.2.0-beta.1`) become pre-releases, which the updater skips.
 
-Code signing options are described in [`docs/code-signing.md`](docs/code-signing.md).
+The update signing key and how updates work are described in [`docs/updates.md`](docs/updates.md);
+code signing options in [`docs/code-signing.md`](docs/code-signing.md).
 
 ## Project layout
 
@@ -214,7 +232,8 @@ src-tauri/              backend (Rust)
   src/review.rs         reviewing files one by one, and the items the user hid
   src/restore_point.rs  Windows restore points
   src/ai.rs             AI help: services, prompt, answers kept on this PC (ai/ for the parts)
-docs/                   screenshots, design mockups, code signing notes
+  src/updater.rs        in-app updates from GitHub Releases
+docs/                   screenshots, design mockups, code signing and update notes
 ```
 
 ## License

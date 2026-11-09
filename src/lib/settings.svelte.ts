@@ -28,12 +28,16 @@ export interface AiSettings {
 interface Settings {
   /** Make a Windows restore point before uninstalling apps. */
   restorePoint: boolean;
+  /** Ask GitHub whether a newer version exists each time the app opens. */
+  checkUpdates: boolean;
   ai: AiSettings;
 }
 
-// Off by default: it needs administrator rights and System Restore is often off on new PCs.
+// Restore points are off by default: they need administrator rights and System Restore is often off on new PCs.
+// Update checks are on: most people never press a "check" button, and only the version is asked.
 const defaults: Settings = {
   restorePoint: false,
+  checkUpdates: true,
   ai: { mode: "off", service: "", model: "", modelLabel: "", urls: {}, confirm: true, autoStart: true, parallel: 4 },
 };
 

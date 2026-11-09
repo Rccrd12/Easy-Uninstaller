@@ -105,8 +105,10 @@ pub(super) fn parse_info(data: &[u8]) -> Option<(SystemTime, String)> {
         _ => return None,
     };
     let units: Vec<u16> = name
-        .chunks_exact(2)
-        .map(|c| u16::from_le_bytes([c[0], c[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|&c| u16::from_le_bytes(c))
         .take_while(|&u| u != 0)
         .collect();
     let original = String::from_utf16(&units).ok().filter(|s| !s.is_empty())?;

@@ -1,9 +1,9 @@
 [package]
 name = "easy-uninstaller"
-version = "0.1.0"
+version = "0.2.0"
 description = "A lightweight, simple app to uninstall apps and free up space on Windows"
 edition = "2021"
-rust-version = "1.80"
+rust-version = "1.90"
 license = "MIT"
 
 [lib]
@@ -19,6 +19,10 @@ serde = { version = "1", features = ["derive"] }
 sysinfo = { version = "0.40", default-features = false, features = ["disk"] }
 # Already in the dependency tree through Tauri; reads and writes the quarantine manifests.
 serde_json = "1"
+# In-app updates from GitHub Releases, checked with the public key in tauri.conf.json.
+# Without default features: no zip/tar support (the NSIS installer is downloaded as is), and
+# HTTPS through the system's TLS (Schannel on Windows) instead of bundling rustls.
+tauri-plugin-updater = { version = "2", default-features = false, features = ["native-tls"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"
