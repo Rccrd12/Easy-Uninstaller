@@ -13,6 +13,7 @@ import {
   sampleAiServices,
   sampleFolderSummary,
   sampleApps,
+  sampleAppCaches,
   sampleAppLeftovers,
   sampleDrives,
   sampleDuplicateSets,
@@ -35,6 +36,8 @@ import type {
   AiServiceStatus,
   AiStartStatus,
   AiStats,
+  AppCache,
+  ClearCacheOutcome,
   DiskInfo,
   Exclusion,
   FileGroup,
@@ -74,7 +77,7 @@ export const KEEP_DAYS_CHOICES = [3, 7, 30] as const;
  * File groups deleted right away instead of going to Quarantine: Windows and apps
  * recreate them. Matches `DELETE_NOW_GROUPS` in src-tauri/src/cleanup.rs.
  */
-export const DELETE_NOW_GROUPS: readonly string[] = ["temp", "recycle-bin", "crash-reports", "thumbnails"];
+export const DELETE_NOW_GROUPS: readonly string[] = ["temp", "recycle-bin", "crash-reports", "thumbnails", "app-cache"];
 const DAY = 24 * 60 * 60;
 
 /**
@@ -169,6 +172,54 @@ export async function setStartupApps(changes: StartupChange[]): Promise<StartupR
     }
   }
   return report;
+}
+
+let cachesScan: Promise<AppCache[]> | null = null;
+
+/**
+ * The caches of well-known apps (Teams, Spotify, Discord, browsers...) on this PC.
+ * Real: src-tauri/src/app_cache.rs (read only). Kept until `refresh` is true.
+ */
+export function listAppCaches(refresh = false): Promise<AppCache[]> {
+  if (!isTauri()) return sleep(600).then(() => sampleAppCaches.map((c) => ({ ...c })));
+  if (refresh || !cachesScan) {
+    const pending = invoke<AppCache[]>("list_app_caches");
+    pending.catch(() => {
+      if (cachesScan === pending) cachesScan = null;
+    });
+    cachesScan = pending;
+  }
+  return cachesScan;
+}
+
+/**
+ * Empties an app's cache without uninstalling it. Nothing happens while the app is
+ * open (`running` is true): the user closes it and tries again. The files are deleted
+ * right away (group "app-cache" in `DELETE_NOW_GROUPS`): the app recreates them.
+ */
+export async function clearAppCache(id: string): Promise<ClearCacheOutcome> {
+  if (isTauri()) {
+    const out = await invoke<ClearCacheOutcome>("clear_app_cache", { id });
+    cachesScan = null;
+    return out;
+  }
+  await sleep(1200);
+  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const cache = sampleAppCaches.find((c) => c.id === id);
+  if (!cache) throw new Error(`unknown cache: ${id}`);
+  if (cache.running) {
+    cache.running = false; // As if the user closed it before trying again.
+    return { running: true, report, cache: null };
+  }
+  report.deletedCount = cache.fileCount;
+  report.deletedBytes = report.freedBytes = cache.cacheBytes;
+  sampleFreeBytes += cache.cacheBytes;
+  for (const app of sampleApps) {
+    if (app.cacheId === id && app.source === "store") app.sizeBytes = Math.max(0, app.sizeBytes - cache.cacheBytes);
+  }
+  cache.cacheBytes = 0;
+  cache.fileCount = 0;
+  return { running: false, report, cache: { ...cache } };
 }
 
 // One file scan at a time: Home and Files share it, and the result is kept

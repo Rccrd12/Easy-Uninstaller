@@ -2,6 +2,7 @@
 //! exposes Tauri commands that the UI calls through `src/lib/api.ts`.
 
 mod ai;
+mod app_cache;
 mod app_folders;
 mod apps;
 mod cleanup;
@@ -37,6 +38,7 @@ pub fn run_reminders_check() -> Option<i32> {
 pub fn run() {
     tauri::Builder::default()
         .manage(ai::Answers::default())
+        .manage(app_cache::LastAppCaches::default())
         .manage(files::LastScan::default())
         .manage(leftovers::LastLeftovers::default())
         .manage(uninstall::Pending::default())
@@ -60,6 +62,8 @@ pub fn run() {
             ai::ai_stats,
             ai::ai_forget_answers,
             ai::ai_open_page,
+            app_cache::list_app_caches,
+            app_cache::clear_app_cache,
             app_folders::quarantine_app_folder,
             apps::list_installed_apps,
             cleanup::remove_file_groups,

@@ -44,6 +44,8 @@ pub struct InstalledApp {
     pub icon_color: String,
     /// `data:image/png;base64,...`, or `None` to draw the colored letter instead.
     pub icon: Option<String>,
+    /// The id of its cache in `app_cache.rs` when we know where it is, else `None`.
+    pub cache_id: Option<String>,
 }
 
 /// Lists the apps a user can uninstall, biggest first.
@@ -103,6 +105,7 @@ fn from_registry(e: registry::Entry) -> InstalledApp {
             .unwrap_or(0),
     };
     InstalledApp {
+        cache_id: crate::app_cache::cache_id_for(&e.name).map(String::from),
         icon_color: icon_color(&e.name),
         icon: e.display_icon.as_deref().and_then(icon::from_icon_location),
         id: e.id,
@@ -122,6 +125,7 @@ fn from_registry(e: registry::Entry) -> InstalledApp {
 
 fn from_store(e: store::Entry) -> InstalledApp {
     InstalledApp {
+        cache_id: crate::app_cache::cache_id_for(&e.name).map(String::from),
         icon_color: icon_color(&e.name),
         icon: e.logo.as_deref().and_then(icon::from_png_file),
         size_bytes: e.dirs.iter().map(|d| dir_size(d)).sum(),
@@ -335,6 +339,7 @@ mod tests {
             bloatware: false,
             icon_color: "#000".into(),
             icon: None,
+            cache_id: Some("spotify".into()),
         };
         let json = serde_json::to_string(&app).unwrap();
         assert!(json.contains("\"sizeBytes\":1"));
@@ -344,5 +349,6 @@ mod tests {
         assert!(json.contains("\"location\":null"));
         assert!(json.contains("\"neverUsed\":false"));
         assert!(json.contains("\"iconColor\":\"#000\""));
+        assert!(json.contains("\"cacheId\":\"spotify\""));
     }
 }
