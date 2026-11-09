@@ -21,7 +21,6 @@
   let dontAsk = $state(false);
   let error = $state<string | null>(null);
 
-  const isCli = $derived(serviceInfo(settings.ai.service)?.kind === "cli");
   const isLocal = $derived(serviceInfo(settings.ai.service)?.kind === "local");
   const service = $derived(t(`ai.services.${settings.ai.service}.name`));
 
@@ -116,9 +115,6 @@
 {t("ai.confirm.names", { shown: s.names.length, total: s.fileCount.toLocaleString(locale()) })}: {s.names.join(", ")}{/if}</pre>
     <button class="link small" onclick={() => (showText = !showText)}>{showText ? t("ai.confirm.hideText") : t("ai.confirm.showText")}</button>
     {#if showText}<pre class="sent exact">{preview.question}</pre>{/if}
-    <ul class="promises">
-      <li><Icon name="money" />{t(isCli ? "ai.confirm.costCli" : isLocal ? "ai.confirm.costLocal" : "ai.confirm.costApi")}</li>
-    </ul>
     <div class="buttons">
       <button class="btn btn-ai" onclick={ask}><Icon name="sparkle" />{t("ai.box.ask")}</button>
       <button class="btn btn-ghost" onclick={() => (preview = null)}>{t("common.cancel")}</button>
@@ -165,9 +161,6 @@
   .intro { font-size: 12.5px; margin: 6px 0; }
   .sent { font-family: Consolas, "Cascadia Mono", monospace; font-size: 11px; line-height: 1.5; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; white-space: pre-wrap; word-break: break-word; user-select: text; }
   .exact { margin-top: 6px; max-height: 180px; overflow-y: auto; }
-  .promises li { display: flex; gap: 7px; align-items: flex-start; }
-  .promises li :global(.icon) { color: var(--text-muted); margin-top: 0.15em; }
-  .promises { list-style: none; font-size: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 4px; line-height: 1.4; }
   .buttons { display: flex; gap: 8px; margin-top: 10px; }
   .dont-ask { display: flex; gap: 6px; align-items: center; font-size: 12px; margin-top: 8px; }
   .dont-ask input { accent-color: var(--ai); }

@@ -1045,9 +1045,6 @@
       "names": "Alcuni nomi ({shown} di {total})",
       "showText": "Vedi il testo esatto",
       "hideText": "Nascondi il testo esatto",
-      "costCli": "Nessun costo extra: usa i limiti del tuo abbonamento.",
-      "costApi": "Si paga a domanda al servizio, circa 1 centesimo.",
-      "costLocal": "Nessun dato esce dal PC, ed è gratis.",
       "dontAsk": "Non chiedermelo più (si cambia in Impostazioni)"
     },
     "answer": {

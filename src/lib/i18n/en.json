@@ -1045,9 +1045,6 @@
       "names": "Some names ({shown} of {total})",
       "showText": "See the exact text",
       "hideText": "Hide the exact text",
-      "costCli": "No extra cost: it uses your subscription's limits.",
-      "costApi": "Paid per question to the service, about 1 cent.",
-      "costLocal": "Nothing leaves this PC, and it is free.",
       "dontAsk": "Don't ask me again (you can change it in Settings)"
     },
     "answer": {
