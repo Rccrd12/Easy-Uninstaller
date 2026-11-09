@@ -177,7 +177,6 @@
 
 <div class="picker">
   <div class="left">
-    <p class="muted intro">{t(`ai.picker.intro.${kind}`)}</p>
     <div class="options" role="radiogroup" aria-label={t(`ai.picker.intro.${kind}`)}>
       {#each list as s (s.id)}
         {@const b = badge(s)}
