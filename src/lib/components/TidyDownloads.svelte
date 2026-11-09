@@ -3,7 +3,7 @@
   import Icon from "./Icon.svelte";
   import StatusIcon from "./StatusIcon.svelte";
   import { tidyApply, tidyAsk, tidyByType, tidyOverview, tidyPreview, tidyUndo } from "../api";
-  import { aiConfig, aiErrorText, aiReady, openSetup, serviceInfo, serviceLabel } from "../ai.svelte";
+  import { aiConfig, aiErrorText, aiReady, openSetup, serviceLabel } from "../ai.svelte";
   import { fileCount, formatBytes } from "../format";
   import { getLanguage, locale, t } from "../i18n/index.svelte";
   import type { IconName } from "../icons";
@@ -32,11 +32,12 @@
   let undoing = $state(false);
   let error = $state<string | null>(null);
   let dontAsk = $state(false);
+  /** The exact list sent to the AI, shown on request. */
+  let showSent = $state(false);
   /** Waiting for the AI (not for the quick grouping by type). */
   let askingAi = $state(false);
 
   const service = $derived(t(`ai.services.${settings.ai.service}.name`));
-  const kind = $derived(serviceInfo(settings.ai.service)?.kind);
 
   $effect(() => {
     load();
@@ -225,11 +226,9 @@
     <div class="card box">
       <span class="label"><Icon name="sparkle" size={14} />{t("tidy.confirm.title", { service: serviceLabel(settings.ai.service, settings.ai.model) })}</span>
       <p class="intro-line">{t("tidy.confirm.intro", { files: fileCount(preview.lines.length) })}</p>
-      <pre class="sent">{preview.lines.join("\n")}</pre>
+      <button class="link small" onclick={() => (showSent = !showSent)}>{showSent ? t("tidy.confirm.hideList") : t("tidy.confirm.showList")}</button>
+      {#if showSent}<pre class="sent">{preview.lines.join("\n")}</pre>{/if}
       {#if preview.notSentCount}<p class="muted small">{t("tidy.confirm.notSent", { files: fileCount(preview.notSentCount) })}</p>{/if}
-      <ul class="promises">
-        <li><Icon name="money" />{t(kind === "cli" ? "ai.confirm.costCli" : kind === "local" ? "ai.confirm.costLocal" : "ai.confirm.costApi")}</li>
-      </ul>
       <div class="buttons">
         <button class="btn btn-ai" onclick={ask}><Icon name="sparkle" />{t("tidy.confirm.send")}</button>
         <button class="btn btn-ghost" onclick={() => (phase = "intro")}>{t("common.cancel")}</button>
@@ -310,7 +309,7 @@
     <div class="card footer">
       <div class="footer-text">
         <b>{t("tidy.apply.summary", { files: fileCount(moveCount), folders: folders(folderTotal) })}{#if pickedInstallers.size} {t("tidy.apply.plusInstallers", { files: fileCount(pickedInstallers.size) })}{/if}</b>
-        <span class="muted small">{moveCount || pickedInstallers.size ? "" : t("tidy.apply.nothing")}</span>
+        {#if !moveCount && !pickedInstallers.size}<span class="muted small">{t("tidy.apply.nothing")}</span>{/if}
       </div>
       <span class="grow"></span>
       <button class="btn btn-ghost" disabled={phase === "applying"} onclick={() => { plan = null; load(); }}>{t("common.cancel")}</button>
@@ -381,9 +380,7 @@
   .label { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--ai-fg); }
   .intro-line { font-size: 13px; margin: 8px 0; }
   .sent { font-family: Consolas, "Cascadia Mono", monospace; font-size: 11.5px; line-height: 1.55; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow-y: auto; user-select: text; }
-  .promises { list-style: none; font-size: 12px; margin-top: 10px; display: flex; flex-direction: column; gap: 4px; line-height: 1.4; }
-  .promises li { display: flex; gap: 7px; align-items: flex-start; }
-  .promises li :global(.icon) { color: var(--text-muted); margin-top: 0.15em; }
+  .link { border: none; background: none; color: var(--accent); padding: 0; font-size: 12.5px; align-self: flex-start; margin-bottom: 6px; }
   .dont-ask { display: flex; gap: 6px; align-items: center; font-size: 12px; margin-top: 10px; }
   .dont-ask input { accent-color: var(--ai); }
 

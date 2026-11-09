@@ -1184,7 +1184,9 @@
       "title": "What I send to {service}",
       "intro": "Names of {files}, with size and month.",
       "notSent": "{files} more will be tidied next time.",
-      "send": "Send and propose"
+      "send": "Send and propose",
+      "showList": "See the list",
+      "hideList": "Hide the list"
     },
     "asking": "{service} is looking at the file names…",
     "plan": {
