@@ -20,6 +20,12 @@ space. Goals in order: **safe**, **simple for non-technical users**, **lightweig
   (`cleanup.rs`, mirrored in `api.ts`), i.e. temporary files, caches, thumbnails, crash reports and old Recycle Bin items,
   are deleted right away by `cleanup.rs`, and only the exact files the scan found, unchanged since.
   Every removal of scanned files goes through `cleanup::remove`.
+- Moving files is not removing them: "Tidy up Downloads" (`tidy.rs`) moves loose files into
+  folders inside the user's own folders, never replaces a file, and records every move so
+  the whole tidy can be undone.
+- The AI never acts alone: it explains (`ai.rs`), turns a sentence into a search filter
+  (`search.rs`) or proposes folders (`tidy.rs`). Only names and numbers are sent, never
+  file contents, and nothing is ticked, moved or removed until the user presses a button.
 - Windows-only code goes behind `#[cfg(windows)]` with a stub for other platforms, so the crate
   still builds and tests on Linux/macOS.
 - Lightness matters: think twice before adding a dependency (frontend or Rust); prefer

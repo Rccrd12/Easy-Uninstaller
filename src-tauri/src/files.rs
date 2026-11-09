@@ -224,6 +224,31 @@ pub fn installed_app_names() -> Vec<String> {
     platform::installed_app_names()
 }
 
+/// The user's profile folder (`C:\\Users\\name`); `None` outside Windows.
+pub fn profile_dir() -> Option<PathBuf> {
+    platform::profile_dir()
+}
+
+/// A folder of the user profile as Windows knows it, also when the user moved it
+/// (to OneDrive or another drive): `value` names it under "User Shell Folders"
+/// (`Personal`, `My Pictures`, …) and `fallback` is its usual name in the profile.
+pub fn shell_folder(value: &str, fallback: &str) -> Option<PathBuf> {
+    platform::shell_folder(value, fallback)
+}
+
+/// Cloud-only files (OneDrive "online only") and hidden system files, which
+/// scans and searches leave alone.
+pub(crate) fn skip_entry(meta: &Metadata) -> bool {
+    platform::skip(meta)
+}
+
+/// True for a setup file whose program is installed (the scan's "Installers already
+/// used" rule, also used when tidying Downloads). `installed` are display names.
+pub(crate) fn is_used_installer(path: &Path, installed: &[String]) -> bool {
+    let words: Vec<Vec<String>> = installed.iter().map(|n| name_words(n)).collect();
+    is_installer(path) && installer_matches(path, &words)
+}
+
 /// Temp and cache folders apps recreate on their own (also used by the space map).
 pub fn cache_dirs() -> Vec<PathBuf> {
     platform::locations().caches
@@ -552,7 +577,7 @@ pub fn to_camel(id: &str) -> String {
 }
 
 /// Drops repeated folders and folders inside another one in the list, so nothing is counted twice.
-fn dedup_dirs(dirs: &[PathBuf]) -> Vec<PathBuf> {
+pub(crate) fn dedup_dirs(dirs: &[PathBuf]) -> Vec<PathBuf> {
     let mut out: Vec<PathBuf> = Vec::new();
     for dir in dirs {
         if !out.iter().any(|d| dir.starts_with(d)) {
@@ -565,7 +590,7 @@ fn dedup_dirs(dirs: &[PathBuf]) -> Vec<PathBuf> {
 
 /// Walks `root` without following links, calling `on_file` for every regular file.
 /// Folders for which `skip_dir` returns true are not entered. Unreadable entries are skipped.
-fn walk(
+pub(crate) fn walk(
     root: &Path,
     skip_dir: &dyn Fn(&Path) -> bool,
     on_file: &mut dyn FnMut(PathBuf, &Metadata),
@@ -601,7 +626,7 @@ fn walk(
 }
 
 /// In the user's folders, app data and developer folders are not personal files.
-fn skip_personal_dir(path: &Path) -> bool {
+pub(crate) fn skip_personal_dir(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
         return false;
     };
@@ -937,12 +962,29 @@ mod platform {
     /// The Downloads folder, also when the user moved it to another place.
     fn downloads_dir() -> Option<PathBuf> {
         const DOWNLOADS: &str = "{374DE290-123F-4565-9164-39C4925E467B}";
+        registry_folder(DOWNLOADS)
+    }
+
+    /// A folder named under "User Shell Folders" (where Windows records moved folders).
+    fn registry_folder(value: &str) -> Option<PathBuf> {
         let key = RegKey::predef(HKEY_CURRENT_USER)
             .open_subkey(r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders")
             .ok()?;
-        let raw: String = key.get_value(DOWNLOADS).ok()?;
+        let raw: String = key.get_value(value).ok()?;
         let path = PathBuf::from(expand_env(&raw));
         path.is_dir().then_some(path)
+    }
+
+    pub fn profile_dir() -> Option<PathBuf> {
+        env("USERPROFILE").filter(|p| p.is_dir())
+    }
+
+    pub fn shell_folder(value: &str, fallback: &str) -> Option<PathBuf> {
+        registry_folder(value).or_else(|| {
+            profile_dir()
+                .map(|p| p.join(fallback))
+                .filter(|p| p.is_dir())
+        })
     }
 
     /// Expands `%VAR%` references.
@@ -1016,6 +1058,14 @@ mod platform {
 
     pub fn installed_app_names() -> Vec<String> {
         Vec::new()
+    }
+
+    pub fn profile_dir() -> Option<std::path::PathBuf> {
+        None
+    }
+
+    pub fn shell_folder(_value: &str, _fallback: &str) -> Option<std::path::PathBuf> {
+        None
     }
 }
 

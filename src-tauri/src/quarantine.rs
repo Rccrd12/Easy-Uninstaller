@@ -774,7 +774,7 @@ fn free_name(path: &Path, folder: bool) -> PathBuf {
 /// Across drives the file is copied, then the original removed; if the original
 /// cannot be removed the copy is dropped, so a file never ends up in two places.
 /// Returns true when the file changed drive (so its old drive got the space back).
-fn move_file(from: &Path, to: &Path) -> io::Result<bool> {
+pub(crate) fn move_file(from: &Path, to: &Path) -> io::Result<bool> {
     if fs::symlink_metadata(to).is_ok() {
         return Err(io::Error::new(
             io::ErrorKind::AlreadyExists,

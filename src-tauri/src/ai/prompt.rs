@@ -47,7 +47,7 @@ pub fn shown_path(path: &Path, roots: &[(&str, &Path)]) -> Option<String> {
 
 /// A file or folder name as sent: the user name (when it shows up in a name)
 /// replaced, control characters dropped, long names cut.
-fn clean_name(name: &str, user: &str) -> String {
+pub(crate) fn clean_name(name: &str, user: &str) -> String {
     let mut n: String = name.chars().filter(|c| !c.is_control()).collect();
     if user.chars().count() >= 3 {
         let lower = n.to_lowercase();
@@ -142,7 +142,7 @@ pub fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
-fn size_text(bytes: u64) -> String {
+pub(crate) fn size_text(bytes: u64) -> String {
     const MB: f64 = 1024.0 * 1024.0;
     if bytes as f64 >= 1024.0 * MB {
         format!("{:.1} GB", bytes as f64 / (1024.0 * MB))
@@ -234,7 +234,7 @@ pub struct Reply {
 }
 
 /// Text from the AI: one line, no control characters, at most `max` characters.
-fn tidy(text: &str, max: usize) -> String {
+pub(crate) fn tidy(text: &str, max: usize) -> String {
     let flat: String = text
         .chars()
         .map(|c| if c.is_control() { ' ' } else { c })
@@ -275,6 +275,14 @@ fn objects(text: &str) -> Vec<serde_json::Value> {
         }
     }
     out
+}
+
+/// The last JSON object in `text` that has one of `keys`.
+pub(crate) fn last_object_with(text: &str, keys: &[&str]) -> Option<serde_json::Value> {
+    objects(&without_thinking(text))
+        .into_iter()
+        .rev()
+        .find(|v| keys.iter().any(|k| v.get(k).is_some()))
 }
 
 /// The last JSON object in `text` that has a `verdict`.
