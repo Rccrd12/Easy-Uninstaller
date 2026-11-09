@@ -997,16 +997,16 @@ export async function quarantineFound(paths: string[], found: SearchResult): Pro
 
 /** Download sizes of each model choice, with the engine (llama.cpp, about 24 MB). */
 export const INDEX_DOWNLOAD_BYTES: Record<IndexSettings["quality"], number> = {
-  light: 175_673_856 + 554_821_120 + 23_700_000,
-  better: 309_855_520 + 554_821_120 + 23_700_000,
-  best: 557_950_240 + 980_895_232 + 23_700_000,
+  light: 175_673_856 + 554_821_120 + 24_886_130,
+  better: 309_855_520 + 554_821_120 + 24_886_130,
+  best: 557_950_240 + 980_895_232 + 24_886_130,
 };
 
 const sampleIndexListeners = new Set<(s: IndexStatus) => void>();
 // `?index=ready` starts the browser sample with the model already downloaded.
 const sampleIndexReady = typeof location !== "undefined" && new URLSearchParams(location.search).get("index") === "ready";
 /** The engine (llama.cpp) alone: what the person's own model files need. */
-const ENGINE_BYTES = 23_700_000;
+const ENGINE_BYTES = 24_886_130;
 let sampleEngine = sampleIndexReady;
 const sampleIndex: IndexStatus = {
   settings: {
