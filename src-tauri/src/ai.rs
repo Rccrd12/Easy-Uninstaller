@@ -18,7 +18,7 @@
 mod cli;
 mod http;
 mod keys;
-mod prompt;
+pub(crate) mod prompt;
 mod services;
 mod unsloth;
 
@@ -238,6 +238,27 @@ fn send(app: &AppHandle, config: &AiConfig, question: &str) -> Result<String, St
         Kind::Cli => cli::ask(service.id, &config.model, question),
         _ => services::ask(service, &config.url, &config.model, question),
     }
+}
+
+/// One question for another AI feature (finding files by a sentence, tidying
+/// Downloads), counted with this month's questions. Returns the raw answer text.
+pub(crate) fn ask_text(
+    app: &AppHandle,
+    config: &AiConfig,
+    question: &str,
+) -> Result<String, String> {
+    let text = send(app, config, question)?;
+    let answers = app.state::<Answers>();
+    let month = prompt::year_month(prompt::now_secs());
+    answers.with(app, |s| {
+        if s.month != month {
+            s.month = month;
+            s.asked = 0;
+        }
+        s.asked += 1;
+    })?;
+    answers.save(app)?;
+    Ok(text)
 }
 
 /// The app is closing: the Unsloth Studio it started goes too.

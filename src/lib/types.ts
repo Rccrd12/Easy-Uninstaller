@@ -622,3 +622,124 @@ export interface MoveProgress {
   doneCount: number;
   totalCount: number;
 }
+
+// ── Finding files by a sentence (src-tauri/src/search.rs) ──────────────────
+
+export type SearchKind = "image" | "video" | "audio" | "document" | "archive" | "program" | "disc";
+export type SearchPlace = "desktop" | "documents" | "downloads" | "pictures" | "videos" | "music";
+export type SearchSort = "size" | "oldest" | "newest";
+
+/** What to look for. The AI fills it from a sentence; the search runs on this PC. */
+export interface SearchFilter {
+  /** Any of these kinds; empty for any file. */
+  kinds: SearchKind[];
+  minBytes: number | null;
+  maxBytes: number | null;
+  /** Not opened or changed for at least this many days. */
+  unusedDays: number | null;
+  /** Changed in the last this many days. */
+  recentDays: number | null;
+  /** Empty for all the user's folders. */
+  places: SearchPlace[];
+  /** Words that must all be in the file or folder names. */
+  words: string[];
+  sort: SearchSort;
+}
+
+export interface FoundFile {
+  path: string;
+  sizeBytes: number;
+  /** YYYY-MM-DD: the later of last opened and last changed. */
+  lastUsed: string;
+}
+
+export interface SearchResult {
+  /** The filter as Rust used it. */
+  filter: SearchFilter;
+  /** The first 200 in the chosen order. */
+  files: FoundFile[];
+  totalCount: number;
+  totalBytes: number;
+  /** Over 5000 matches: only the first ones can be moved. */
+  tooMany: boolean;
+  /** The search stopped early (a very large profile). */
+  partial: boolean;
+}
+
+// ── Tidying Downloads (src-tauri/src/tidy.rs) ──────────────────────────────
+
+export type TidyDest = "downloads" | "documents" | "pictures" | "videos" | "music";
+
+export interface TidyFile {
+  path: string;
+  sizeBytes: number;
+  /** YYYY-MM-DD. */
+  modified: string;
+}
+
+export interface TidyFolder {
+  id: string;
+  name: string;
+  dest: TidyDest;
+  /** What is inside, in a few words (from the AI); "" for folders by type. */
+  why: string;
+  /** The folder's full path. */
+  target: string;
+  /** Already there: the files are added to it. */
+  exists: boolean;
+  files: TidyFile[];
+  sizeBytes: number;
+}
+
+export interface TidyPlan {
+  folders: TidyFolder[];
+  /** Setup files of programs already installed: offered for the quarantine. */
+  installers: TidyFile[];
+  /** Loose files no folder took: they stay where they are. */
+  leftCount: number;
+  /** Files not sent this time (over 300). */
+  notSentCount: number;
+  byAi: boolean;
+}
+
+export interface TidyRunInfo {
+  id: string;
+  /** Unix seconds. */
+  at: number;
+  movedCount: number;
+  folderCount: number;
+}
+
+export interface TidyOverview {
+  downloads: string | null;
+  fileCount: number;
+  sizeBytes: number;
+  /** The last tidy, which can still be undone. */
+  lastRun: TidyRunInfo | null;
+}
+
+/** What would be sent to the AI. */
+export interface TidyPreview {
+  lines: string[];
+  question: string;
+  notSentCount: number;
+}
+
+export interface TidyChoice {
+  folderId: string;
+  paths: string[];
+}
+
+export interface TidyReport {
+  movedCount: number;
+  movedBytes: number;
+  skippedCount: number;
+  folderCount: number;
+  runId: string | null;
+  quarantine: MoveReport;
+}
+
+export interface TidyUndoReport {
+  restoredCount: number;
+  failedCount: number;
+}

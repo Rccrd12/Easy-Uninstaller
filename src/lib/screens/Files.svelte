@@ -7,6 +7,9 @@
   import FileReview from "../components/FileReview.svelte";
   import OffloadCards from "../components/OffloadCards.svelte";
   import OffloadPanel from "../components/OffloadPanel.svelte";
+  import FileSearch from "../components/FileSearch.svelte";
+  import SearchBar from "../components/SearchBar.svelte";
+  import TidyDownloads from "../components/TidyDownloads.svelte";
   import StatusIcon from "../components/StatusIcon.svelte";
   import SafetyTag from "../components/SafetyTag.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
@@ -67,6 +70,10 @@
   let version = $state(0);
   /** How many files, folders and groups are hidden (leftovers have their own screen). */
   let hiddenCount = $state(0);
+  /** The sentence of the search being shown ("Search your files"), or null. */
+  let searching = $state<string | null>(null);
+  /** "Tidy up Downloads" is open. */
+  let tidying = $state(false);
   /** The ⋯ menu of a group card. */
   let menu = $state<{ group: FileGroup; x: number; y: number } | null>(null);
 
@@ -187,6 +194,11 @@
     } finally {
       version++;
     }
+  }
+
+  /** Back from a search or a tidy: files may have moved, so the groups are read again. */
+  function backFromTool() {
+    if (!scanning && !error) refresh().catch(() => {});
   }
 
   /** The name a hidden item goes by in a sentence. */
@@ -356,6 +368,10 @@
 {#if reviewing}
   {@const g = reviewing}
   <FileReview group={g} {version} busy={moving || undoing} onBack={() => (reviewing = null)} onMove={moveSelection} onHide={hide} />
+{:else if searching !== null}
+  <FileSearch sentence={searching} onBack={() => { searching = null; backFromTool(); }} />
+{:else if tidying}
+  <TidyDownloads onBack={() => { tidying = false; backFromTool(); }} />
 {:else}
 <div class="layout">
   <div class="col">
@@ -369,6 +385,7 @@
       {/if}
     </div>
     {#if usesSampleData()}<SampleBanner />{/if}
+    <SearchBar onSearch={(s) => { notice = null; searching = s; }} onTidy={() => { notice = null; tidying = true; }} />
 
     {#if scanning}
       <div class="card scan" role="status" aria-live="polite">

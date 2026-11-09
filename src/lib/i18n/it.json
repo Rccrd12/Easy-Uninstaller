@@ -285,6 +285,10 @@
         "description": "Cartelle grandi in AppData e ProgramData: scopri cosa sono",
         "what": "Cartelle grandi che le app tengono in AppData e ProgramData. L'app spiega quelle che conosce: tocca una cartella per scoprire cos'è.",
         "ifRemoved": "Puoi spostarle una alla volta, dopo aver letto cosa sono: il gruppo intero non si può selezionare, perché molte sono di app che usi ancora."
+      },
+      "found": {
+        "title": "Trovati con la ricerca",
+        "description": "File scelti da una ricerca"
       }
     },
     "scanning": "Sto cercando i file che puoi togliere…",
@@ -1213,6 +1217,146 @@
       "unknown": "Non è sicura",
       "mark": "AI",
       "title": "Secondo l'AI: {verdict}. {what}"
+    }
+  },
+  "search": {
+    "placeholderAi": "Descrivi i file che cerchi, ad es. «video più grandi di 500 MB che non apro da un anno»",
+    "placeholderName": "Cerca i tuoi file per nome",
+    "button": "Cerca",
+    "tidy": "Riordina i Download",
+    "aiOff": "Con l'aiuto AI attivo puoi cercare scrivendo una frase intera.",
+    "turnOn": "Attivalo",
+    "sentOnly": "A {service} invio solo questa frase. La ricerca avviene su questo PC: i nomi dei tuoi file restano qui.",
+    "title": "Cerca nei tuoi file",
+    "understanding": "{service} sta leggendo la frase…",
+    "searching": "Cerco su questo PC…",
+    "understood": "Ho capito:",
+    "byName": "Cerco per nome:",
+    "edit": "Modifica",
+    "doneEditing": "Fatto",
+    "anyFile": "Tutti i file",
+    "removeChip": "Togli «{what}»",
+    "kinds": {
+      "image": "Foto e immagini",
+      "video": "Video",
+      "audio": "Musica e audio",
+      "document": "Documenti",
+      "archive": "Archivi compressi",
+      "program": "Programmi e installer",
+      "disc": "Immagini disco"
+    },
+    "chips": {
+      "minSize": "più grandi di {size}",
+      "maxSize": "più piccoli di {size}",
+      "unused": "non aperti da {time}",
+      "recent": "cambiati negli ultimi {time}",
+      "places": "in {list}",
+      "word": "nome con «{word}»",
+      "sortOldest": "prima i meno usati",
+      "sortNewest": "prima i più recenti"
+    },
+    "time": {
+      "day": "1 giorno",
+      "days": "{count} giorni",
+      "week": "1 settimana",
+      "weeks": "{count} settimane",
+      "month": "1 mese",
+      "months": "{count} mesi",
+      "year": "1 anno",
+      "years": "{count} anni"
+    },
+    "editor": {
+      "kinds": "Tipo",
+      "size": "Più grandi di",
+      "unused": "Non aperti da",
+      "recent": "Cambiati negli ultimi",
+      "places": "Cartelle",
+      "placesAll": "Tutte le mie cartelle",
+      "words": "Il nome contiene",
+      "wordsHint": "Parole separate da virgole",
+      "sort": "Ordine",
+      "any": "Qualsiasi",
+      "sortSize": "Prima i più grandi",
+      "sortOldest": "Prima i meno usati",
+      "sortNewest": "Prima i più recenti"
+    },
+    "found": "{files} trovati · {size}",
+    "none": "Nessun file corrisponde. Prova a togliere un filtro.",
+    "capped": "Mostro i primi {shown} di {total}.",
+    "tooMany": "Corrispondono più di 5.000 file: si possono spostare solo i primi 5.000. Aggiungi un filtro per restringere.",
+    "partial": "Le tue cartelle sono molto grandi: la ricerca si è fermata dopo 400.000 file.",
+    "safety": "L'AI ha solo trasformato la tua frase in questi filtri. Niente si sposta da solo: scegli tu, e tutto passa dalla quarantena per {days} giorni.",
+    "safetyName": "La ricerca avviene su questo PC. Niente si sposta da solo: scegli tu, e tutto passa dalla quarantena per {days} giorni.",
+    "failed": "La ricerca non è riuscita: {error}",
+    "error": {
+      "empty": "Scrivi cosa stai cercando.",
+      "notSearch": "Non sembra una ricerca di file. Prova a descriverli, ad es. «PDF nei Download dell'anno scorso»."
+    }
+  },
+  "tidy": {
+    "title": "Riordina i Download",
+    "subtitle": "L'AI guarda i nomi dei file sparsi in Download e propone alcune cartelle. Non si sposta niente finché non confermi, e puoi rimettere tutto com'era.",
+    "loose": "{files} sparsi in Download · {size}",
+    "none": "Download è già in ordine: non ci sono file sparsi.",
+    "noDownloads": "Su questo PC non ho trovato la cartella Download.",
+    "askAi": "Proponi le cartelle con l'AI",
+    "byType": "Ordina per tipo, senza AI",
+    "aiOff": "L'aiuto AI è spento: puoi ordinare per tipo, oppure attivarlo per cartelle con nomi più chiari.",
+    "lastRun": "Ultimo riordino, {date}: {files} in {folders}.",
+    "undoLast": "Rimettili com'erano",
+    "folderOne": "1 cartella",
+    "folders": "{count} cartelle",
+    "confirm": {
+      "title": "Cosa invio a {service}",
+      "intro": "I nomi di {files}, con dimensione e mese. Mai il contenuto, e nemmeno dove si trovano sul tuo PC.",
+      "notSent": "Altri {files} li riordini la prossima volta.",
+      "send": "Invia e proponi"
+    },
+    "asking": "{service} sta guardando i nomi dei file…",
+    "plan": {
+      "title": "Proposta: {files} in {folders}",
+      "byType": "Ordinati per tipo",
+      "byAi": "Proposta di {service}",
+      "left": "{files} restano dove sono: l'AI non era sicura di dove metterli.",
+      "leftByType": "{files} di altro tipo restano dove sono.",
+      "notSent": "{files} non sono stati guardati questa volta: ripeti dopo.",
+      "new": "Nuova cartella",
+      "exists": "Esiste già",
+      "in": "in {place}",
+      "showFiles": "Mostra i file",
+      "hideFiles": "Nascondi i file",
+      "empty": "Nessuna cartella da proporre: l'AI non ha trovato file che stanno insieme.",
+      "again": "Proponi di nuovo",
+      "pick": "Sposta {name}"
+    },
+    "installers": {
+      "title": "Installer già usati",
+      "desc": "File di installazione di programmi già installati. Spuntali per spostarli in quarantena."
+    },
+    "apply": {
+      "summary": "{files} in {folders}",
+      "plusInstallers": "e {files} in quarantena",
+      "button": "Riordina",
+      "moving": "Riordino…",
+      "note": "I file vengono spostati, mai cancellati. Puoi rimettere tutto com'era con un clic.",
+      "nothing": "Spunta almeno un file."
+    },
+    "done": {
+      "title": "Fatto: {files} spostati in {folders}.",
+      "skipped": "{files} sono rimasti dov'erano: sono cambiati o in uso.",
+      "quarantine": "{files} spostati in quarantena.",
+      "undo": "Rimetti tutto com'era",
+      "undoing": "Rimetto a posto…",
+      "undone": "{files} sono di nuovo in Download.",
+      "undoFailed": "{files} non sono potuti tornare: sono cambiati, oppure in Download ora c'è un file con lo stesso nome.",
+      "back": "Torna a File",
+      "open": "Apri Download"
+    },
+    "safety": "L'AI propone soltanto. Non si sposta niente finché non premi «Riordina», e ogni riordino si può annullare.",
+    "failed": "Non è riuscito: {error}",
+    "error": {
+      "noDownloads": "Su questo PC non ho trovato la cartella Download.",
+      "noRun": "Quel riordino non si può più annullare."
     }
   },
   "updateNotice": {

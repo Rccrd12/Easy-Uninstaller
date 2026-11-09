@@ -19,8 +19,10 @@ mod reminders;
 mod reinstall;
 mod restore_point;
 mod review;
+mod search;
 mod space;
 mod startup;
+mod tidy;
 mod uninstall;
 mod updater;
 
@@ -45,6 +47,8 @@ pub fn run() {
         .manage(leftovers::LastLeftovers::default())
         .manage(reinstall::Prepared::default())
         .manage(offload::LastOffload::default())
+        .manage(search::LastSearch::default())
+        .manage(tidy::Tidy::default())
         .manage(uninstall::Pending::default())
         .manage(updater::PendingUpdate::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -107,9 +111,18 @@ pub fn run() {
             review::file_thumbnail,
             review::open_scanned_file,
             review::show_scanned_file,
+            search::search_understand,
+            search::search_files,
+            search::quarantine_found,
             space::scan_space,
             startup::list_startup_apps,
             startup::set_startup_apps,
+            tidy::tidy_overview,
+            tidy::tidy_preview,
+            tidy::tidy_ask,
+            tidy::tidy_by_type,
+            tidy::tidy_apply,
+            tidy::tidy_undo,
             uninstall::uninstall_app,
             uninstall::is_app_installed,
             uninstall::find_app_leftovers,

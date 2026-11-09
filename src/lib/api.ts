@@ -28,9 +28,15 @@ import {
   samplePreview,
   sampleQuarantine,
   sampleQuarantineSettings,
+  sampleLooseDownloads,
+  sampleSearch,
+  sampleSearchPool,
   sampleSpaceUsage,
   sampleStartup,
   sampleUninstalledApps,
+  sampleTidyLines,
+  sampleTidyPlan,
+  sampleUnderstand,
   type SampleFile,
   type SampleRecord,
 } from "./mock";
@@ -74,11 +80,19 @@ import type {
   RestoreReport,
   ReviewFile,
   ScanProgress,
+  SearchFilter,
+  SearchResult,
   SpaceProgress,
   SpaceUsage,
   StartupApp,
   StartupChange,
   StartupReport,
+  TidyChoice,
+  TidyOverview,
+  TidyPlan,
+  TidyPreview,
+  TidyReport,
+  TidyUndoReport,
   UninstallOutcome,
   UninstalledApp,
   UpdateInfo,
@@ -943,6 +957,110 @@ export async function aiForgetAnswers(paths?: string[]): Promise<void> {
 /** Opens a fixed help page (where to get a key, how to install a program) in the browser. */
 export async function aiOpenPage(page: string): Promise<void> {
   if (isTauri()) return invoke("ai_open_page", { page });
+}
+
+// ── Finding files by a sentence (src-tauri/src/search.rs) ─────────────────
+// Only the sentence goes to the AI; the search runs on this PC.
+
+/** Asks the AI to turn a sentence into a search filter. Errors are i18n keys ("search.error.*", "ai.error.*"). */
+export async function searchUnderstand(config: AiConfig, sentence: string, lang: string): Promise<SearchFilter> {
+  if (isTauri()) return invoke<SearchFilter>("search_understand", { config, sentence, lang });
+  await sampleEnsure(config);
+  await sleep(1400);
+  return sampleUnderstand(sentence);
+}
+
+/** Runs the search on this PC (read only). Rust keeps the files found for a later move. */
+export async function searchFiles(filter: SearchFilter): Promise<SearchResult> {
+  if (isTauri()) return invoke<SearchResult>("search_files", { filter });
+  await sleep(500);
+  return sampleSearch(filter, sampleSearchPool.filter((f) => samplePresent(f.path)));
+}
+
+/** Moves picked files of the last search to Quarantine, as one entry. Only files that search found. */
+export async function quarantineFound(paths: string[], found: SearchResult): Promise<MoveReport> {
+  if (isTauri()) return invoke<MoveReport>("quarantine_found", { paths });
+  await sleep(600);
+  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const picked = found.files.filter((f) => paths.includes(f.path) && samplePresent(f.path));
+  if (!picked.length) return report;
+  const group = { id: "found", titleKey: "files.groups.found.title" } as FileGroup;
+  sampleMove(report, group, picked, picked.length, Math.floor(Date.now() / 1000));
+  return report;
+}
+
+// ── Tidying Downloads (src-tauri/src/tidy.rs) ──────────────────────────────
+
+/** Sample tidies, newest last, so undo can be tried in the browser. */
+const sampleTidyRuns: { id: string; at: number; moves: SampleFile[]; folderCount: number }[] = [];
+const sampleTidied = new Set<string>();
+const sampleLoose = () => sampleLooseDownloads.filter((f) => samplePresent(f.path) && !sampleTidied.has(f.path));
+
+/** How many loose files Downloads has, and the last tidy that can be undone. */
+export async function tidyOverview(): Promise<TidyOverview> {
+  if (isTauri()) return invoke<TidyOverview>("tidy_overview");
+  await sleep(300);
+  const loose = sampleLoose();
+  const last = sampleTidyRuns.at(-1);
+  return {
+    downloads: `C:\\Users\\you\\Downloads`,
+    fileCount: loose.length,
+    sizeBytes: loose.reduce((s, f) => s + f.sizeBytes, 0),
+    lastRun: last ? { id: last.id, at: last.at, movedCount: last.moves.length, folderCount: last.folderCount } : null,
+  };
+}
+
+/** What would be sent to the AI: one line per file (name, size, month). */
+export async function tidyPreview(lang: string): Promise<TidyPreview> {
+  if (isTauri()) return invoke<TidyPreview>("tidy_preview", { lang });
+  await sleep(200);
+  const lines = sampleTidyLines(sampleLoose());
+  return { lines, question: lines.join("\n"), notSentCount: 0 };
+}
+
+/** Asks the AI to propose folders. Nothing moves until `tidyApply`. */
+export async function tidyAsk(config: AiConfig, lang: string): Promise<TidyPlan> {
+  if (isTauri()) return invoke<TidyPlan>("tidy_ask", { config, lang });
+  await sampleEnsure(config);
+  await sleep(2200);
+  return sampleTidyPlan(sampleLoose(), lang, true);
+}
+
+/** One folder per kind of file, without the AI. */
+export async function tidyByType(lang: string): Promise<TidyPlan> {
+  if (isTauri()) return invoke<TidyPlan>("tidy_by_type", { lang });
+  await sleep(400);
+  return sampleTidyPlan(sampleLoose(), lang, false);
+}
+
+/**
+ * Moves the files the user kept ticked into the proposed folders, and the picked
+ * setup files to Quarantine. Rust takes only files of its last proposal, unchanged since.
+ */
+export async function tidyApply(choices: TidyChoice[], installers: string[], plan: TidyPlan): Promise<TidyReport> {
+  if (isTauri()) return invoke<TidyReport>("tidy_apply", { choices, installers });
+  await sleep(900);
+  const quarantine: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const paths = new Set(choices.flatMap((c) => c.paths));
+  const moves = sampleLooseDownloads.filter((f) => paths.has(f.path));
+  moves.forEach((f) => sampleTidied.add(f.path));
+  const folderCount = choices.filter((c) => c.paths.length).length;
+  const id = String(Date.now());
+  if (moves.length) sampleTidyRuns.push({ id, at: Math.floor(Date.now() / 1000), moves, folderCount });
+  const picked = plan.installers.filter((f) => installers.includes(f.path));
+  if (picked.length) sampleMove(quarantine, { id: "installers", titleKey: "files.groups.installers.title" } as FileGroup, picked, picked.length, Math.floor(Date.now() / 1000));
+  return { movedCount: moves.length, movedBytes: moves.reduce((s, f) => s + f.sizeBytes, 0), skippedCount: 0, folderCount, runId: moves.length ? id : null, quarantine };
+}
+
+/** Puts the files of a tidy back in Downloads; the folders it made go away when empty. */
+export async function tidyUndo(runId: string): Promise<TidyUndoReport> {
+  if (isTauri()) return invoke<TidyUndoReport>("tidy_undo", { runId });
+  await sleep(500);
+  const i = sampleTidyRuns.findIndex((r) => r.id === runId);
+  if (i < 0) throw "tidy.error.noRun";
+  const [run] = sampleTidyRuns.splice(i, 1);
+  run.moves.forEach((f) => sampleTidied.delete(f.path));
+  return { restoredCount: run.moves.length, failedCount: 0 };
 }
 
 // ---------------------------------------------------------------------------

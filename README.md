@@ -34,7 +34,8 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
   get it back from the Microsoft Store, Steam or its maker's website.
 - **AI only if you want it.** Off by default. When you turn it on, it explains folders the
   built-in list does not know, from their names and sizes only, and its answer is advice in
-  its own purple tag: it never ticks or moves anything. See [AI help](#ai-help).
+  its own purple tag: it never ticks or moves anything. It can also turn a sentence into a
+  file search, and propose folders to tidy up Downloads. See [AI help](#ai-help).
 - **Light.** Built with [Tauri 2](https://tauri.app): it uses the WebView2 engine that is
   already part of Windows, so the installer is a few MB instead of 100+ MB.
 - **Private.** It works entirely on your PC. No account, no ads, no tracking. When it opens,
@@ -77,6 +78,8 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 | ![AI setup: a subscription's program, an API key or a model on this PC](docs/screenshots/ai-setup.png) | ![What is sent to the AI, shown before asking](docs/screenshots/ai-confirm.png) |
 | **The AI's answer** | **Every unknown folder** |
 | ![The AI's answer, with what the app checked on this PC shown apart](docs/screenshots/ai-answer.png) | ![Asking the AI about every unknown folder at once](docs/screenshots/ai-all-folders.png) |
+| **Search by writing a sentence** | **Tidy up Downloads** |
+| ![A sentence turned into filters, the search run on this PC](docs/screenshots/ai-search.png) | ![Folders proposed for the files in Downloads, each file can be unticked](docs/screenshots/ai-tidy.png) |
 
 | **Updates from Settings** |
 |---|
@@ -162,6 +165,19 @@ Never file contents, your username, your list of apps or anything from your pers
 folders. By default the app shows exactly what will be sent before asking. Answers are kept
 on your PC, so the same folder is not asked about twice.
 
+**Search by writing a sentence** (Files screen): "videos over 500 MB I haven't opened in a
+year". Only the sentence is sent; the AI turns it into filters (kind, size, dates, folders,
+words in the name), shown as chips you can remove or change, and the search runs on your PC,
+so your file names never leave it. With the AI off, the box searches by name. Files you pick
+go to Quarantine.
+
+**Tidy up Downloads** (Files screen): the AI looks at the names of the files lying loose in
+Downloads (names, sizes and months only, shown before sending) and proposes a few folders in
+Downloads, Documents, Pictures, Videos or Music. Without the AI, files can be grouped by
+type. Nothing moves until you press *Tidy up*; every file can be unticked, a file of the same
+name is never replaced, and *Put everything back* undoes the whole tidy. Setup files of
+programs already installed are offered for Quarantine, unticked.
+
 The built-in explanations always win, Windows folders and the app's own folders are never
 sent, and the AI's verdict never shows as *Safe*: if an installed app matches the folder,
 a "can be removed" answer is turned into "keep it".
@@ -208,7 +224,9 @@ hidden items and AI answers stay on your PC. The app goes online only in these c
 13. ✅ A more formal look: monochrome line icons instead of emoji
 14. ✅ In-app updates from Settings, signed and checked before installing
 15. ✅ First public release, 0.2.0
-16. ⬜ A stable 1.0
+16. ✅ AI help, phases 2 and 3: search your files by writing a sentence (only the sentence is
+    sent, the search runs on this PC), and tidy up Downloads into proposed folders, with undo
+17. ⬜ A stable 1.0
 
 ## Development
 

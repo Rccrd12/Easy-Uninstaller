@@ -285,6 +285,10 @@
         "description": "Big folders in AppData and ProgramData: find out what they are",
         "what": "Big folders apps keep in AppData and ProgramData. The app explains the ones it knows; tap a folder to find out what it is.",
         "ifRemoved": "Move them one at a time, after reading what they are: the whole group cannot be selected, because many belong to apps you still use."
+      },
+      "found": {
+        "title": "Found by search",
+        "description": "Files you picked from a search"
       }
     },
     "scanning": "Looking for files you can remove…",
@@ -1213,6 +1217,146 @@
       "unknown": "Not sure",
       "mark": "AI",
       "title": "The AI says: {verdict}. {what}"
+    }
+  },
+  "search": {
+    "placeholderAi": "Describe the files you are looking for, e.g. “videos over 500 MB I haven't opened in a year”",
+    "placeholderName": "Search your files by name",
+    "button": "Search",
+    "tidy": "Tidy up Downloads",
+    "aiOff": "With AI help on, you can search by writing a whole sentence.",
+    "turnOn": "Turn it on",
+    "sentOnly": "Only this sentence is sent to {service}. The search runs on this PC: your file names stay here.",
+    "title": "Search your files",
+    "understanding": "{service} is reading your sentence…",
+    "searching": "Searching this PC…",
+    "understood": "I understood:",
+    "byName": "Searching by name:",
+    "edit": "Change",
+    "doneEditing": "Done",
+    "anyFile": "All files",
+    "removeChip": "Remove “{what}”",
+    "kinds": {
+      "image": "Photos and images",
+      "video": "Videos",
+      "audio": "Music and audio",
+      "document": "Documents",
+      "archive": "Compressed archives",
+      "program": "Programs and installers",
+      "disc": "Disk images"
+    },
+    "chips": {
+      "minSize": "larger than {size}",
+      "maxSize": "smaller than {size}",
+      "unused": "not opened for {time}",
+      "recent": "changed in the last {time}",
+      "places": "in {list}",
+      "word": "name with “{word}”",
+      "sortOldest": "unused the longest first",
+      "sortNewest": "newest first"
+    },
+    "time": {
+      "day": "1 day",
+      "days": "{count} days",
+      "week": "1 week",
+      "weeks": "{count} weeks",
+      "month": "1 month",
+      "months": "{count} months",
+      "year": "1 year",
+      "years": "{count} years"
+    },
+    "editor": {
+      "kinds": "Kind",
+      "size": "Larger than",
+      "unused": "Not opened for",
+      "recent": "Changed in the last",
+      "places": "Folders",
+      "placesAll": "All my folders",
+      "words": "Name contains",
+      "wordsHint": "Words separated by commas",
+      "sort": "Order",
+      "any": "Any",
+      "sortSize": "Largest first",
+      "sortOldest": "Unused the longest first",
+      "sortNewest": "Newest first"
+    },
+    "found": "{files} found · {size}",
+    "none": "No file matches. Try removing a filter.",
+    "capped": "Showing the first {shown} of {total}.",
+    "tooMany": "Over 5,000 files match: only the first 5,000 can be moved. Add a filter to narrow it down.",
+    "partial": "Your folders are very large: the search stopped after 400,000 files.",
+    "safety": "The AI only turned your sentence into these filters. Nothing moves on its own: you choose, and everything goes to Quarantine for {days} days.",
+    "safetyName": "The search runs on this PC. Nothing moves on its own: you choose, and everything goes to Quarantine for {days} days.",
+    "failed": "The search did not work: {error}",
+    "error": {
+      "empty": "Write what you are looking for.",
+      "notSearch": "That does not look like a search for files. Try describing them, e.g. “PDFs in Downloads from last year”."
+    }
+  },
+  "tidy": {
+    "title": "Tidy up Downloads",
+    "subtitle": "The AI looks at the names of the files lying in Downloads and proposes a few folders. Nothing moves until you confirm, and you can put everything back.",
+    "loose": "{files} lying loose in Downloads · {size}",
+    "none": "Downloads is already tidy: there are no loose files.",
+    "noDownloads": "No Downloads folder was found on this PC.",
+    "askAi": "Propose folders with AI",
+    "byType": "Sort by type, without AI",
+    "aiOff": "AI help is off: you can sort by type, or turn it on for folders with clearer names.",
+    "lastRun": "Last tidy, {date}: {files} into {folders}.",
+    "undoLast": "Put them back",
+    "folderOne": "1 folder",
+    "folders": "{count} folders",
+    "confirm": {
+      "title": "What I send to {service}",
+      "intro": "The names of {files}, with size and month. Never what is inside them, and not where they are on your PC.",
+      "notSent": "{files} more will be tidied next time.",
+      "send": "Send and propose"
+    },
+    "asking": "{service} is looking at the file names…",
+    "plan": {
+      "title": "Proposal: {files} into {folders}",
+      "byType": "Sorted by type",
+      "byAi": "Proposed by {service}",
+      "left": "{files} stay where they are: the AI was not sure where they go.",
+      "leftByType": "{files} of other kinds stay where they are.",
+      "notSent": "{files} were not looked at this time: run it again afterwards.",
+      "new": "New folder",
+      "exists": "Already there",
+      "in": "in {place}",
+      "showFiles": "Show files",
+      "hideFiles": "Hide files",
+      "empty": "No folder to propose: the AI did not find files that belong together.",
+      "again": "Propose again",
+      "pick": "Move {name}"
+    },
+    "installers": {
+      "title": "Installers already used",
+      "desc": "Setup files of programs that are already installed. Tick them to move them to Quarantine."
+    },
+    "apply": {
+      "summary": "{files} into {folders}",
+      "plusInstallers": "and {files} to Quarantine",
+      "button": "Tidy up",
+      "moving": "Tidying…",
+      "note": "Files are moved, never deleted. You can put everything back with one click.",
+      "nothing": "Tick at least one file."
+    },
+    "done": {
+      "title": "Done: {files} moved into {folders}.",
+      "skipped": "{files} stayed where they were: they changed or are in use.",
+      "quarantine": "{files} moved to Quarantine.",
+      "undo": "Put everything back",
+      "undoing": "Putting back…",
+      "undone": "{files} are back in Downloads.",
+      "undoFailed": "{files} could not go back: they changed, or a file with the same name is in Downloads now.",
+      "back": "Back to Files",
+      "open": "Open Downloads"
+    },
+    "safety": "The AI only proposes. Nothing moves until you press “Tidy up”, and every tidy can be undone.",
+    "failed": "It did not work: {error}",
+    "error": {
+      "noDownloads": "No Downloads folder was found on this PC.",
+      "noRun": "That tidy can no longer be undone."
     }
   },
   "updateNotice": {

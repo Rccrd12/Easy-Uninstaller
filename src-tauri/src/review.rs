@@ -396,6 +396,11 @@ fn is_known(kept: &Kept, path: &Path) -> bool {
         || kept.similar_sets.iter().flatten().any(|f| f.path == path)
 }
 
+/// Found by a search or listed in a Downloads tidy proposal: also shown, opened and previewed.
+fn found_elsewhere(app: &AppHandle, path: &Path) -> bool {
+    crate::search::knows(app, path) || crate::tidy::knows(app, path)
+}
+
 fn can_open(path: &Path) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
@@ -620,7 +625,7 @@ pub async fn file_thumbnail(
     size: u32,
 ) -> Result<Option<String>, String> {
     let path = PathBuf::from(path);
-    let known = {
+    let known = found_elsewhere(&app, &path) || {
         let check = path.clone();
         with_kept(app, move |kept| is_known(kept, &check)).await?
     };
@@ -637,7 +642,9 @@ pub async fn file_thumbnail(
 pub async fn open_scanned_file(app: AppHandle, path: String) -> Result<(), String> {
     let path = PathBuf::from(path);
     let check = path.clone();
-    if !with_kept(app, move |kept| is_known(kept, &check)).await? || !can_open(&path) {
+    let known =
+        found_elsewhere(&app, &path) || with_kept(app, move |kept| is_known(kept, &check)).await?;
+    if !known || !can_open(&path) {
         return Err("this file cannot be opened from here".into());
     }
     platform::open(&path).map_err(|e| e.to_string())
@@ -648,7 +655,7 @@ pub async fn open_scanned_file(app: AppHandle, path: String) -> Result<(), Strin
 pub async fn show_scanned_file(app: AppHandle, path: String) -> Result<(), String> {
     let path = PathBuf::from(path);
     let check = path.clone();
-    if !with_kept(app, move |kept| is_known(kept, &check)).await? {
+    if !found_elsewhere(&app, &path) && !with_kept(app, move |kept| is_known(kept, &check)).await? {
         return Err("this file was not found by the scan".into());
     }
     platform::reveal(&path).map_err(|e| e.to_string())

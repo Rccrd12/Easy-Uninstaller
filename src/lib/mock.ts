@@ -1,7 +1,7 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, HistoryKind, HistoryName, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage, StartupApp, AppCache, NewPcAdvice, NewPcReason, UninstalledApp, OffloadFile } from "./types";
+import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, HistoryKind, HistoryName, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage, StartupApp, AppCache, NewPcAdvice, NewPcReason, UninstalledApp, OffloadFile, SearchFilter, SearchKind, SearchPlace, SearchResult, SearchSort, TidyDest, TidyFile, TidyFolder, TidyPlan } from "./types";
 
 const remove = (reason: NewPcReason): NewPcAdvice => ({ advice: "remove", reason });
 const choose = (reason: NewPcReason): NewPcAdvice => ({ advice: "choose", reason });
@@ -551,3 +551,164 @@ export const sampleMoveFiles: OffloadFile[] = [
   offloadFile(`${D}\\Vacation photos.zip`, 860 * MB, "2023-09-03"),
   offloadFile(`${U}\\Music\\Albums\\Live in Rome.flac`, 480 * MB, "2022-04-09"),
 ];
+
+// ── Finding files by a sentence, and tidying Downloads ─────────────────────
+
+/** Files of the pretend profile the sample search looks through. */
+export const sampleSearchPool: SampleFile[] = [
+  ...sampleFiles,
+  ...sampleDuplicateSets.flat(),
+  file("", `${P}\\Sardinia 2022\\Beach - drone.mp4`, 4.1 * GB, "2023-09-02"),
+  file("", `${D}\\GOPR0193.MP4`, 2.3 * GB, "2024-05-11"),
+  file("", `${U}\\Desktop\\old\\Mountain_4K.mov`, 1.7 * GB, "2024-02-18"),
+  file("", `${D}\\WhatsApp\\VID_20210812.mp4`, 640 * MB, "2021-08-12"),
+  file("", `${U}\\Videos\\Birthday Anna.mp4`, 820 * MB, "2025-10-30"),
+  file("", `${U}\\Documents\\Bills\\Electricity March 2025.pdf`, 0.4 * MB, "2025-03-28"),
+  file("", `${U}\\Documents\\Bills\\Gas Q1 2025.pdf`, 0.3 * MB, "2025-04-12"),
+  file("", `${P}\\Sardinia 2022\\IMG_0441.jpg`, 5.8 * MB, "2023-09-02"),
+  file("", `${U}\\Music\\Podcasts\\Episode 112.mp3`, 64 * MB, "2024-01-09"),
+];
+
+/**
+ * In the browser there is no AI to ask: a few words of the sentence become the filter,
+ * so the screen can be tried. The real filter comes from the AI (search.rs).
+ */
+export function sampleUnderstand(sentence: string): SearchFilter {
+  const s = sentence.toLowerCase();
+  const kinds: SearchKind[] = [];
+  if (/video|film|clip/.test(s)) kinds.push("video");
+  if (/foto|photo|immagin|picture/.test(s)) kinds.push("image");
+  if (/document|pdf|bollett|bill|fattur|invoice/.test(s)) kinds.push("document");
+  if (/musica|music|canzon|song|podcast/.test(s)) kinds.push("audio");
+  const size = /(\d+(?:[.,]\d+)?)\s*(mb|gb)/.exec(s);
+  const minBytes = size ? Number(size[1].replace(",", ".")) * (size[2] === "gb" ? GB : MB) : null;
+  const unusedDays = /anno|year/.test(s) ? 365 : /mes[ie]|month/.test(s) ? 180 : null;
+  const recentDays = /settimana|week/.test(s) ? 7 : null;
+  const places: SearchPlace[] = [];
+  if (/download/.test(s)) places.push("downloads");
+  if (/desktop/.test(s)) places.push("desktop");
+  return { kinds, minBytes, maxBytes: null, unusedDays, recentDays, places, words: [], sort: /vecch|old/.test(s) && !minBytes ? "oldest" : "size" };
+}
+
+const KIND_OF: [SearchKind, RegExp][] = [
+  ["image", /\.(jpe?g|png|gif|bmp|webp|heic|heif|tiff?|dng|cr2|nef|arw|psd|svg)$/i],
+  ["video", /\.(mp4|mov|avi|mkv|wmv|m4v|webm|3gp|mts)$/i],
+  ["audio", /\.(mp3|wav|flac|m4a|aac|ogg|wma)$/i],
+  ["document", /\.(pdf|txt|md|rtf|csv|log|docx?|xlsx?|pptx?|odt|ods|odp|epub)$/i],
+  ["archive", /\.(zip|7z|rar|gz|tar)$/i],
+  ["program", /\.(exe|msi|msix|msixbundle|appx|bat|cmd)$/i],
+  ["disc", /\.(iso|img|vdi|vhdx?|vmdk)$/i],
+];
+const kindOf = (path: string) => KIND_OF.find(([, re]) => re.test(path))?.[0] ?? null;
+const PLACE_DIRS: Record<SearchPlace, string> = { desktop: "Desktop", documents: "Documents", downloads: "Downloads", pictures: "Pictures", videos: "Videos", music: "Music" };
+
+/** The sample search: the same rules as search.rs, over `files`. */
+export function sampleSearch(filter: SearchFilter, files: SampleFile[]): SearchResult {
+  const now = Date.now();
+  const age = (iso: string) => (now - new Date(`${iso}T00:00:00`).getTime()) / 86_400_000;
+  const found = files.filter((f) => {
+    const kind = kindOf(f.path);
+    const rel = f.path.slice(U.length + 1).toLowerCase();
+    if (filter.kinds.length && (!kind || !filter.kinds.includes(kind))) return false;
+    if (filter.minBytes !== null && f.sizeBytes < filter.minBytes) return false;
+    if (filter.maxBytes !== null && f.sizeBytes > filter.maxBytes) return false;
+    if (filter.unusedDays !== null && age(f.lastUsed) < filter.unusedDays) return false;
+    if (filter.recentDays !== null && age(f.modified) > filter.recentDays) return false;
+    if (filter.places.length && !filter.places.some((p) => rel.startsWith(`${PLACE_DIRS[p].toLowerCase()}\\`))) return false;
+    return filter.words.every((w) => rel.includes(w.toLowerCase()));
+  });
+  const order: Record<SearchSort, (a: SampleFile, b: SampleFile) => number> = {
+    size: (a, b) => b.sizeBytes - a.sizeBytes,
+    oldest: (a, b) => a.lastUsed.localeCompare(b.lastUsed),
+    newest: (a, b) => b.modified.localeCompare(a.modified),
+  };
+  found.sort(order[filter.sort]);
+  return {
+    filter,
+    files: found.slice(0, 200).map((f) => ({ path: f.path, sizeBytes: f.sizeBytes, lastUsed: f.lastUsed })),
+    totalCount: found.length,
+    totalBytes: found.reduce((s, f) => s + f.sizeBytes, 0),
+    tooMany: false,
+    partial: false,
+  };
+}
+
+/** Files lying loose in the pretend Downloads folder. */
+export const sampleLooseDownloads: SampleFile[] = [
+  file("", `${D}\\Electricity bill March 2025.pdf`, 0.4 * MB, "2025-03-28"),
+  file("", `${D}\\Electricity bill April 2025.pdf`, 0.4 * MB, "2025-04-27"),
+  file("", `${D}\\Gas bill Q1 2025.pdf`, 0.3 * MB, "2025-04-12"),
+  file("", `${D}\\Water bill 2025.pdf`, 0.2 * MB, "2025-05-03"),
+  file("", `${D}\\Boarding pass FCO-LIS.pdf`, 0.2 * MB, "2025-06-10"),
+  file("", `${D}\\Hotel booking Lisbon.pdf`, 0.5 * MB, "2025-06-02"),
+  file("", `${D}\\Lisbon museums.pdf`, 3.1 * MB, "2025-06-05"),
+  file("", `${D}\\IMG_2231.jpg`, 4.2 * MB, "2025-06-14"),
+  file("", `${D}\\IMG_2232.jpg`, 3.9 * MB, "2025-06-14"),
+  file("", `${D}\\IMG_2240.jpg`, 4.4 * MB, "2025-06-15"),
+  file("", `${D}\\VID_20250615.mp4`, 310 * MB, "2025-06-15"),
+  file("", `${D}\\Washing machine manual.pdf`, 8.2 * MB, "2024-11-20"),
+  file("", `${D}\\Router setup guide.pdf`, 2.6 * MB, "2025-01-08"),
+  file("", `${D}\\Quarterly report Q2.xlsx`, 1.1 * MB, "2025-07-02"),
+  file("", `${D}\\Meeting notes July.docx`, 0.1 * MB, "2025-07-09"),
+  file("", `${D}\\Contract draft v3.docx`, 0.2 * MB, "2025-07-15"),
+  file("", `${D}\\SpotifyFullSetup.exe`, 610 * MB, "2024-06-02"),
+  file("", `${D}\\vlc-3.0.20-win64.exe`, 42 * MB, "2023-11-10"),
+  file("", `${D}\\Driver_pack_2022.zip`, 410 * MB, "2022-10-01"),
+  file("", `${D}\\unnamed (4).png`, 0.6 * MB, "2025-02-11"),
+  file("", `${D}\\doc12345.pdf`, 0.9 * MB, "2025-03-01"),
+];
+
+/** Setup files of programs the sample PC has installed. */
+const SAMPLE_USED_INSTALLERS = /SpotifyFullSetup|vlc-/;
+
+const tidyFile = (f: SampleFile): TidyFile => ({ path: f.path, sizeBytes: f.sizeBytes, modified: f.modified });
+
+/** What the sample AI proposes for the loose downloads still there. */
+export function sampleTidyPlan(present: SampleFile[], lang: string, byAi: boolean): TidyPlan {
+  const it = lang === "it";
+  const installers = present.filter((f) => SAMPLE_USED_INSTALLERS.test(f.path));
+  const rest = present.filter((f) => !installers.includes(f));
+  const groups: [string, string, TidyDest, string, string, RegExp][] = byAi
+    ? [
+        ["Bills 2025", "Bollette 2025", "documents", "Electricity, gas and water bills", "Bollette di luce, gas e acqua", /bill/i],
+        ["Lisbon trip", "Viaggio a Lisbona", "documents", "Tickets, hotel and guides for Lisbon", "Biglietti, hotel e guide per Lisbona", /lis(bon|)|boarding/i],
+        ["Lisbon photos", "Foto di Lisbona", "pictures", "Photos and a video from June 2025", "Foto e un video di giugno 2025", /(IMG_22|VID_2025)/],
+        ["Manuals", "Manuali", "documents", "Instructions for home appliances", "Istruzioni degli elettrodomestici", /manual|guide/i],
+        ["Work", "Lavoro", "documents", "Reports, notes and contracts", "Report, appunti e contratti", /report|meeting|contract/i],
+      ]
+    : [
+        ["Documents", "Documenti", "downloads", "", "", /\.(pdf|docx|xlsx)$/i],
+        ["Pictures", "Immagini", "downloads", "", "", /\.(jpg|png)$/i],
+        ["Videos", "Video", "downloads", "", "", /\.mp4$/i],
+        ["Archives", "Archivi compressi", "downloads", "", "", /\.zip$/i],
+      ];
+  const dirOf: Record<TidyDest, string> = { downloads: D, documents: `${U}\\Documents`, pictures: P, videos: `${U}\\Videos`, music: `${U}\\Music` };
+  const taken = new Set<string>();
+  const folders: TidyFolder[] = [];
+  for (const [en, itName, dest, whyEn, whyIt, re] of groups) {
+    const files = rest.filter((f) => !taken.has(f.path) && re.test(f.path.split("\\").pop() ?? ""));
+    if (!files.length) continue;
+    files.forEach((f) => taken.add(f.path));
+    const name = it ? itName : en;
+    folders.push({
+      id: `f${folders.length + 1}`,
+      name,
+      dest,
+      why: it ? whyIt : whyEn,
+      target: `${dirOf[dest]}\\${name}`,
+      exists: name === "Manuals" || name === "Manuali",
+      files: files.map(tidyFile),
+      sizeBytes: files.reduce((s, f) => s + f.sizeBytes, 0),
+    });
+  }
+  return { folders, installers: installers.map(tidyFile), leftCount: rest.length - taken.size, notSentCount: 0, byAi };
+}
+
+/** The lines the sample would send to the AI. */
+export function sampleTidyLines(present: SampleFile[]): string[] {
+  const size = (b: number) => (b >= GB ? `${(b / GB).toFixed(1)} GB` : b >= MB ? `${Math.round(b / MB)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+  return present
+    .filter((f) => !SAMPLE_USED_INSTALLERS.test(f.path))
+    .sort((a, b) => b.modified.localeCompare(a.modified))
+    .map((f, i) => `${i + 1}. ${f.path.split("\\").pop()} · ${size(f.sizeBytes)} · ${f.modified.slice(0, 7)}`);
+}
