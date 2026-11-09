@@ -5,6 +5,7 @@
   import StartupApps from "../components/StartupApps.svelte";
   import UninstallDialog from "../components/UninstallDialog.svelte";
   import UninstalledApps from "../components/UninstalledApps.svelte";
+  import AppCaches from "../components/AppCaches.svelte";
   import AppDetail, { appSpace } from "../components/AppDetail.svelte";
   import { forgetUninstalled, listAppCaches, listInstalledApps, listUninstalledApps, usesSampleData } from "../api";
   import { formatBytes, formatDate } from "../format";
@@ -12,17 +13,16 @@
   import { saveSettings, settings } from "../settings.svelte";
   import type { AppCache, InstalledApp, UninstalledApp } from "../types";
 
-  type Filter = "all" | "cache" | "unused" | "preinstalled" | "recent" | "store";
+  type Filter = "all" | "unused" | "preinstalled" | "recent" | "store";
   const filters: { id: Filter; label: string }[] = [
     { id: "all", label: "apps.filterAll" },
-    { id: "cache", label: "apps.filterCache" },
     { id: "unused", label: "apps.filterUnused" },
     { id: "preinstalled", label: "apps.filterPreinstalled" },
     { id: "recent", label: "apps.filterRecent" },
     { id: "store", label: "apps.filterStore" },
   ];
 
-  type Tab = "installed" | "startup" | "uninstalled";
+  type Tab = "installed" | "cache" | "startup" | "uninstalled";
   let tab = $state<Tab>("installed");
   /** Programs that start with Windows, once the tab has counted them. */
   let startupCount = $state<number | null>(null);
@@ -67,6 +67,9 @@
     const c = cacheOf(a);
     return c && c.cacheBytes >= CACHE_HINT_MIN ? c.cacheBytes : 0;
   };
+
+  /** Cache that can be emptied, over the installed apps we know a cache for. */
+  const cacheTotal = $derived(apps.reduce((s, a) => s + (cacheOf(a)?.cacheBytes ?? 0), 0));
 
   function cleared(cache: AppCache, freed: number) {
     caches = new Map(caches).set(cache.id, cache);
@@ -131,7 +134,6 @@
 
   const matches = (a: InstalledApp, f: Filter): boolean => {
     switch (f) {
-      case "cache": return cacheToClear(a) > 0;
       case "unused": return a.neverUsed;
       case "preinstalled": return a.preinstalled;
       case "store": return a.source === "store";
@@ -222,6 +224,10 @@
     <Icon name="apps" filled={tab === "installed"} /> {t("apps.tabInstalled")}
     {#if status === "ready"}<span class="count">{apps.length}</span>{/if}
   </button>
+  <button role="tab" class="tab" class:on={tab === "cache"} aria-selected={tab === "cache"} onclick={() => (tab = "cache")}>
+    <Icon name="broom" filled={tab === "cache"} /> {t("apps.tabCache")}
+    {#if cacheTotal > 0}<span class="count">{formatBytes(cacheTotal)}</span>{/if}
+  </button>
   <button role="tab" class="tab" class:on={tab === "startup"} aria-selected={tab === "startup"} onclick={() => (tab = "startup")}>
     <Icon name="rocket" filled={tab === "startup"} /> {t("apps.tabStartup")}
     {#if startupCount !== null}<span class="count">{startupCount}</span>{/if}
@@ -232,7 +238,9 @@
   </button>
 </div>
 
-{#if tab === "startup"}
+{#if tab === "cache"}
+  <AppCaches {apps} {caches} {measuring} onCleared={cleared} />
+{:else if tab === "startup"}
   <StartupApps bind:count={startupCount} />
 {:else if tab === "uninstalled"}
   <UninstalledApps list={uninstalled} {installedNames} onForget={forget} />

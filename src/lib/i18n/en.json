@@ -83,7 +83,6 @@
     "tabInstalled": "Installed",
     "tabStartup": "At startup",
     "tabUninstalled": "Uninstalled",
-    "filterCache": "Cache to clear",
     "cacheHint": "{size} of cache to clear",
     "detail": {
       "show": "Show details of {app}",
@@ -111,7 +110,25 @@
       "installed": "Installed on",
       "publisher": "Publisher",
       "uninstall": "Uninstall…"
-    }
+    },
+    "tabCache": "Cache"
+  },
+  "cache": {
+    "measuring": "Measuring the apps' caches…",
+    "none": "None of your apps has a cache we know how to empty.",
+    "total": "{size} of cache in {count} apps",
+    "allEmpty": "The caches are already empty",
+    "what": "Files the apps recreate on their own. Chats, settings and sign-ins stay.",
+    "clearAll": "Clear all",
+    "clearing": "Clearing…",
+    "clear": "Clear",
+    "clearingOne": "Clearing…",
+    "empty": "Empty",
+    "isOpen": "It's open: close it and try again",
+    "freed": "Freed {size}.",
+    "openSkipped": "{count} apps were open and were skipped.",
+    "inUse": "{files} in use were left.",
+    "failed": "Didn't work for {count} apps."
   },
   "startup": {
     "loading": "Looking for programs that start with Windows…",

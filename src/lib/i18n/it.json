@@ -83,7 +83,6 @@
     "tabInstalled": "Installate",
     "tabStartup": "All'avvio",
     "tabUninstalled": "Disinstallate",
-    "filterCache": "Cache da svuotare",
     "cacheHint": "{size} di cache da svuotare",
     "detail": {
       "show": "Mostra i dettagli di {app}",
@@ -111,7 +110,25 @@
       "installed": "Installata il",
       "publisher": "Editore",
       "uninstall": "Disinstalla…"
-    }
+    },
+    "tabCache": "Cache"
+  },
+  "cache": {
+    "measuring": "Misuro la cache delle app…",
+    "none": "Nessuna delle tue app ha una cache che sappiamo svuotare.",
+    "total": "{size} di cache in {count} app",
+    "allEmpty": "Le cache sono già vuote",
+    "what": "File che le app ricreano da sole. Chat, impostazioni e accessi restano.",
+    "clearAll": "Svuota tutte",
+    "clearing": "Svuoto…",
+    "clear": "Svuota",
+    "clearingOne": "Svuoto…",
+    "empty": "Vuota",
+    "isOpen": "È aperta: chiudila e riprova",
+    "freed": "Liberati {size}.",
+    "openSkipped": "{count} app erano aperte e sono state saltate.",
+    "inUse": "{files} in uso sono rimasti.",
+    "failed": "Non è riuscito per {count} app."
   },
   "startup": {
     "loading": "Cerco i programmi che partono con Windows…",
