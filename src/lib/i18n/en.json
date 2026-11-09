@@ -69,7 +69,62 @@
     "installedOn": "installed {date}",
     "loading": "Reading the apps installed on this PC…",
     "error": "Could not read the installed apps.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "tabInstalled": "Installed",
+    "tabStartup": "At startup"
+  },
+  "startup": {
+    "loading": "Looking for programs that start with Windows…",
+    "error": "Couldn't read the programs that start with Windows.",
+    "retry": "Try again",
+    "heroTitle": "Your PC starts with {count} programs",
+    "heroTitleOne": "Your PC starts with 1 program",
+    "heroText": "Turning off {count} of them can make your PC start faster. Nothing is uninstalled, and you can turn them back on whenever you like.",
+    "heroTextOne": "Turning off 1 of them can make your PC start faster. Nothing is uninstalled, and you can turn it back on whenever you like.",
+    "heroTextNone": "Nothing to suggest: the programs still on are useful ones. Turning one off never uninstalls it.",
+    "turnOffSuggested": "Turn off the {count} suggested",
+    "turnOffSuggestedOne": "Turn off the suggested one",
+    "working": "Changing…",
+    "impact": {
+      "high": "High impact",
+      "medium": "Medium impact",
+      "low": "Low impact"
+    },
+    "advice": {
+      "turnOff": "Better off",
+      "keep": "Useful, leave it on",
+      "system": "Part of Windows",
+      "off": "Off"
+    },
+    "notes": {
+      "background": "Opens by itself and stays in the background",
+      "chat": "Opens your chats as soon as the PC starts",
+      "games": "You can open it yourself when you play",
+      "browser": "Loads the browser before you open it",
+      "updater": "Checks for updates",
+      "sync": "Keeps your files in sync",
+      "protects": "Protects your PC",
+      "driver": "Part of your audio, graphics or touchpad drivers",
+      "devices": "Settings for your mouse, keyboard or headset",
+      "passwords": "Keeps your passwords at hand",
+      "missing": "The program is no longer on this PC"
+    },
+    "switchLabel": "{name} starts with Windows",
+    "allUsers": "All users",
+    "allUsersHint": "Starts for everyone who uses this PC: Windows asks for permission to change it.",
+    "systemHint": "Windows needs it: it can't be turned off here.",
+    "estimate": "Impact is an estimate: Windows doesn't share the exact numbers with other apps, so the app uses what it knows about each program and its size.",
+    "applyNote": "Changes apply the next time you turn on the PC. The programs stay installed.",
+    "turnedOff": "Turned off {count} programs: they won't open by themselves next time.",
+    "turnedOffOne": "Turned off {name}: it won't open by itself next time.",
+    "turnedOn": "{name} will start with Windows again.",
+    "undo": "Undo",
+    "undone": "Put back as before.",
+    "failed": "Couldn't change {name}.",
+    "failedMany": "Couldn't change {count} programs.",
+    "declined": "Programs for all users were left as they were: Windows permission was not given.",
+    "empty": "No program starts by itself with Windows.",
+    "offTitle": "Turned off ({count})"
   },
   "files": {
     "title": "Files",

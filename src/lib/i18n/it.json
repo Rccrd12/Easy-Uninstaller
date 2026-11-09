@@ -69,7 +69,62 @@
     "installedOn": "installata il {date}",
     "loading": "Lettura delle app installate su questo PC…",
     "error": "Impossibile leggere le app installate.",
-    "retry": "Riprova"
+    "retry": "Riprova",
+    "tabInstalled": "Installate",
+    "tabStartup": "All'avvio"
+  },
+  "startup": {
+    "loading": "Cerco i programmi che partono con Windows…",
+    "error": "Non riesco a leggere i programmi che partono con Windows.",
+    "retry": "Riprova",
+    "heroTitle": "Il PC parte con {count} programmi",
+    "heroTitleOne": "Il PC parte con 1 programma",
+    "heroText": "Spegnerne {count} può rendere più veloce l'accensione. Non viene disinstallato niente e puoi riaccenderli quando vuoi.",
+    "heroTextOne": "Spegnerne 1 può rendere più veloce l'accensione. Non viene disinstallato niente e puoi riaccenderlo quando vuoi.",
+    "heroTextNone": "Nessun consiglio: i programmi accesi sono quelli utili. Spegnerne uno non lo disinstalla mai.",
+    "turnOffSuggested": "Spegni i {count} consigliati",
+    "turnOffSuggestedOne": "Spegni quello consigliato",
+    "working": "Modifico…",
+    "impact": {
+      "high": "Impatto alto",
+      "medium": "Impatto medio",
+      "low": "Impatto basso"
+    },
+    "advice": {
+      "turnOff": "Consigliato spegnerlo",
+      "keep": "Utile, lascialo acceso",
+      "system": "Parte di Windows",
+      "off": "Spento"
+    },
+    "notes": {
+      "background": "Si apre da solo e resta in background",
+      "chat": "Apre le chat appena accendi il PC",
+      "games": "Puoi aprirlo tu quando giochi",
+      "browser": "Carica il browser prima che tu lo apra",
+      "updater": "Controlla gli aggiornamenti",
+      "sync": "Tiene sincronizzati i tuoi file",
+      "protects": "Protegge il PC",
+      "driver": "Fa parte dei driver di audio, video o touchpad",
+      "devices": "Impostazioni di mouse, tastiera o cuffie",
+      "passwords": "Tiene a portata di mano le tue password",
+      "missing": "Il programma non è più su questo PC"
+    },
+    "switchLabel": "{name} parte con Windows",
+    "allUsers": "Tutti gli utenti",
+    "allUsersHint": "Parte per chiunque usi questo PC: per cambiarlo Windows chiede il permesso.",
+    "systemHint": "Serve a Windows: qui non si può spegnere.",
+    "estimate": "L'impatto è una stima: Windows non dà i numeri esatti alle altre app, quindi l'app usa quello che sa di ogni programma e la sua dimensione.",
+    "applyNote": "Le modifiche valgono dalla prossima accensione del PC. I programmi restano installati.",
+    "turnedOff": "Spenti {count} programmi: la prossima volta non si apriranno da soli.",
+    "turnedOffOne": "Spento {name}: la prossima volta non si aprirà da solo.",
+    "turnedOn": "{name} tornerà a partire con Windows.",
+    "undo": "Annulla",
+    "undone": "Rimesso tutto come prima.",
+    "failed": "Non sono riuscito a cambiare {name}.",
+    "failedMany": "Non sono riuscito a cambiare {count} programmi.",
+    "declined": "I programmi di tutti gli utenti sono rimasti com'erano: Windows non ha avuto il permesso.",
+    "empty": "Nessun programma parte da solo con Windows.",
+    "offTitle": "Spenti ({count})"
   },
   "files": {
     "title": "File",

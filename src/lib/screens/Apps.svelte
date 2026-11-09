@@ -1,5 +1,7 @@
 <script lang="ts">
+  import Icon from "../components/Icon.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
+  import StartupApps from "../components/StartupApps.svelte";
   import UninstallDialog from "../components/UninstallDialog.svelte";
   import { listInstalledApps, usesSampleData } from "../api";
   import { formatBytes, formatDate } from "../format";
@@ -14,6 +16,11 @@
     { id: "recent", label: "apps.filterRecent" },
     { id: "store", label: "apps.filterStore" },
   ];
+
+  type Tab = "installed" | "startup";
+  let tab = $state<Tab>("installed");
+  /** Programs that start with Windows, once the tab has counted them. */
+  let startupCount = $state<number | null>(null);
 
   let apps = $state<InstalledApp[]>([]);
   let status = $state<"loading" | "ready" | "error">("loading");
@@ -94,6 +101,21 @@
 <p class="muted sub">{status === "ready" ? t("apps.summary", { count: apps.length, size: formatBytes(total) }) : "\u00a0"}</p>
 {#if usesSampleData()}<SampleBanner />{/if}
 
+<div class="tabs" role="tablist">
+  <button role="tab" class="tab" class:on={tab === "installed"} aria-selected={tab === "installed"} onclick={() => (tab = "installed")}>
+    <Icon name="apps" filled={tab === "installed"} /> {t("apps.tabInstalled")}
+    {#if status === "ready"}<span class="count">{apps.length}</span>{/if}
+  </button>
+  <button role="tab" class="tab" class:on={tab === "startup"} aria-selected={tab === "startup"} onclick={() => (tab = "startup")}>
+    <Icon name="rocket" filled={tab === "startup"} /> {t("apps.tabStartup")}
+    {#if startupCount !== null}<span class="count">{startupCount}</span>{/if}
+  </button>
+</div>
+
+{#if tab === "startup"}
+  <StartupApps bind:count={startupCount} />
+{:else}
+
 <input class="search" type="search" placeholder={t("apps.search")} bind:value={query} />
 
 <div class="chips">
@@ -146,12 +168,20 @@
   </div>
 {/if}
 
+{/if}
+
 {#if uninstalling}
   <UninstallDialog apps={uninstalling} onClose={finished} />
 {/if}
 
 <style>
   .sub { margin: 3px 0 10px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 6px 0 14px; }
+  .tab { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 13.5px; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+  .tab:hover { background: var(--hover); }
+  .tab.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .count { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 9px; background: var(--track); color: var(--text-muted); }
+  .tab.on .count { background: var(--accent-soft); color: var(--accent); }
   .search { width: 100%; font-size: 14px; padding: 11px 16px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); }
   .chips { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
   .chip { padding: 5px 13px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border-strong); font-size: 12.5px; }

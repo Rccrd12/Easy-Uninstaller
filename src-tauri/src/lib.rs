@@ -15,6 +15,7 @@ mod regkey;
 mod restore_point;
 mod review;
 mod space;
+mod startup;
 mod uninstall;
 mod updater;
 
@@ -72,6 +73,8 @@ pub fn run() {
             review::open_scanned_file,
             review::show_scanned_file,
             space::scan_space,
+            startup::list_startup_apps,
+            startup::set_startup_apps,
             uninstall::uninstall_app,
             uninstall::is_app_installed,
             uninstall::find_app_leftovers,

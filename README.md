@@ -22,6 +22,8 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 - **Simple.** The home screen offers four choices: *Apps*, *Files*, *Leftovers* and
   *Space map*, plus a one-click *Quick clean* that only removes what is safe. No jargon,
   no settings you have to understand first.
+- **Faster startup.** *Apps > At startup* lists the programs that open with Windows, how
+  heavy each one is and which ones are better off. Turning one off never uninstalls it.
 - **Safe.** Nothing is deleted right away. See [How your files are protected](#how-your-files-are-protected).
 - **Clear about risk.** Every group of files is labelled *Safe*, *Check* or *Personal*,
   so you know what you are removing before you remove it. Unknown folders come with a
@@ -225,6 +227,7 @@ src-tauri/              backend (Rust)
   src/files/extra.rs    Recycle Bin, error reports, thumbnails, big app folders
   src/explain.rs        "What is this?": matches paths against known_folders.json
   src/space.rs          space map: what takes up the system drive
+  src/startup.rs        programs that start with Windows: list them, turn them off or on
   src/uninstall.rs      runs uninstallers (quietly when possible) and Store app removal
   src/leftovers.rs      finds what an app left behind: folders, registry keys, shortcuts
   src/cleanup.rs        removes scanned files: some groups deleted, the rest to quarantine
