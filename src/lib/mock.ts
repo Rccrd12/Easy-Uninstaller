@@ -1,7 +1,7 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, HistoryKind, HistoryName, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage } from "./types";
+import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, HistoryKind, HistoryName, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage, StartupApp } from "./types";
 
 export const sampleApps: InstalledApp[] = [
   { id: "reg:hklm:{8F2B6C1E-4A0D-4C55-9E2F-7B1D3A5C9E01}", version: "26.2.0", location: "C:\\Program Files\\Adobe\\Adobe Photoshop 2025", name: "Adobe Photoshop 2025", publisher: "Adobe", sizeBytes: 6.8 * GB, source: "win32", installedOn: "2025-01-14", lastUsed: "3 months ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#e3008c", icon: null },
@@ -423,3 +423,21 @@ export function sampleAiAnswer(path: string, lang: string, service: string, mode
     askedAt: nowS(),
   };
 }
+
+const startupApp = (a: Partial<StartupApp> & Pick<StartupApp, "id" | "name">): StartupApp => ({
+  publisher: "", note: null, fileName: "", command: "", enabled: true, impact: "low", advice: "none",
+  allUsers: false, iconColor: "#0067c0", icon: null, ...a,
+});
+
+/** Programs that start with Windows, for the browser fallback. */
+export const sampleStartup: StartupApp[] = [
+  startupApp({ id: "hkcu-run:Spotify", name: "Spotify", publisher: "Spotify AB", note: "background", fileName: "Spotify.exe", command: `"${U}\\AppData\\Roaming\\Spotify\\Spotify.exe" --autostart --minimized`, impact: "high", advice: "turnOff", iconColor: "#1db954" }),
+  startupApp({ id: "store:MSTeams_8wekyb3d8bbwe\\TeamsTfwStartupTask", name: "Microsoft Teams", publisher: "Microsoft Corporation", note: "chat", command: "MSTeams_8wekyb3d8bbwe\\TeamsTfwStartupTask", impact: "high", advice: "turnOff", iconColor: "#5b5fc7" }),
+  startupApp({ id: "hkcu-run:Steam", name: "Steam", publisher: "Valve Corporation", note: "games", fileName: "steam.exe", command: `"C:\\Program Files (x86)\\Steam\\steam.exe" -silent`, impact: "high", advice: "turnOff", iconColor: "#1b2838" }),
+  startupApp({ id: "hklm-run32:AdobeGCInvoker-1.0", name: "Adobe GC Invoker Utility", publisher: "Adobe Inc.", note: "updater", fileName: "AGCInvokerUtility.exe", command: `"C:\\Program Files (x86)\\Common Files\\Adobe\\AdobeGCClient\\AGCInvokerUtility.exe"`, impact: "medium", advice: "turnOff", allUsers: true, iconColor: "#e1251b" }),
+  startupApp({ id: "hkcu-run:OneDrive", name: "OneDrive", publisher: "Microsoft Corporation", note: "sync", fileName: "OneDrive.exe", command: `"C:\\Program Files\\Microsoft OneDrive\\OneDrive.exe" /background`, impact: "medium", advice: "keep", iconColor: "#0364b8" }),
+  startupApp({ id: "hklm-run:RtkAudUService", name: "Realtek HD Audio Universal Service", publisher: "Realtek Semiconductor", note: "driver", fileName: "RtkAudUService64.exe", command: `"C:\\Windows\\System32\\DriverStore\\FileRepository\\realtekservice.inf_amd64\\RtkAudUService64.exe" -background`, impact: "low", advice: "keep", allUsers: true, iconColor: "#486860" }),
+  startupApp({ id: "hkcu-run:NoteSync", name: "NoteSync Helper", publisher: "NoteSync Ltd", fileName: "notesync-helper.exe", command: `"${U}\\AppData\\Local\\NoteSync\\notesync-helper.exe"`, impact: "low", iconColor: "#038387" }),
+  startupApp({ id: "hklm-run:SecurityHealth", name: "Windows Security", publisher: "Microsoft Corporation", note: "protects", fileName: "SecurityHealthSystray.exe", command: "%windir%\\system32\\SecurityHealthSystray.exe", impact: "low", advice: "system", allUsers: true, iconColor: "#2b2b2b" }),
+  startupApp({ id: "hkcu-run:Discord", name: "Discord", publisher: "Discord Inc.", note: "background", fileName: "Update.exe", command: `${U}\\AppData\\Local\\Discord\\Update.exe --processStart Discord.exe`, enabled: false, impact: "high", advice: "turnOff", iconColor: "#5865f2" }),
+];

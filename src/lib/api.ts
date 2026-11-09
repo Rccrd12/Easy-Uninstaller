@@ -23,6 +23,7 @@ import {
   sampleQuarantine,
   sampleQuarantineSettings,
   sampleSpaceUsage,
+  sampleStartup,
   type SampleFile,
   type SampleRecord,
 } from "./mock";
@@ -59,6 +60,9 @@ import type {
   ScanProgress,
   SpaceProgress,
   SpaceUsage,
+  StartupApp,
+  StartupChange,
+  StartupReport,
   UninstallOutcome,
   UpdateInfo,
   UpdateProgress,
@@ -133,6 +137,38 @@ export function listInstalledApps(refresh = false): Promise<InstalledApp[]> {
     appsCache = pending;
   }
   return appsCache;
+}
+
+// Programs that start with Windows. Real: src-tauri/src/startup.rs.
+
+/** The sample list, switched on and off in the browser fallback. */
+let sampleStartupState: StartupApp[] | null = null;
+
+/** Programs that start with Windows: on first, biggest impact first. */
+export async function listStartupApps(): Promise<StartupApp[]> {
+  if (isTauri()) return invoke<StartupApp[]>("list_startup_apps");
+  await new Promise((r) => setTimeout(r, 300));
+  sampleStartupState ??= sampleStartup.map((a) => ({ ...a }));
+  return sampleStartupState.map((a) => ({ ...a }));
+}
+
+/**
+ * Turns programs on or off at startup, like Task Manager: nothing is uninstalled or removed.
+ * Programs for all users need the Windows permission prompt (one for all of them).
+ */
+export async function setStartupApps(changes: StartupChange[]): Promise<StartupReport> {
+  if (isTauri()) return invoke<StartupReport>("set_startup_apps", { changes });
+  await new Promise((r) => setTimeout(r, 400));
+  const report: StartupReport = { changed: [], failed: [], declined: [] };
+  for (const c of changes) {
+    const app = sampleStartupState?.find((a) => a.id === c.id);
+    if (!app || app.advice === "system") report.failed.push(c.id);
+    else {
+      app.enabled = c.enabled;
+      report.changed.push(c.id);
+    }
+  }
+  return report;
 }
 
 // One file scan at a time: Home and Files share it, and the result is kept

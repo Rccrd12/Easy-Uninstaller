@@ -70,7 +70,7 @@ pub fn parse_icon_location(raw: &str) -> Option<(String, i32)> {
 }
 
 /// Expands `%VAR%` with the process environment; unknown variables stay as they are.
-fn expand_env(s: &str) -> String {
+pub fn expand_env(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut rest = s;
     while let Some(start) = rest.find('%') {

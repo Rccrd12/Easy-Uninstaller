@@ -16,7 +16,7 @@
 //! A folder or key is never proposed when another installed app has the same name,
 //! uses a path inside it, or (for a publisher folder) comes from the same publisher.
 
-mod lnk;
+pub(crate) mod lnk;
 
 use crate::apps;
 use crate::elevated::{self, Job};

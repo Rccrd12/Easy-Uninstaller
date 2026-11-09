@@ -425,3 +425,41 @@ export interface UpdateProgress {
   /** null when the size is not known. */
   totalBytes: number | null;
 }
+
+/** How much a startup program slows down the start of Windows. */
+export type StartupImpact = "high" | "medium" | "low";
+/** What the app suggests for a startup program. "system": part of Windows, not offered. */
+export type StartupAdvice = "turnOff" | "keep" | "system" | "none";
+
+/** A program that starts with Windows. Mirrors `StartupApp` in src-tauri/src/startup.rs. */
+export interface StartupApp {
+  /** Where it lives and its name, e.g. "hkcu-run:Spotify". */
+  id: string;
+  name: string;
+  publisher: string;
+  /** i18n key under `startup.notes`, or null to show the file name. */
+  note: string | null;
+  /** The program's file name, e.g. "Spotify.exe". Empty for Store apps. */
+  fileName: string;
+  command: string;
+  enabled: boolean;
+  impact: StartupImpact;
+  advice: StartupAdvice;
+  /** Starts for every user: Windows asks for permission to change it. */
+  allUsers: boolean;
+  iconColor: string;
+  icon: string | null;
+}
+
+export interface StartupChange {
+  id: string;
+  enabled: boolean;
+}
+
+/** Mirrors `StartupReport` in src-tauri/src/startup.rs. */
+export interface StartupReport {
+  changed: string[];
+  failed: string[];
+  /** Left as they were: the user said no to the Windows permission prompt. */
+  declined: string[];
+}

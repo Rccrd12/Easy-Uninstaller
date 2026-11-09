@@ -7,6 +7,8 @@ pub(crate) mod icon;
 pub mod registry;
 mod store;
 
+pub use store::Entry as StoreEntry;
+
 use serde::Serialize;
 use std::path::{Component, Path, PathBuf};
 
@@ -143,7 +145,7 @@ const TILE_COLORS: [&str; 8] = [
 ];
 
 /// Picks a stable tile color from the app name (FNV-1a hash).
-fn icon_color(name: &str) -> String {
+pub(crate) fn icon_color(name: &str) -> String {
     let hash = name.bytes().fold(0x811c_9dc5_u32, |h, b| {
         (h ^ u32::from(b)).wrapping_mul(0x0100_0193)
     });
