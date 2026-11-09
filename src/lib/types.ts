@@ -27,6 +27,30 @@ export interface InstalledApp {
   iconColor: string;
   /** PNG data URL, or null to show the letter tile. */
   icon: string | null;
+  /** Id of its cache (see `AppCache`) when we know where the app keeps it, else null. */
+  cacheId: string | null;
+}
+
+/** The cache of a well-known app, measured on this PC. Mirrors `AppCache` in src-tauri/src/app_cache.rs. */
+export interface AppCache {
+  /** Matches `InstalledApp.cacheId`. */
+  id: string;
+  /** What emptying the cache frees. */
+  cacheBytes: number;
+  fileCount: number;
+  /** The app's own data without the cache: chats, settings, profiles. */
+  dataBytes: number;
+  /** The app is open: the cache can be emptied only once it is closed. */
+  running: boolean;
+}
+
+/** Mirrors `ClearCacheOutcome` in src-tauri/src/app_cache.rs. */
+export interface ClearCacheOutcome {
+  /** True when nothing was done because the app is open. */
+  running: boolean;
+  report: MoveReport;
+  /** The cache measured again afterwards. */
+  cache: AppCache | null;
 }
 
 /** How safe it is to remove something. */

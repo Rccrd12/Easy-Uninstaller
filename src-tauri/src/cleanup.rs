@@ -2,7 +2,8 @@
 //!
 //! Most groups go to the quarantine (`quarantine.rs`), so they can be restored.
 //! The groups in [`DELETE_NOW_GROUPS`] hold only files nobody needs back:
-//! temporary files, caches and thumbnails (Windows and apps recreate them), crash
+//! temporary files, caches (also the app caches emptied from the Apps screen, see
+//! `app_cache.rs`) and thumbnails (Windows and apps recreate them), crash
 //! reports, and Recycle Bin items deleted over 30 days ago. Keeping them in
 //! quarantine would give no space back, so they are deleted right away. This is the one place
 //! where Easy Uninstaller deletes files directly (the owner's decision), and only
@@ -17,7 +18,13 @@ use tauri::{AppHandle, Manager};
 
 /// Groups deleted right away instead of going to the quarantine.
 /// Mirrored by `DELETE_NOW_GROUPS` in `src/lib/api.ts`.
-pub const DELETE_NOW_GROUPS: [&str; 4] = ["temp", "recycle-bin", "crash-reports", "thumbnails"];
+pub const DELETE_NOW_GROUPS: [&str; 5] = [
+    "temp",
+    "recycle-bin",
+    "crash-reports",
+    "thumbnails",
+    crate::app_cache::GROUP,
+];
 
 pub fn deletes_now(group_id: &str) -> bool {
     DELETE_NOW_GROUPS.contains(&group_id)
@@ -174,7 +181,13 @@ mod tests {
 
     #[test]
     fn only_listed_groups_are_deleted() {
-        for id in ["temp", "recycle-bin", "crash-reports", "thumbnails"] {
+        for id in [
+            "temp",
+            "recycle-bin",
+            "crash-reports",
+            "thumbnails",
+            "app-cache",
+        ] {
             assert!(deletes_now(id), "{id}");
         }
         for id in [

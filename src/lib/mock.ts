@@ -1,15 +1,25 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage } from "./types";
+import type { AiAnswer, AppCache, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage } from "./types";
 
 export const sampleApps: InstalledApp[] = [
-  { id: "photoshop", name: "Adobe Photoshop 2025", publisher: "Adobe", sizeBytes: 6.8 * GB, source: "win32", installedOn: "2025-01-14", lastUsed: "3 months ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#e3008c", icon: null },
-  { id: "xbox-bar", name: "Xbox Game Bar", publisher: "Microsoft", sizeBytes: 1.2 * GB, source: "store", installedOn: null, lastUsed: null, preinstalled: true, bloatware: false, neverUsed: true, iconColor: "#107c10", icon: null },
-  { id: "spotify", name: "Spotify", publisher: "Spotify AB", sizeBytes: 740 * MB, source: "win32", installedOn: "2024-06-02", lastUsed: "today", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#1db954", icon: null },
-  { id: "discord", name: "Discord", publisher: "Discord Inc.", sizeBytes: 520 * MB, source: "win32", installedOn: "2024-09-21", lastUsed: "2 weeks ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#5865f2", icon: null },
-  { id: "mcafee", name: "McAfee LiveSafe", publisher: "McAfee", sizeBytes: 410 * MB, source: "win32", installedOn: "2024-03-01", lastUsed: null, preinstalled: true, bloatware: true, neverUsed: true, iconColor: "#ff6a00", icon: null },
-  { id: "vlc", name: "VLC media player", publisher: "VideoLAN", sizeBytes: 160 * MB, source: "win32", installedOn: "2023-11-10", lastUsed: "1 month ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#f18a00", icon: null },
+  { id: "photoshop", name: "Adobe Photoshop 2025", publisher: "Adobe", sizeBytes: 6.8 * GB, source: "win32", installedOn: "2025-01-14", lastUsed: "3 months ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#e3008c", icon: null, cacheId: null },
+  { id: "teams", name: "Microsoft Teams", publisher: "Microsoft", sizeBytes: 2.4 * GB, source: "store", installedOn: "2024-03-03", lastUsed: null, preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#5b5fc7", icon: null, cacheId: "teams" },
+  { id: "xbox-bar", name: "Xbox Game Bar", publisher: "Microsoft", sizeBytes: 1.2 * GB, source: "store", installedOn: null, lastUsed: null, preinstalled: true, bloatware: false, neverUsed: true, iconColor: "#107c10", icon: null, cacheId: null },
+  { id: "spotify", name: "Spotify", publisher: "Spotify AB", sizeBytes: 380 * MB, source: "win32", installedOn: "2024-06-02", lastUsed: "today", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#1db954", icon: null, cacheId: "spotify" },
+  { id: "chrome", name: "Google Chrome", publisher: "Google LLC", sizeBytes: 420 * MB, source: "win32", installedOn: "2023-09-12", lastUsed: "today", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#c58a00", icon: null, cacheId: "chrome" },
+  { id: "discord", name: "Discord", publisher: "Discord Inc.", sizeBytes: 420 * MB, source: "win32", installedOn: "2024-09-21", lastUsed: "2 weeks ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#5865f2", icon: null, cacheId: "discord" },
+  { id: "mcafee", name: "McAfee LiveSafe", publisher: "McAfee", sizeBytes: 410 * MB, source: "win32", installedOn: "2024-03-01", lastUsed: null, preinstalled: true, bloatware: true, neverUsed: true, iconColor: "#ff6a00", icon: null, cacheId: null },
+  { id: "vlc", name: "VLC media player", publisher: "VideoLAN", sizeBytes: 160 * MB, source: "win32", installedOn: "2023-11-10", lastUsed: "1 month ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#f18a00", icon: null, cacheId: null },
+];
+
+/** Caches of the sample apps. Discord starts open, to try the "close it first" step. */
+export const sampleAppCaches: AppCache[] = [
+  { id: "teams", cacheBytes: 1.8 * GB, fileCount: 5210, dataBytes: 210 * MB, running: false },
+  { id: "spotify", cacheBytes: 1.4 * GB, fileCount: 2380, dataBytes: 120 * MB, running: false },
+  { id: "discord", cacheBytes: 640 * MB, fileCount: 1904, dataBytes: 85 * MB, running: true },
+  { id: "chrome", cacheBytes: 520 * MB, fileCount: 8730, dataBytes: 340 * MB, running: false },
 ];
 
 const U = "C:\\Users\\you";
