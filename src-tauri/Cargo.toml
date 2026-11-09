@@ -23,6 +23,8 @@ serde_json = "1"
 # Without default features: no zip/tar support (the NSIS installer is downloaded as is), and
 # HTTPS through the system's TLS (Schannel on Windows) instead of bundling rustls.
 tauri-plugin-updater = { version = "2", default-features = false, features = ["native-tls"] }
+# Already in the dependency tree through the updater; orders versions and betas (0.3.1-beta.2).
+semver = "1"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"

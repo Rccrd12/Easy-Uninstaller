@@ -653,16 +653,33 @@ export async function aiOpenPage(page: string): Promise<void> {
 // Updates. Real: src-tauri/src/updater.rs (GitHub Releases, signed installers).
 
 /**
- * Asks whether a newer version exists; null when this one is the latest.
+ * Asks whether a newer version exists; null when this one is the latest. With `beta`,
+ * the beta channel (changes not released yet) is asked too.
  * Rejects with "offline" when the internet cannot be reached, or another error text.
- * In the browser, add ?update=none to the address to see the "up to date" state.
+ * In the browser, add ?update=none to the address to see the "up to date" state,
+ * or ?update=back to see a beta going back to the release.
  */
-export async function checkForUpdate(): Promise<UpdateInfo | null> {
-  if (isTauri()) return invoke<UpdateInfo | null>("check_for_update");
+export async function checkForUpdate(beta: boolean): Promise<UpdateInfo | null> {
+  if (isTauri()) return invoke<UpdateInfo | null>("check_for_update", { beta });
   await sleep(900);
-  if (new URLSearchParams(location.search).get("update") === "none") return null;
-  return { version: "0.3.0", currentVersion: "0.2.0" };
+  const sample = new URLSearchParams(location.search).get("update");
+  if (sample === "none") return null;
+  if (sample === "back") return { version: "0.3.0", currentVersion: "0.3.1-beta.12", beta: false, back: true, notes: [] };
+  if (!beta) return { version: "0.3.0", currentVersion: "0.2.0", beta: false, back: false, notes: [] };
+  return {
+    version: "0.3.1-beta.12",
+    currentVersion: "0.2.0",
+    beta: true,
+    back: false,
+    notes: sampleBetaNotes,
+  };
 }
+
+const sampleBetaNotes = [
+  "Manage the programs that start with Windows",
+  "Clear an app's cache without uninstalling it",
+  "Find similar photos and review them set by set",
+];
 
 /**
  * Downloads and installs the update found by the last check. In the app this never

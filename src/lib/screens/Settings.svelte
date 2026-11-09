@@ -10,7 +10,7 @@
   import type { Screen } from "../screens";
   import type { AiMode, AiStats, RestorePointOutcome } from "../types";
   import { getTheme, setTheme, themes } from "../theme.svelte";
-  import { check, install, update } from "../updates.svelte";
+  import { betaChanged, check, install, splitVersion, update, versionLabel } from "../updates.svelte";
   // Only this field ends up in the bundle; the release workflow keeps it in sync with the tag.
   import { version } from "../../../package.json";
 
@@ -24,6 +24,12 @@
   });
 
   const phase = $derived(update.phase);
+  const running = splitVersion(version);
+
+  function toggleBeta() {
+    saveSettings();
+    betaChanged();
+  }
 
   let restorePoint = $state<RestorePointOutcome | "creating" | null>(null);
 
@@ -231,23 +237,31 @@
 <div class="card list">
   <div class="row update" aria-live="polite">
     <span class="grow">
-      <span class="version">{t("settings.version", { version })}</span>
+      <span class="version">
+        {t("settings.version", { version: running.base })}
+        {#if running.beta}<span class="beta-badge">{t("settings.betaBadge", { number: running.beta })}</span>{/if}
+      </span>
       {#if phase.kind === "idle"}
         <span class="muted hint">{t("settings.updateIdle")}</span>
       {:else if phase.kind === "checking"}
         <span class="muted hint">{t("settings.updateChecking")}</span>
       {:else if phase.kind === "upToDate"}
         <span class="hint ok">{t("settings.updateUpToDate")}</span>
+      {:else if phase.kind === "available" && phase.info.back}
+        <span class="hint available">{t("settings.updateBack", { version: phase.info.version })}</span>
       {:else if phase.kind === "available"}
-        <span class="hint available">{t("settings.updateAvailable", { version: phase.info.version })}</span>
-        <span class="muted hint">{t("settings.updateRestartNote")}</span>
+        <span class="hint available">{t("settings.updateAvailable", { version: versionLabel(phase.info.version) })}</span>
+        {#if phase.info.notes.length}
+          <span class="muted hint">{t("settings.updateBetaNotes")}</span>
+          <ul class="notes">{#each phase.info.notes as note, i (i)}<li>{note}</li>{/each}</ul>
+        {/if}
       {:else if phase.kind === "downloading"}
         <span class="muted hint">
           {phase.percent === null ? t("settings.updateDownloadingNoSize") : t("settings.updateDownloading", { percent: phase.percent })}
         </span>
         <span class="bar" class:indeterminate={phase.percent === null}><span style:width="{phase.percent ?? 30}%"></span></span>
       {:else if phase.kind === "installing"}
-        <span class="muted hint">{t("settings.updateInstalling", { version: phase.info.version })}</span>
+        <span class="muted hint">{t("settings.updateInstalling", { version: versionLabel(phase.info.version) })}</span>
         <span class="bar indeterminate"><span style:width="30%"></span></span>
       {:else if phase.kind === "failed"}
         <span class="hint bad" role="alert">
@@ -258,7 +272,9 @@
       {/if}
     </span>
     {#if phase.kind === "available"}
-      <button class="btn btn-primary" onclick={install}><Icon name="download" />{t("settings.updateNow")}</button>
+      <button class="btn btn-primary" onclick={install}>
+        <Icon name="download" />{phase.info.back ? t("settings.updateBackNow") : t("settings.updateNow")}
+      </button>
     {:else if phase.kind === "failed" && phase.info}
       <button class="btn btn-primary" onclick={install}><Icon name="refresh" />{t("settings.updateRetry")}</button>
     {:else if phase.kind !== "downloading" && phase.kind !== "installing"}
@@ -274,6 +290,13 @@
       <span class="muted hint">{t("settings.updateAutoHint")}</span>
     </span>
     <input type="checkbox" bind:checked={settings.checkUpdates} onchange={saveSettings} />
+  </label>
+  <label class="row">
+    <span>
+      {t("settings.updateBeta")}
+      <span class="muted hint">{t("settings.updateBetaHint")}</span>
+    </span>
+    <input type="checkbox" bind:checked={settings.betaUpdates} onchange={toggleBeta} />
   </label>
 </div>
 
@@ -319,7 +342,10 @@
   .update { gap: 14px; }
   .update .btn { flex: none; }
   .update .btn:disabled { opacity: 0.5; cursor: default; }
-  .version { font-weight: 600; }
+  .version { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .beta-badge { font-size: 10.5px; font-weight: 700; padding: 1px 8px; border-radius: 8px; background: var(--ai); color: var(--on-ai); }
+  .notes { margin: 4px 0 2px; padding-left: 18px; font-size: 12.5px; }
+  .notes li { margin: 1px 0; }
   .hint.ok { color: var(--safe-fg); font-weight: 600; }
   .hint.bad { color: var(--check-fg); font-weight: 600; }
   .hint.available { color: var(--accent); font-weight: 600; }

@@ -350,10 +350,16 @@ export interface AiStats {
   askedThisMonth: number;
 }
 
-/** A newer version of the app. Mirrors `UpdateInfo` in src-tauri/src/updater.rs. */
+/** The version to install. Mirrors `UpdateInfo` in src-tauri/src/updater.rs. */
 export interface UpdateInfo {
   version: string;
   currentVersion: string;
+  /** A beta (Settings > Beta versions): changes not released yet. */
+  beta: boolean;
+  /** Older than the beta running: going back to the release. */
+  back: boolean;
+  /** What a beta holds, one change per line. */
+  notes: string[];
 }
 
 /** Sent while an update downloads. Mirrors `UpdateProgress` in src-tauri/src/updater.rs. */

@@ -424,7 +424,6 @@
     "updateUpToDate": "You have the latest version.",
     "updateAvailable": "Version {version} is available.",
     "updateNow": "Update now",
-    "updateRestartNote": "The app closes and opens again by itself in a few seconds.",
     "updateDownloading": "Downloading the update… {percent}%",
     "updateDownloadingNoSize": "Downloading the update…",
     "updateInstalling": "Installing version {version}: the app closes and opens again by itself.",
@@ -433,7 +432,13 @@
     "updateInstallFailed": "The update could not be installed ({error}). Nothing has changed.",
     "updateRetry": "Try again",
     "updateAuto": "Check each time the app opens",
-    "updateAutoHint": "It only asks GitHub, where the app is published, whether there is a new version. Nothing about your PC is sent."
+    "updateAutoHint": "It only asks GitHub, where the app is published, whether there is a new version. Nothing about your PC is sent.",
+    "betaBadge": "beta {number}",
+    "updateBeta": "Beta versions",
+    "updateBetaHint": "New features before they are released. They may have a few problems.",
+    "updateBetaNotes": "What's new:",
+    "updateBack": "Back to the stable version {version}.",
+    "updateBackNow": "Back to stable"
   },
   "categories": {
     "apps": "Apps",
