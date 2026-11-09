@@ -272,20 +272,45 @@ pub fn run_from_args() -> Option<i32> {
 
 /// One check, run by the scheduled task.
 fn check(file: &Path, now: u64) -> io::Result<()> {
+    check_with(file, now, &System)
+}
+
+/// What a check does outside its own file, replaced by a fake in the tests.
+trait Outside {
+    fn disk(&self) -> (String, Option<(u64, u64)>);
+    fn show(&self, title: &str, body: &str) -> Result<(), String>;
+    fn delete_task(&self) -> Result<(), String>;
+}
+
+struct System;
+
+impl Outside for System {
+    fn disk(&self) -> (String, Option<(u64, u64)>) {
+        system_disk()
+    }
+    fn show(&self, title: &str, body: &str) -> Result<(), String> {
+        platform::show(title, body, true)
+    }
+    fn delete_task(&self) -> Result<(), String> {
+        platform::delete_task()
+    }
+}
+
+fn check_with(file: &Path, now: u64, outside: &impl Outside) -> io::Result<()> {
     // The app's data is gone (uninstalled without the task being removed) or both
     // reminders are off: the task has nothing left to do, so it removes itself.
     if !file.exists() {
-        return platform::delete_task().map_err(io::Error::other);
+        return outside.delete_task().map_err(io::Error::other);
     }
     let mut stored = load(file);
     if !stored.settings.any() {
-        return platform::delete_task().map_err(io::Error::other);
+        return outside.delete_task().map_err(io::Error::other);
     }
-    let (drive, disk) = system_disk();
+    let (drive, disk) = outside.disk();
     let notice = due(&stored, disk, now);
     let shown = notice.filter(|n| {
         let (title, body) = notice_text(&stored.texts, n, &drive);
-        platform::show(&title, &body, true).is_ok()
+        outside.show(&title, &body).is_ok()
     });
     let before = stored.clone();
     record(&mut stored, disk, shown.as_ref(), now);
@@ -672,22 +697,76 @@ mod tests {
         assert!(t.contains(r#"<Arguments>--reminders "C:\data\reminders.json"</Arguments>"#));
     }
 
+    /// Records what a check would do on the PC, without notifications or tasks.
+    struct Fake {
+        disk: Option<(u64, u64)>,
+        show_ok: bool,
+        shown: std::cell::RefCell<Vec<(String, String)>>,
+        deleted: std::cell::Cell<u32>,
+    }
+
+    impl Fake {
+        fn new(disk: Option<(u64, u64)>, show_ok: bool) -> Self {
+            Self {
+                disk,
+                show_ok,
+                shown: Default::default(),
+                deleted: Default::default(),
+            }
+        }
+    }
+
+    impl Outside for Fake {
+        fn disk(&self) -> (String, Option<(u64, u64)>) {
+            ("C:".into(), self.disk)
+        }
+        fn show(&self, title: &str, body: &str) -> Result<(), String> {
+            self.shown.borrow_mut().push((title.into(), body.into()));
+            if self.show_ok {
+                Ok(())
+            } else {
+                Err("blocked".into())
+            }
+        }
+        fn delete_task(&self) -> Result<(), String> {
+            self.deleted.set(self.deleted.get() + 1);
+            Ok(())
+        }
+    }
+
     #[test]
     fn check_saves_what_it_saw_and_removes_itself_when_unused() {
         let dir = std::env::temp_dir().join(format!("eu-reminders-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         let file = dir.join("reminders.json");
 
-        // Missing file: nothing to do (the task would be removed on Windows).
-        assert!(check(&file, NOW).is_ok());
+        // App data gone: the task removes itself.
+        let fake = Fake::new(None, true);
+        check_with(&file, NOW, &fake).unwrap();
+        assert_eq!(fake.deleted.get(), 1);
         assert!(!file.exists());
 
+        // Both reminders off: same.
+        save(&file, &stored(false, false)).unwrap();
+        check_with(&file, NOW, &fake).unwrap();
+        assert_eq!(fake.deleted.get(), 2);
+
+        // A notice Windows refused is not recorded, so the next check tries again.
         let mut s = stored(false, true);
         s.last_opened = 0;
         save(&file, &s).unwrap();
-        check(&file, NOW).unwrap();
-        // Outside Windows the notice cannot be shown, so it is not recorded as shown.
+        let refused = Fake::new(None, false);
+        check_with(&file, NOW, &refused).unwrap();
+        assert_eq!(refused.shown.borrow().len(), 1);
         assert_eq!(load(&file).monthly_noticed, None);
+
+        // Shown: recorded, and not shown again the next day.
+        let fake = Fake::new(None, true);
+        check_with(&file, NOW, &fake).unwrap();
+        assert_eq!(load(&file).monthly_noticed, Some(NOW));
+        check_with(&file, NOW + DAY, &fake).unwrap();
+        assert_eq!(fake.shown.borrow().len(), 1);
+        assert_eq!(fake.deleted.get(), 0);
 
         let _ = fs::remove_dir_all(&dir);
     }
