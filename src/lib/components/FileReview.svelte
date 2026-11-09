@@ -30,21 +30,34 @@
 
   type View = "list" | "grid";
   type Sort = "size" | "date" | "name";
+  type KeepOrder = "largest" | "oldest" | "newest";
+
+  /** Photos are easier to tell apart by looking at them. */
+  const firstView = (): View => (group.id === "similar-photos" ? "grid" : "list");
+  /** Copies keep the oldest; photos the largest, which usually has the most detail. */
+  const firstKeep = (): KeepOrder => (group.id === "similar-photos" ? "largest" : "oldest");
 
   let review = $state<GroupReview | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let view = $state<View>("list");
+  let view = $state<View>(firstView());
   let sort = $state<Sort>("size");
   let selected = $state<Set<string>>(new Set());
-  /** Duplicates: "always keep the copy in" this top folder ("" = no preference), then the oldest or newest. */
+  /**
+   * Duplicates: "always keep the copy in" this top folder ("" = no preference), then the oldest or newest.
+   * Similar photos: keep the largest (usually the most detail), the oldest or the newest.
+   */
   let keepFolder = $state("");
-  let keepOrder = $state<"oldest" | "newest">("oldest");
-  /** Duplicates: copies the user chose to keep by hand ("keep this one instead"). */
+  let keepOrder = $state<KeepOrder>(firstKeep());
+  /** Sets: files the user chose to keep by hand ("keep this one instead"). */
   let keepPaths = $state<Set<string>>(new Set());
   let menu = $state<{ file: ReviewFile; set: ReviewFile[] | null; x: number; y: number } | null>(null);
 
   const isDuplicates = $derived(group.id === "duplicates");
+  /** Photos that look almost the same: one set per moment, largest first. */
+  const isSimilar = $derived(group.id === "similar-photos");
+  /** Groups reviewed set by set, where one file of every set always stays. */
+  const isSets = $derived(isDuplicates || isSimilar);
   /** Temporary files and caches are deleted right away, not kept in Quarantine. */
   const deletesNow = $derived(DELETE_NOW_GROUPS.includes(group.id));
   let loadedOnce = false;
@@ -108,11 +121,12 @@
     return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([folder]) => folder);
   });
 
-  /** The copy the rule keeps: one in the chosen folder if any, then the oldest (or newest). */
+  /** The file the rule keeps: one in the chosen folder if any, then the largest, oldest or newest. */
   function ruleKeeps(set: ReviewFile[]): string {
     const inFolder = keepFolder ? set.filter((f) => topFolder(f.path) === keepFolder) : [];
     const pool = [...(inFolder.length ? inFolder : set)];
     pool.sort((a, b) => a.modified.localeCompare(b.modified) || a.path.localeCompare(b.path));
+    if (keepOrder === "largest") return pool.reduce((best, f) => (f.sizeBytes > best.sizeBytes ? f : best), pool[0]).path;
     return (keepOrder === "oldest" ? pool[0] : pool[pool.length - 1]).path;
   }
 
@@ -151,9 +165,9 @@
     selected = next;
   }
 
-  /** Everything that can be picked: every file, or every copy a set does not keep. */
+  /** Everything that can be picked: every file, or every file a set does not keep. */
   const selectable = $derived(
-    isDuplicates
+    isSets
       ? (review?.duplicateSets ?? []).flatMap((set) => set.filter((f) => f.path !== keptOf(set)).map((f) => f.path))
       : (review?.files ?? []).map((f) => f.path),
   );
@@ -198,6 +212,13 @@
   }
 
   const count = (n: number) => n.toLocaleString(locale());
+  /** When the photos of a set were taken (changed): one day, or the first and last day. */
+  const setDate = (set: ReviewFile[]) => {
+    const days = set.map((f) => f.modified).sort();
+    const first = formatDate(days[0]);
+    const last = formatDate(days[days.length - 1]);
+    return first === last ? first : `${first} – ${last}`;
+  };
   const folderName = (path: string) => {
     const folder = folderOf(path);
     const top = topFolder(path);
@@ -220,9 +241,13 @@
       <h1>{t(group.titleKey)}</h1>
       {#if review && review.totalCount > 0}
         <p class="muted sub">
-          {isDuplicates
-            ? t("files.review.dupSubtitle", { count: count(review.totalCount), size: formatBytes(review.totalBytes) })
-            : t("files.review.subtitle", { files: fileCount(review.totalCount), size: formatBytes(review.totalBytes) })}
+          {isSimilar
+            ? review.duplicateSets.length === 1
+              ? t("files.review.similarSubtitleOne", { size: formatBytes(review.totalBytes) })
+              : t("files.review.similarSubtitle", { sets: count(review.duplicateSets.length), size: formatBytes(review.totalBytes) })
+            : isDuplicates
+              ? t("files.review.dupSubtitle", { count: count(review.totalCount), size: formatBytes(review.totalBytes) })
+              : t("files.review.subtitle", { files: fileCount(review.totalCount), size: formatBytes(review.totalBytes) })}
         </p>
       {/if}
     </div>
@@ -244,7 +269,16 @@
     </div>
   {:else}
     <div class="card toolbar">
-      {#if isDuplicates}
+      {#if isSimilar}
+        <label class="rule">
+          <span>{t("files.review.keepPhoto")}</span>
+          <select bind:value={keepOrder} onchange={changeRule}>
+            <option value="largest">{t("files.review.largest")}</option>
+            <option value="oldest">{t("files.review.oldest")}</option>
+            <option value="newest">{t("files.review.newest")}</option>
+          </select>
+        </label>
+      {:else if isDuplicates}
         <label class="rule">
           <span>{t("files.review.keepIn")}</span>
           <select bind:value={keepFolder} onchange={changeRule}>
@@ -273,19 +307,59 @@
       </label>
     </div>
 
-    {#if review.totalCount > review.files.length && !isDuplicates}
+    {#if isSimilar}
+      <p class="muted similar-hint icon-line"><Icon name="info" />{t("files.review.similarHint")}</p>
+    {/if}
+
+    {#if review.totalCount > review.files.length && !isSets}
       <p class="muted capped">{t("files.review.capped", { shown: count(review.files.length), total: count(review.totalCount) })}</p>
     {/if}
 
-    {#if isDuplicates}
+    {#if isSimilar && view === "grid"}
       {#each sets as set (set[0].path)}
         {@const kept = keptOf(set)}
         <section class="card set">
           <div class="set-head">
-            <b class="set-name">{nameOf(set[0].path)}</b>
-            <span class="muted">{t("files.review.copies", { count: set.length, size: formatBytes(set[0].sizeBytes) })}</span>
+            <b class="set-name">{t("files.review.similarSet", { count: set.length })}</b>
+            <span class="muted">{setDate(set)} · {shownPath(folderOf(set[0].path))}</span>
           </div>
-          <div class="copies" class:grid={view === "grid"}>
+          <div class="photos">
+            {#each set as file (file.path)}
+              {@const keep = file.path === kept}
+              <div class="photo" class:keep class:picked={selected.has(file.path)}>
+                <button class="photo-thumb" disabled={keep} onclick={() => toggle(file.path)} tabindex="-1" aria-hidden="true">
+                  <FileThumb path={file.path} size={150} />
+                </button>
+                {#if keep}
+                  <span class="tag tag-safe keep-tag">{t("files.review.keep")}</span>
+                {:else}
+                  <label class="tile-pick">
+                    <input type="checkbox" checked={selected.has(file.path)} onchange={() => toggle(file.path)}
+                           aria-label={t("files.review.pick", { name: nameOf(file.path) })} />
+                  </label>
+                {/if}
+                <button class="dots tile-dots" aria-label={t("files.review.more")} onclick={(e) => openMenu(e, file, set)}>⋯</button>
+                <div class="name" title={file.path}>{nameOf(file.path)}</div>
+                <div class="muted small">{formatBytes(file.sizeBytes)} · {formatDate(file.modified)}</div>
+              </div>
+            {/each}
+          </div>
+        </section>
+      {/each}
+    {:else if isSets}
+      {#each sets as set (set[0].path)}
+        {@const kept = keptOf(set)}
+        <section class="card set">
+          <div class="set-head">
+            {#if isSimilar}
+              <b class="set-name">{t("files.review.similarSet", { count: set.length })}</b>
+              <span class="muted">{setDate(set)} · {shownPath(folderOf(set[0].path))}</span>
+            {:else}
+              <b class="set-name">{nameOf(set[0].path)}</b>
+              <span class="muted">{t("files.review.copies", { count: set.length, size: formatBytes(set[0].sizeBytes) })}</span>
+            {/if}
+          </div>
+          <div class="copies" class:grid={view === "grid"} class:one-column={isSimilar}>
             {#each [...set].sort((a, b) => Number(b.path === kept) - Number(a.path === kept)) as file (file.path)}
               {@const keep = file.path === kept}
               <div class="copy" class:keep class:picked={selected.has(file.path)}>
@@ -300,10 +374,12 @@
                   <div class="line">
                     {#if keep}<span class="tag tag-safe">{t("files.review.keep")}</span>{/if}
                     <span class="path" title={file.path}>
-                      {shownPath(nameOf(file.path) === nameOf(set[0].path) ? folderOf(file.path) : file.path)}
+                      {isSimilar ? nameOf(file.path) : shownPath(nameOf(file.path) === nameOf(set[0].path) ? folderOf(file.path) : file.path)}
                     </span>
                   </div>
-                  <div class="muted small">{t("files.review.changed", { date: formatDate(file.modified) })}</div>
+                  <div class="muted small">
+                    {isSimilar ? `${formatBytes(file.sizeBytes)} · ` : ""}{t("files.review.changed", { date: formatDate(file.modified) })}
+                  </div>
                 </div>
                 {@render hidePill(file)}
                 <button class="dots" aria-label={t("files.review.more")} onclick={(e) => openMenu(e, file, set)}>⋯</button>
@@ -352,7 +428,9 @@
       <div class="footer-text">
         <b>{t("files.review.selected", { files: fileCount(selected.size), size: formatBytes(selectedBytes) })}</b>
         <span class="muted small">
-          {isDuplicates
+          {isSimilar
+            ? t("files.review.onePhotoStays")
+            : isDuplicates
             ? t("files.review.oneCopyStays")
             : deletesNow
               ? t("files.deletedRightAway")
@@ -439,6 +517,7 @@
   .set-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .set-head .muted { flex: none; }
   .copies { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+  .copies.one-column { grid-template-columns: 1fr; }
   .copies.grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
   .copy { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 6px 8px 10px; min-width: 0; }
   .copies.grid .copy { flex-wrap: wrap; align-items: flex-start; }
@@ -448,6 +527,18 @@
   .check-space { width: 18px; flex: none; }
   .line { display: flex; align-items: center; gap: 6px; min-width: 0; }
 
+  .similar-hint { font-size: 12.5px; margin: -2px 0 10px; }
+  .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .photo { position: relative; border: 2px solid var(--border); border-radius: 8px; padding: 6px 6px 8px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .photo.keep { background: var(--keep-copy-bg); border-color: var(--keep-copy-border); }
+  .photo.picked { border-color: var(--accent); background: var(--accent-soft); }
+  .photo-thumb { border: none; background: none; padding: 0; margin-bottom: 4px; display: flex; cursor: pointer; }
+  .photo-thumb:disabled { cursor: default; }
+  .photo-thumb :global(.thumb) { width: 100% !important; aspect-ratio: 4 / 3; height: auto !important; }
+  .photo .tile-pick { top: 10px; left: 10px; }
+  .photo .tile-dots { top: 8px; right: 8px; }
+  .keep-tag { position: absolute; top: 11px; left: 11px; z-index: 1; }
+  .photo .name { font-weight: 600; }
   .footer { position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-top: 12px; box-shadow: var(--shadow-up); z-index: 2; }
   .footer-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .btn:disabled { opacity: 0.5; cursor: default; }

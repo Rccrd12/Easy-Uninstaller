@@ -19,6 +19,7 @@ import {
   sampleDuplicateSets,
   sampleFiles,
   sampleHistory,
+  sampleSimilarSets,
   sampleLeftovers,
   sampleMoveFiles,
   sampleOnlineBytes,
@@ -91,6 +92,14 @@ export const KEEP_DAYS_CHOICES = [3, 7, 30] as const;
  * recreate them. Matches `DELETE_NOW_GROUPS` in src-tauri/src/cleanup.rs.
  */
 export const DELETE_NOW_GROUPS: readonly string[] = ["temp", "recycle-bin", "crash-reports", "thumbnails", "app-cache"];
+/**
+ * File groups moved only from their review, set by set, never ticked as a whole: photos
+ * that look alike are still different photos. Matches `movable` in src-tauri/src/review.rs.
+ */
+export const REVIEW_FIRST_GROUPS: readonly string[] = ["similar-photos"];
+/** Groups made of sets (one file of each always stays), with their sample sets. */
+const sampleSets = (groupId: string): SampleFile[][] | null =>
+  groupId === "duplicates" ? sampleDuplicateSets : groupId === "similar-photos" ? sampleSimilarSets : null;
 const DAY = 24 * 60 * 60;
 
 /**
@@ -272,7 +281,7 @@ function scanFilesNative(notify: (p: ScanProgress) => void): Promise<FileGroup[]
 
 /** Browser fallback: plays the scan steps quickly so the progress view can be designed. */
 async function sampleScan(notify: (p: ScanProgress) => void): Promise<FileGroup[]> {
-  const steps = ["caches", "downloads", "personal", "duplicates", "appFolders"] as const;
+  const steps = ["caches", "downloads", "personal", "duplicates", "photos", "appFolders"] as const;
   for (const [i, step] of steps.entries()) {
     for (let n = 0; n < 4; n++) {
       notify({ step, stepIndex: i + 1, stepCount: steps.length, filesChecked: n * 1250 });
@@ -501,7 +510,7 @@ function sampleMove(report: MoveReport, g: FileGroup, files: { path: string; siz
 /**
  * Removes the files the user picked, like `removeFileGroups`: one quarantine entry per
  * group, or deleted right away for `DELETE_NOW_GROUPS`. Rust only touches files its own
- * scan found, and always leaves one copy of every duplicate set. Real: src-tauri/src/review.rs.
+ * scan found, and always leaves one file of every set (duplicates, similar photos). Real: src-tauri/src/review.rs.
  */
 export async function quarantineFileSelection(selections: FileSelection[]): Promise<MoveReport> {
   if (isTauri()) return invoke<MoveReport>("quarantine_file_selection", { selections });
@@ -514,8 +523,9 @@ export async function quarantineFileSelection(selections: FileSelection[]): Prom
     if (!g) continue;
     const wanted = new Set(sel.paths);
     let picked: SampleFile[];
-    if (g.id === "duplicates") {
-      picked = sampleDuplicateSets.flatMap((set) => {
+    const sets = sampleSets(g.id);
+    if (sets) {
+      picked = sets.flatMap((set) => {
         const left = set.filter((f) => !sampleGone.has(f.path));
         const chosen = left.filter((f) => wanted.has(f.path) && !sampleHides(f.path));
         return chosen.length && chosen.length >= left.length ? chosen.slice(1) : chosen;
@@ -558,15 +568,17 @@ export async function reviewFileGroup(groupId: string): Promise<GroupReview | nu
     modified: f.modified,
     canOpen: !/\.(exe|msi)$/i.test(f.path),
   });
-  if (groupId === "duplicates") {
-    const sets = sampleDuplicateSets
+  const all = sampleSets(groupId);
+  if (all) {
+    const wasted = (set: SampleFile[]) => set.slice(1).reduce((s, f) => s + f.sizeBytes, 0);
+    const sets = all
       .map((set) => set.filter((f) => samplePresent(f.path)))
       .filter((set) => set.length > 1)
-      .sort((a, b) => b[0].sizeBytes * (b.length - 1) - a[0].sizeBytes * (a.length - 1));
+      .sort((a, b) => wasted(b) - wasted(a));
     return {
       groupId,
       totalCount: sets.reduce((s, set) => s + set.length - 1, 0),
-      totalBytes: sets.reduce((s, set) => s + set[0].sizeBytes * (set.length - 1), 0),
+      totalBytes: sets.reduce((s, set) => s + wasted(set), 0),
       files: [],
       duplicateSets: sets.map((set) => set.map(review)),
     };

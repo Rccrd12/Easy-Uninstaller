@@ -247,8 +247,14 @@
       "duplicates": {
         "title": "Duplicates",
         "description": "Identical copies: one copy of each always stays",
-        "what": "I",
+        "what": "The same file saved more than once in your folders, for example a photo imported twice or a download saved again in another place.",
         "ifRemoved": "You keep one copy of each file, so nothing is lost. Links or shortcuts to the removed copy will no longer open it."
+      },
+      "similarPhotos": {
+        "title": "Similar photos",
+        "description": "Photos that look almost the same: you choose which to keep",
+        "what": "Photos in your folders that look almost the same without being identical files: several shots of the same moment, a retake, or a smaller copy saved from a chat app. In each set the largest photo, which usually has the most detail, is suggested to keep.",
+        "ifRemoved": "The photo you keep stays where it is, so the moment is not lost. The others go to Quarantine first, where you can restore them."
       },
       "largeFiles": {
         "title": "Large files",
@@ -288,6 +294,7 @@
       "downloads": "Your Downloads folder",
       "personal": "Your folders",
       "duplicates": "Comparing files to find duplicates",
+      "photos": "Comparing photos that look alike",
       "appFolders": "App folders in AppData and ProgramData"
     },
     "stepOf": "Step {n} of {total}",
@@ -320,6 +327,7 @@
     "entryCount": "{count} items",
     "entryCountOne": "1 item",
     "reviewOnly": "Tap a folder to find out what it is and, if you want, move it to Quarantine.",
+    "reviewFirst": "Photos that look alike are still different photos, so nothing here is removed as a whole group: you look at each set and choose.",
     "wasIn": "was in {path}",
     "review": {
       "start": "Review",
@@ -367,7 +375,15 @@
         "pictures": "Pictures",
         "videos": "Videos"
       },
-      "hideSelected": "Hide ({count})"
+      "hideSelected": "Hide ({count})",
+      "lookAtPhotos": "Look at the photos",
+      "similarSubtitle": "{sets} sets of similar photos · up to {size} to free · you choose which to keep",
+      "similarSubtitleOne": "1 set of similar photos · up to {size} to free · you choose which to keep",
+      "keepPhoto": "In each set, keep",
+      "largest": "the largest (most detail)",
+      "similarHint": "The photo marked Keep stays where it is. The selected ones go to Quarantine: untick any you want to keep too.",
+      "similarSet": "{count} similar photos",
+      "onePhotoStays": "One photo of every set always stays where it is."
     },
     "folderMoved": "“{name}” is in Quarantine ({size}). You can restore it for {days} days.",
     "folderSkipped": "“{name}” could not be moved: an app may be using it. Close the app and try again.",

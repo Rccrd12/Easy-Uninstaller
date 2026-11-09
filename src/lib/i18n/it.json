@@ -247,8 +247,14 @@
       "duplicates": {
         "title": "Duplicati",
         "description": "Copie identiche: una copia di ognuna resta sempre",
-        "what": "d",
+        "what": "Lo stesso file salvato più volte nelle tue cartelle, per esempio una foto importata due volte o un download salvato di nuovo in un altro posto.",
         "ifRemoved": "Tieni una copia di ogni file, quindi non perdi niente. Collegamenti alla copia tolta non la apriranno più."
+      },
+      "similarPhotos": {
+        "title": "Foto simili",
+        "description": "Foto quasi uguali: scegli tu quali tenere",
+        "what": "Foto nelle tue cartelle che sembrano quasi uguali senza essere file identici: più scatti dello stesso momento, una foto rifatta o una copia più piccola salvata da un'app di chat. In ogni gruppo l'app suggerisce di tenere la foto più grande, che di solito ha più dettagli.",
+        "ifRemoved": "La foto che tieni resta dov'è, quindi il momento non va perso. Le altre vanno prima in Quarantena, da dove puoi ripristinarle."
       },
       "largeFiles": {
         "title": "File grandi",
@@ -288,6 +294,7 @@
       "downloads": "La cartella Download",
       "personal": "Le tue cartelle",
       "duplicates": "Confronto i file per trovare i duplicati",
+      "photos": "Confronto le foto che si somigliano",
       "appFolders": "Le cartelle delle app in AppData e ProgramData"
     },
     "stepOf": "Passo {n} di {total}",
@@ -320,6 +327,7 @@
     "entryCount": "{count} elementi",
     "entryCountOne": "1 elemento",
     "reviewOnly": "Tocca una cartella per sapere cos'è e, se vuoi, spostarla in Quarantena.",
+    "reviewFirst": "Foto che si somigliano restano foto diverse, quindi qui niente viene rimosso in blocco: guardi ogni gruppo e scegli tu.",
     "wasIn": "era in {path}",
     "review": {
       "start": "Rivedi",
@@ -367,7 +375,15 @@
         "pictures": "Immagini",
         "videos": "Video"
       },
-      "hideSelected": "Nascondi ({count})"
+      "hideSelected": "Nascondi ({count})",
+      "lookAtPhotos": "Guarda le foto",
+      "similarSubtitle": "{sets} gruppi di foto simili · fino a {size} da liberare · scegli tu quali tenere",
+      "similarSubtitleOne": "1 gruppo di foto simili · fino a {size} da liberare · scegli tu quali tenere",
+      "keepPhoto": "In ogni gruppo tieni",
+      "largest": "la più grande (più dettagli)",
+      "similarHint": "La foto segnata «Tieni» resta dov'è. Quelle selezionate vanno in Quarantena: togli la spunta a quelle che vuoi tenere anche tu.",
+      "similarSet": "{count} foto simili",
+      "onePhotoStays": "Una foto di ogni gruppo resta sempre dov'è."
     },
     "folderMoved": "“{name}” è in Quarantena ({size}). Puoi ripristinarla per {days} giorni.",
     "folderSkipped": "Non ho potuto spostare “{name}”: forse un'app la sta usando. Chiudi l'app e riprova.",

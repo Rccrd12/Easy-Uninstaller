@@ -35,6 +35,12 @@ pub fn from_icon_location(location: &str) -> Option<String> {
     Some(png_data_url(&encode_png(width, height, &rgba)))
 }
 
+/// A bitmap of up to 512 px as (width, height, RGBA pixels row by row).
+#[cfg(windows)]
+pub fn bitmap_rgba(bitmap: windows::Win32::Graphics::Gdi::HBITMAP) -> Option<(u32, u32, Vec<u8>)> {
+    windows_icon::bitmap_pixels(bitmap)
+}
+
 #[cfg(not(windows))]
 pub fn from_icon_location(_location: &str) -> Option<String> {
     None
