@@ -1207,13 +1207,6 @@
       "savedCount": "{count} cartelle: non vengono chieste di nuovo.",
       "savedOne": "1 cartella: non viene chiesta di nuovo.",
       "clear": "Cancella",
-      "never": "Cosa non esce mai dal PC",
-      "neverItems": {
-        "contents": "Il contenuto dei file",
-        "username": "Il tuo nome utente",
-        "apps": "L'elenco delle tue app",
-        "personal": "Documenti, Immagini, Desktop, Download"
-      },
       "parallel": "Domande insieme",
       "parallelHint": "Per “Chiedi per tutte”. Più sono, prima finisce, ma consumi prima limiti o credito."
     },

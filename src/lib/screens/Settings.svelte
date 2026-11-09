@@ -305,12 +305,6 @@
     </span>
     <button class="btn btn-ghost" disabled={!stats?.answers} onclick={clearAnswers}>{t("ai.settings.clear")}</button>
   </div>
-  <div class="row block">
-    <span>{t("ai.settings.never")}</span>
-    <div class="never">
-      {#each ["contents", "username", "apps", "personal"] as item (item)}<span class="never-item"><Icon name="checkCircle" />{t(`ai.settings.neverItems.${item}`)}</span>{/each}
-    </div>
-  </div>
 </div>
 
 
@@ -486,9 +480,6 @@
   .ai { border-color: var(--tip-border); }
   .block { flex-direction: column; align-items: stretch; gap: 10px; }
   .tabs { align-self: flex-start; }
-  .never { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; }
-  .never-item { display: inline-flex; align-items: center; gap: 6px; }
-  .never-item :global(.icon) { color: var(--safe-fg); }
   .row .btn:disabled { opacity: 0.5; cursor: default; }
   .sub { padding-left: 34px; background: var(--hover); }
   .how { display: flex; align-items: center; gap: 10px; font-size: 13px; }

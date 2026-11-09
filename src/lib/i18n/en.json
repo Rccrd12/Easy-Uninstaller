@@ -1207,13 +1207,6 @@
       "savedCount": "{count} folders: they are not asked about again.",
       "savedOne": "1 folder: it is not asked about again.",
       "clear": "Clear",
-      "never": "What never leaves the PC",
-      "neverItems": {
-        "contents": "What is inside your files",
-        "username": "Your user name",
-        "apps": "The list of your apps",
-        "personal": "Documents, Pictures, Desktop, Downloads"
-      },
       "parallel": "Questions at the same time",
       "parallelHint": "For “Ask for all”. More finish sooner, but use up your limits or credit faster."
     },
