@@ -117,8 +117,6 @@
     <button class="link small" onclick={() => (showText = !showText)}>{showText ? t("ai.confirm.hideText") : t("ai.confirm.showText")}</button>
     {#if showText}<pre class="sent exact">{preview.question}</pre>{/if}
     <ul class="promises">
-      <li><Icon name="stop" />{t("ai.confirm.never")}</li>
-      {#if isCli}<li><Icon name="lock" />{t("ai.confirm.noTools", { service })}</li>{/if}
       <li><Icon name="money" />{t(isCli ? "ai.confirm.costCli" : isLocal ? "ai.confirm.costLocal" : "ai.confirm.costApi")}</li>
     </ul>
     <div class="buttons">

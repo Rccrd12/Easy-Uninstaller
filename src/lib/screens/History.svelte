@@ -118,7 +118,7 @@
   {/each}
 
   <div class="foot">
-    <span class="muted icon-line"><Icon name="lock" size={14} />{t("history.privacy")}</span>
+    <span class="grow"></span>
     {#if confirming}
       <div class="confirm">
         <span>{t("history.clearConfirm")}</span>
@@ -161,7 +161,7 @@
   .amount.waiting, .amount.none { color: var(--text-muted); font-weight: 600; }
 
   .foot { display: flex; align-items: center; gap: 12px; margin: 18px 0 6px; font-size: 12.5px; flex-wrap: wrap; }
-  .foot > .muted { flex: 1; min-width: 240px; }
+  .foot > .grow { flex: 1; }
   .confirm { display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 12px; border-radius: var(--radius-sm); background: var(--keep-bg); color: var(--keep-fg); font-weight: 600; flex-wrap: wrap; }
 
   .message { padding: 22px 24px; margin-top: 8px; display: flex; align-items: center; gap: 14px; }

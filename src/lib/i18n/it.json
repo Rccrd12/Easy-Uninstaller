@@ -43,7 +43,7 @@
     "map": "Mappa dello spazio",
     "mapText": "Guarda a colpo d'occhio cosa occupa più spazio.",
     "mapButton": "Apri la mappa",
-    "quarantineTip": "File temporanei, cache e vecchi elementi del Cestino vengono eliminati subito: non servono più a nessuno. Tutto il resto va in <b>Quarantena</b> per {days} giorni e puoi ripristinarlo con un clic.",
+    "quarantineTip": "File temporanei e cache si eliminano subito. Il resto va in <b>Quarantena</b> per {days} giorni.",
     "quickClean": "Pulizia rapida",
     "seeAll": "Vedi tutto",
     "quickCleanHint": "Solo le cose sicure, in un clic.",
@@ -119,8 +119,8 @@
     "retry": "Riprova",
     "heroTitle": "Il PC parte con {count} programmi",
     "heroTitleOne": "Il PC parte con 1 programma",
-    "heroText": "Spegnerne {count} può rendere più veloce l'accensione. Non viene disinstallato niente e puoi riaccenderli quando vuoi.",
-    "heroTextOne": "Spegnerne 1 può rendere più veloce l'accensione. Non viene disinstallato niente e puoi riaccenderlo quando vuoi.",
+    "heroText": "Spegnerne {count} può rendere più veloce l'accensione. Puoi riaccenderli quando vuoi.",
+    "heroTextOne": "Spegnerne 1 può rendere più veloce l'accensione. Puoi riaccenderlo quando vuoi.",
     "heroTextNone": "Nessun consiglio: i programmi accesi sono quelli utili. Spegnerne uno non lo disinstalla mai.",
     "turnOffSuggested": "Spegni i {count} consigliati",
     "turnOffSuggestedOne": "Spegni quello consigliato",
@@ -180,7 +180,7 @@
     "groupRemoveNote": "già selezionate",
     "groupChoose": "Decidi tu",
     "groupChooseNote": "alcuni le usano: selezionale solo se non ti servono",
-    "safeNote": "Windows, i driver e le app del produttore che servono per gli aggiornamenti non sono mai in questo elenco. Se cambi idea, ritrovi tutto in App › Disinstallate.",
+    "safeNote": "Windows, i driver e le app per gli aggiornamenti non sono mai in questo elenco.",
     "uninstall": "Disinstalla {count} app",
     "doneTitle": "Fatto: niente più app superflue",
     "doneText": "Le app che hai tolto sono in App › Disinstallate, se un giorno ti servono.",
@@ -323,15 +323,15 @@
     "undone": "Fatto: tutto è tornato al suo posto.",
     "freeUp": "Libera {size}",
     "deleteNow": "Elimina ({size})",
-    "howRemoved": "File temporanei, cache, miniature, rapporti di errore e vecchi elementi del Cestino vengono eliminati subito. Tutto il resto aspetta in Quarantena per {days} giorni.",
-    "deletedRightAway": "Eliminati subito, non tenuti in Quarantena: niente di questo serve più.",
+    "howRemoved": "File temporanei, cache, miniature, rapporti di errore e vecchi elementi del Cestino si eliminano subito. Il resto va in Quarantena per {days} giorni.",
+    "deletedRightAway": "Eliminati subito: non servono più.",
     "deleted": "Eliminati: {count}, {size}.",
     "folderCount": "{count} cartelle",
     "folderCountOne": "1 cartella",
     "entryCount": "{count} elementi",
     "entryCountOne": "1 elemento",
     "reviewOnly": "Tocca una cartella per sapere cos'è e, se vuoi, spostarla in Quarantena.",
-    "reviewFirst": "Foto che si somigliano restano foto diverse, quindi qui niente viene rimosso in blocco: guardi ogni gruppo e scegli tu.",
+    "reviewFirst": "Le foto simili si scelgono gruppo per gruppo.",
     "wasIn": "era in {path}",
     "review": {
       "start": "Rivedi",
@@ -385,7 +385,7 @@
       "similarSubtitleOne": "1 gruppo di foto simili · fino a {size} da liberare · scegli tu quali tenere",
       "keepPhoto": "In ogni gruppo tieni",
       "largest": "la più grande (più dettagli)",
-      "similarHint": "La foto segnata «Tieni» resta dov'è. Quelle selezionate vanno in Quarantena: togli la spunta a quelle che vuoi tenere anche tu.",
+      "similarHint": "La foto segnata «Tieni» resta. Le altre selezionate vanno in Quarantena.",
       "similarSet": "{count} foto simili",
       "onePhotoStays": "Una foto di ogni gruppo resta sempre dov'è."
     },
@@ -420,7 +420,7 @@
     "doneTitle": "Fatto! Spazio liberato subito",
     "freed": "sul tuo disco, disponibili da ora",
     "nothingFreed": "non è stato possibile liberare spazio subito",
-    "heldDone": "{size} aspettano in Quarantena fino al {date}. Fino ad allora puoi ripristinarli, dalla Quarantena o con Annulla.",
+    "heldDone": "{size} sono in Quarantena fino al {date}.",
     "disk": "Il disco {drive} ora ha {free} liberi (prima: {before}).",
     "diskNow": "Il disco {drive} ora ha {free} liberi.",
     "undo": "Annulla",
@@ -535,7 +535,7 @@
     "deleteNow": "Elimina ora",
     "confirmDelete": "Eliminare definitivamente {size}? Non si potrà annullare.",
     "confirmDeleteButton": "Elimina definitivamente",
-    "empty": "La quarantena è vuota. Ciò che rimuovi aspetta qui per {days} giorni, così puoi cambiare idea.",
+    "empty": "La Quarantena è vuota.",
     "restoring": "Ripristino in corso…",
     "restored": "Tornati al loro posto: {count}.",
     "renamed": "Tornati con “(restored)” nel nome, perché esiste già un file con lo stesso nome: {count}.",
@@ -552,7 +552,7 @@
     "since": "{count} dal {date}",
     "actions": "{count} azioni",
     "actionsOne": "1 azione",
-    "pending": "Altri {size} sono in quarantena: quello spazio torna libero quando la quarantena li elimina definitivamente, oppure subito con “Elimina ora”.",
+    "pending": "Altri {size} sono in Quarantena: si liberano quando vengono eliminati.",
     "openQuarantine": "Apri la quarantena",
     "kind": {
       "quickClean": "Pulizia rapida",
@@ -572,7 +572,6 @@
     "partRestored": "{size} rimessi a posto il {date}",
     "about": "circa {size}",
     "empty": "Ancora niente. Qui troverai ogni pulizia, disinstallazione e rimozione di avanzi, con lo spazio che ha liberato.",
-    "privacy": "La cronologia resta su questo PC. Elenca cosa è stato fatto, mai il contenuto dei tuoi file.",
     "clear": "Cancella la cronologia",
     "clearConfirm": "Cancellare la cronologia? Il totale riparte da zero. Nessun file viene toccato.",
     "failed": "Non riesco a leggere la cronologia: {error}"
@@ -594,7 +593,7 @@
     "quarantineDays": "Conserva gli elementi rimossi per",
     "days": "{days} giorni",
     "restorePoint": "Crea un punto di ripristino prima di disinstallare",
-    "restorePointHint": "Windows chiede il permesso. Un punto di ripristino protegge programmi e impostazioni; i tuoi file sono protetti dalla Quarantena.",
+    "restorePointHint": "Protegge programmi e impostazioni. Windows chiede il permesso.",
     "restorePointNow": "Creane uno ora",
     "restorePointStatus": {
       "creating": "Creazione del punto di ripristino…",
@@ -618,7 +617,7 @@
     "manage": "Gestisci",
     "updates": "Aggiornamenti",
     "version": "Easy Uninstaller {version}",
-    "updateIdle": "Gli aggiornamenti sono gratuiti e non toccano impostazioni e Quarantena.",
+    "updateIdle": "Gli aggiornamenti sono gratuiti.",
     "updateCheck": "Cerca aggiornamenti",
     "updateChecking": "Controllo…",
     "updateUpToDate": "Hai già l'ultima versione.",
@@ -633,7 +632,7 @@
     "updateInstallFailed": "Non sono riuscito a installare l'aggiornamento ({error}). Non è cambiato nulla.",
     "updateRetry": "Riprova",
     "updateAuto": "Controlla ogni volta che apri l'app",
-    "updateAutoHint": "Chiede solo a GitHub, dove l'app è pubblicata, se c'è una versione nuova. Nulla del tuo PC viene inviato."
+    "updateAutoHint": "Controlla su GitHub se c'è una versione nuova."
   },
   "technical": {
     "registryPlain": "Un'impostazione salvata in Windows",
@@ -683,7 +682,7 @@
     "stillThere": "{name} è ancora installata. Non è cambiato nient'altro.",
     "searching": "Cerco quello che {name} ha lasciato…",
     "searchingNote": "Solo cartelle, chiavi di registro e collegamenti con il suo nome esatto, non usati da altre app.",
-    "quarantineNote": "Tutto va in Quarantena per {days} giorni: puoi riportarlo indietro con un clic.",
+    "quarantineNote": "Tutto va in Quarantena per {days} giorni.",
     "adminLeftovers": "Windows chiederà il permesso per {count}.",
     "cleaning": "Sposto {count} in Quarantena…",
     "removedTitle": "{name} è stata rimossa",
@@ -906,7 +905,7 @@
   },
   "hidden": {
     "title": "Elementi nascosti",
-    "subtitle": "Cose che hai chiesto di non vedere più. Sono ancora sul PC: l'app semplicemente non te le propone.",
+    "subtitle": "Cose che hai scelto di non vedere più.",
     "count": "{count} elementi",
     "countOne": "1 elemento",
     "tabs": {
@@ -1028,8 +1027,8 @@
     },
     "box": {
       "title": "Chiedo all'AI?",
-      "hint": "L'AI può capire cos'è questa cartella dal suo nome e dai nomi che contiene. È un consiglio: decidi tu.",
-      "hintOff": "L'AI può capire cos'è questa cartella dal suo nome e dai nomi che contiene. È spenta: scegli tu quale usare.",
+      "hint": "L'AI può dirti cos'è questa cartella.",
+      "hintOff": "L'AI può dirti cos'è questa cartella. Scegli quale usare.",
       "ask": "Chiedi all'AI",
       "retry": "Riprova",
       "via": "Tramite {service}",
@@ -1048,8 +1047,6 @@
       "names": "Alcuni nomi ({shown} di {total})",
       "showText": "Vedi il testo esatto",
       "hideText": "Nascondi il testo esatto",
-      "never": "Non invio mai: il contenuto dei file, il tuo nome utente, l'elenco delle tue app.",
-      "noTools": "{service} parte senza strumenti: non può leggere né cambiare file.",
       "costCli": "Nessun costo extra: usa i limiti del tuo abbonamento.",
       "costApi": "Si paga a domanda al servizio, circa 1 centesimo.",
       "costLocal": "Nessun dato esce dal PC, ed è gratis.",
@@ -1064,7 +1061,7 @@
       "noApp": "Nessuna app installata ha questo nome",
       "modified": "Ultima modifica dentro: {date}",
       "notWindows": "Non è una cartella di Windows",
-      "mayBeWrong": "L'AI può sbagliare: per questo la cartella passa dalla Quarantena e puoi ripristinarla per {days} giorni.",
+      "mayBeWrong": "L'AI può sbagliare: controlla prima di togliere.",
       "sentOnly": "Inviati solo nomi e numeri, mai il contenuto dei file.",
       "askAgain": "Chiedi di nuovo"
     },
@@ -1079,7 +1076,7 @@
       "looked": "L'AI ha guardato {count} cartelle che l'app non conosceva",
       "lookedOne": "L'AI ha guardato 1 cartella che l'app non conosceva",
       "forget": "Annulla risposte",
-      "confirm": "Invierò a {service} nomi e numeri di {count} cartelle, mai il contenuto dei file.",
+      "confirm": "Invio a {service} nomi e dimensioni di {count} cartelle.",
       "ask": "Chiedi per {count}",
       "asking": "Chiedo all'AI: {done} di {total} fatte…",
       "stop": "Ferma",
@@ -1226,7 +1223,6 @@
     "tidy": "Riordina i Download",
     "aiOff": "Con l'aiuto AI attivo puoi cercare scrivendo una frase intera.",
     "turnOn": "Attivalo",
-    "sentOnly": "A {service} invio solo questa frase. La ricerca avviene su questo PC: i nomi dei tuoi file restano qui.",
     "title": "Cerca nei tuoi file",
     "understanding": "{service} sta leggendo la frase…",
     "searching": "Cerco su questo PC…",
@@ -1285,8 +1281,6 @@
     "capped": "Mostro i primi {shown} di {total}.",
     "tooMany": "Corrispondono più di 5.000 file: si possono spostare solo i primi 5.000. Aggiungi un filtro per restringere.",
     "partial": "Le tue cartelle sono molto grandi: la ricerca si è fermata dopo 400.000 file.",
-    "safety": "L'AI ha solo trasformato la tua frase in questi filtri. Niente si sposta da solo: scegli tu, e tutto passa dalla quarantena per {days} giorni.",
-    "safetyName": "La ricerca avviene su questo PC. Niente si sposta da solo: scegli tu, e tutto passa dalla quarantena per {days} giorni.",
     "failed": "La ricerca non è riuscita: {error}",
     "error": {
       "empty": "Scrivi cosa stai cercando.",
@@ -1295,7 +1289,7 @@
   },
   "tidy": {
     "title": "Riordina i Download",
-    "subtitle": "L'AI guarda i nomi dei file sparsi in Download e propone alcune cartelle. Non si sposta niente finché non confermi, e puoi rimettere tutto com'era.",
+    "subtitle": "L'AI propone delle cartelle per i file sparsi in Download.",
     "loose": "{files} sparsi in Download · {size}",
     "none": "Download è già in ordine: non ci sono file sparsi.",
     "noDownloads": "Su questo PC non ho trovato la cartella Download.",
@@ -1308,9 +1302,11 @@
     "folders": "{count} cartelle",
     "confirm": {
       "title": "Cosa invio a {service}",
-      "intro": "I nomi di {files}, con dimensione e mese. Mai il contenuto, e nemmeno dove si trovano sul tuo PC.",
+      "intro": "Invio nome, dimensione e mese di {files}.",
       "notSent": "Altri {files} li riordini la prossima volta.",
-      "send": "Invia e proponi"
+      "send": "Invia e proponi",
+      "showList": "Vedi l'elenco",
+      "hideList": "Nascondi l'elenco"
     },
     "asking": "{service} sta guardando i nomi dei file…",
     "plan": {
@@ -1331,14 +1327,14 @@
     },
     "installers": {
       "title": "Installer già usati",
-      "desc": "File di installazione di programmi già installati. Spuntali per spostarli in quarantena."
+      "desc": "Installer di programmi già installati. Spuntali per toglierli."
     },
     "apply": {
       "summary": "{files} in {folders}",
       "plusInstallers": "e {files} in quarantena",
       "button": "Riordina",
       "moving": "Riordino…",
-      "note": "I file vengono spostati, mai cancellati. Puoi rimettere tutto com'era con un clic.",
+      "note": "Puoi rimettere tutto com'era con un clic.",
       "nothing": "Spunta almeno un file."
     },
     "done": {
@@ -1352,7 +1348,6 @@
       "back": "Torna a File",
       "open": "Apri Download"
     },
-    "safety": "L'AI propone soltanto. Non si sposta niente finché non premi «Riordina», e ogni riordino si può annullare.",
     "failed": "Non è riuscito: {error}",
     "error": {
       "noDownloads": "Su questo PC non ho trovato la cartella Download.",
@@ -1402,7 +1397,7 @@
       "before": "Sempre disponibile sul PC",
       "after": "Solo online, si scarica quando lo apri",
       "freeing": "OneDrive sta liberando {size} dal PC ({count}). Ci vuole qualche minuto, mentre OneDrive è acceso.",
-      "note": "Non passa dalla quarantena e niente viene cancellato, né sul PC né su OneDrive. Per riaprirli serve internet.",
+      "note": "Niente viene cancellato. Per riaprirli serve internet.",
       "rule": "File da 1 MB in su non modificati negli ultimi 30 giorni: quelli su cui lavori restano sul PC. È la stessa cosa di “Libera spazio” di OneDrive.",
       "button": "Libera {size} dal PC",
       "working": "Lo chiedo a OneDrive…",
@@ -1423,7 +1418,7 @@
       "about": "Video, archivi e immagini disco grandi possono stare su un altro disco. Li sposto nella cartella “{folder}” su {drive}: restano tuoi, li apri da lì e puoi riportarli indietro quando vuoi.",
       "drive": "Sposta su",
       "folderName": "Spostati da {letter}",
-      "note": "Non passa dalla quarantena e niente viene cancellato: ogni file viene prima copiato su {drive} e solo dopo tolto da {system}. App e giochi non vengono mai spostati: smetterebbero di funzionare.",
+      "note": "Ogni file viene copiato su {drive} e poi tolto da {system}. App e giochi non vengono spostati.",
       "rule": "Video, archivi, immagini disco e audio senza perdita da 100 MB in su nelle tue cartelle. I file di OneDrive restano dove sono.",
       "button": "Sposta {size} su {drive}",
       "working": "Sposto…",

@@ -32,6 +32,8 @@
   let undoing = $state(false);
   let error = $state<string | null>(null);
   let dontAsk = $state(false);
+  /** The exact list sent to the AI, shown on request. */
+  let showSent = $state(false);
   /** Waiting for the AI (not for the quick grouping by type). */
   let askingAi = $state(false);
 
@@ -223,16 +225,14 @@
     {#if undone}
       <p class="muted small undone">{t("tidy.done.undone", { files: fileCount(undone.restoredCount) })}{undone.failedCount ? ` ${t("tidy.done.undoFailed", { files: fileCount(undone.failedCount) })}` : ""}</p>
     {/if}
-    <p class="tip icon-line"><Icon name="shieldCheck" />{t("tidy.safety")}</p>
   {:else if phase === "confirm" && preview}
     <div class="card box">
       <span class="label"><Icon name="sparkle" size={14} />{t("tidy.confirm.title", { service: serviceLabel(settings.ai.service, settings.ai.model) })}</span>
       <p class="intro-line">{t("tidy.confirm.intro", { files: fileCount(preview.lines.length) })}</p>
-      <pre class="sent">{preview.lines.join("\n")}</pre>
+      <button class="link small" onclick={() => (showSent = !showSent)}>{showSent ? t("tidy.confirm.hideList") : t("tidy.confirm.showList")}</button>
+      {#if showSent}<pre class="sent">{preview.lines.join("\n")}</pre>{/if}
       {#if preview.notSentCount}<p class="muted small">{t("tidy.confirm.notSent", { files: fileCount(preview.notSentCount) })}</p>{/if}
       <ul class="promises">
-        <li><Icon name="stop" />{t("ai.confirm.never")}</li>
-        {#if kind === "cli"}<li><Icon name="lock" />{t("ai.confirm.noTools", { service })}</li>{/if}
         <li><Icon name="money" />{t(kind === "cli" ? "ai.confirm.costCli" : kind === "local" ? "ai.confirm.costLocal" : "ai.confirm.costApi")}</li>
       </ul>
       <div class="buttons">
@@ -384,8 +384,6 @@
   .ai-off { margin-top: 8px; }
   .last { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; }
   .undone { margin: -4px 0 12px; }
-  .tip { font-size: 12.5px; line-height: 1.45; background: var(--tip-bg); border: 1px solid var(--tip-border); border-radius: var(--radius-sm); padding: 9px 12px; margin-bottom: 12px; }
-  .tip :global(.icon) { color: var(--ai); flex: none; }
 
   .box { border-left: 3px solid var(--ai); padding: 14px 16px; }
   .label { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--ai-fg); }

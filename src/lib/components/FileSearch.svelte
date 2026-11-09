@@ -280,8 +280,6 @@
       </div>
     {/if}
 
-    <p class="tip icon-line"><Icon name="shieldCheck" />{t(byName ? "search.safetyName" : "search.safety", { days: quarantine.keepDays })}</p>
-
     {#if phase === "searching" && !result}
       <div class="card status" role="status"><span class="spinner" aria-hidden="true"></span>{t("search.searching")}</div>
     {:else if phase === "error"}
@@ -379,8 +377,6 @@
   select, .words { font-family: inherit; font-size: 13px; padding: 6px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--surface); }
   .words { user-select: text; }
 
-  .tip { font-size: 12.5px; line-height: 1.45; background: var(--tip-bg); border: 1px solid var(--tip-border); border-radius: var(--radius-sm); padding: 9px 12px; margin-bottom: 12px; }
-  .tip :global(.icon) { color: var(--ai); flex: none; }
 
   .summary { display: flex; align-items: center; gap: 10px; margin: 2px 0 8px; font-size: 14px; }
   .small-spin { width: 12px; height: 12px; }

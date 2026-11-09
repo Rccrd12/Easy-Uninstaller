@@ -17,7 +17,6 @@
   });
 
   const ready = $derived(aiReady());
-  const service = $derived(t(`ai.services.${settings.ai.service}.name`));
 
   function submit(e: SubmitEvent) {
     e.preventDefault();
@@ -32,9 +31,7 @@
   <button class="btn btn-primary" type="submit" disabled={busy || !text.trim()}>{t("search.button")}</button>
 </form>
 <div class="under">
-  {#if ready}
-    <span class="muted note icon-line"><Icon name="lock" size={14} />{t("search.sentOnly", { service })}</span>
-  {:else}
+  {#if !ready}
     <span class="muted note">{t("search.aiOff")} <button type="button" class="link" onclick={() => openSetup()}>{t("search.turnOn")}</button></span>
   {/if}
   {#if onTidy}

@@ -42,7 +42,7 @@
     "map": "Space map",
     "mapText": "See at a glance what takes up the most space.",
     "mapButton": "Open map",
-    "quarantineTip": "Temporary files, caches and old Recycle Bin items are deleted right away: nobody needs them back. Everything else goes to <b>Quarantine</b> for {days} days and you can restore it with one click.",
+    "quarantineTip": "Temporary files and caches are deleted right away. Everything else goes to <b>Quarantine</b> for {days} days.",
     "used": "Used",
     "quickClean": "Quick clean",
     "seeAll": "See everything",
@@ -119,8 +119,8 @@
     "retry": "Try again",
     "heroTitle": "Your PC starts with {count} programs",
     "heroTitleOne": "Your PC starts with 1 program",
-    "heroText": "Turning off {count} of them can make your PC start faster. Nothing is uninstalled, and you can turn them back on whenever you like.",
-    "heroTextOne": "Turning off 1 of them can make your PC start faster. Nothing is uninstalled, and you can turn it back on whenever you like.",
+    "heroText": "Turning off {count} of them can make your PC start faster. You can turn them back on any time.",
+    "heroTextOne": "Turning off 1 of them can make your PC start faster. You can turn it back on any time.",
     "heroTextNone": "Nothing to suggest: the programs still on are useful ones. Turning one off never uninstalls it.",
     "turnOffSuggested": "Turn off the {count} suggested",
     "turnOffSuggestedOne": "Turn off the suggested one",
@@ -180,7 +180,7 @@
     "groupRemoveNote": "already selected",
     "groupChoose": "Your choice",
     "groupChooseNote": "some people use these: select them only if you don't",
-    "safeNote": "Windows, drivers and the PC maker's update tools are never on this list. If you change your mind, everything is in Apps › Uninstalled.",
+    "safeNote": "Windows, drivers and update tools are never on this list.",
     "uninstall": "Uninstall {count} apps",
     "doneTitle": "Done: no more unneeded apps",
     "doneText": "The apps you removed are in Apps › Uninstalled, if you ever need them.",
@@ -324,14 +324,14 @@
     "freeUp": "Free up {size}",
     "deleteNow": "Delete ({size})",
     "howRemoved": "Temporary files, caches, thumbnails, crash reports and old Recycle Bin items are deleted right away. Everything else waits in Quarantine for {days} days.",
-    "deletedRightAway": "Deleted right away, not kept in Quarantine: nothing here is needed back.",
+    "deletedRightAway": "Deleted right away: no longer needed.",
     "deleted": "Deleted: {count}, {size}.",
     "folderCount": "{count} folders",
     "folderCountOne": "1 folder",
     "entryCount": "{count} items",
     "entryCountOne": "1 item",
     "reviewOnly": "Tap a folder to find out what it is and, if you want, move it to Quarantine.",
-    "reviewFirst": "Photos that look alike are still different photos, so nothing here is removed as a whole group: you look at each set and choose.",
+    "reviewFirst": "Similar photos are picked group by group.",
     "wasIn": "was in {path}",
     "review": {
       "start": "Review",
@@ -385,7 +385,7 @@
       "similarSubtitleOne": "1 set of similar photos · up to {size} to free · you choose which to keep",
       "keepPhoto": "In each set, keep",
       "largest": "the largest (most detail)",
-      "similarHint": "The photo marked Keep stays where it is. The selected ones go to Quarantine: untick any you want to keep too.",
+      "similarHint": "The photo marked Keep stays. The other selected ones go to Quarantine.",
       "similarSet": "{count} similar photos",
       "onePhotoStays": "One photo of every set always stays where it is."
     },
@@ -420,7 +420,7 @@
     "doneTitle": "Done! Space freed right away",
     "freed": "on your disk, available now",
     "nothingFreed": "nothing could be freed right away",
-    "heldDone": "{size} wait in Quarantine until {date}. You can restore them until then, from Quarantine or with Undo.",
+    "heldDone": "{size} are in Quarantine until {date}.",
     "disk": "Drive {drive} now has {free} free (before: {before}).",
     "diskNow": "Drive {drive} now has {free} free.",
     "undo": "Undo",
@@ -535,7 +535,7 @@
     "deleteNow": "Delete now",
     "confirmDelete": "Delete {size} for good? This cannot be undone.",
     "confirmDeleteButton": "Delete for good",
-    "empty": "Quarantine is empty. Anything you remove waits here for {days} days, so you can change your mind.",
+    "empty": "Quarantine is empty.",
     "restoring": "Restoring…",
     "restored": "Back where they were: {count}.",
     "renamed": "Came back with “(restored)” in the name, because a file with the same name already exists: {count}.",
@@ -552,7 +552,7 @@
     "since": "{count} since {date}",
     "actions": "{count} actions",
     "actionsOne": "1 action",
-    "pending": "Another {size} is in Quarantine: that space frees up when Quarantine deletes it for good, or right away with “Delete now”.",
+    "pending": "{size} more are in Quarantine: that space comes back when they are deleted.",
     "openQuarantine": "Open Quarantine",
     "kind": {
       "quickClean": "Quick clean",
@@ -572,7 +572,6 @@
     "partRestored": "{size} put back on {date}",
     "about": "about {size}",
     "empty": "Nothing here yet. Every cleanup, uninstall and leftover removal will be listed here, with the space it gave back.",
-    "privacy": "The history stays on this PC. It lists what was done, never the contents of your files.",
     "clear": "Clear history",
     "clearConfirm": "Clear the history? The total starts again from zero. No file is touched.",
     "failed": "Could not read the history: {error}"
@@ -594,7 +593,7 @@
     "quarantineDays": "Keep removed items for",
     "days": "{days} days",
     "restorePoint": "Create a restore point before uninstalling",
-    "restorePointHint": "Windows asks for permission. A restore point protects programs and settings; your files are protected by Quarantine.",
+    "restorePointHint": "Protects programs and settings. Windows asks for permission.",
     "restorePointNow": "Create one now",
     "restorePointStatus": {
       "creating": "Creating a restore point…",
@@ -618,7 +617,7 @@
     "manage": "Manage",
     "updates": "Updates",
     "version": "Easy Uninstaller {version}",
-    "updateIdle": "Updates are free and keep your settings and Quarantine as they are.",
+    "updateIdle": "Updates are free.",
     "updateCheck": "Check for updates",
     "updateChecking": "Checking…",
     "updateUpToDate": "You have the latest version.",
@@ -633,7 +632,7 @@
     "updateInstallFailed": "The update could not be installed ({error}). Nothing has changed.",
     "updateRetry": "Try again",
     "updateAuto": "Check each time the app opens",
-    "updateAutoHint": "It only asks GitHub, where the app is published, whether there is a new version. Nothing about your PC is sent."
+    "updateAutoHint": "Checks GitHub for a new version."
   },
   "technical": {
     "registryPlain": "A setting stored in Windows",
@@ -683,7 +682,7 @@
     "stillThere": "{name} is still installed. Nothing else was changed.",
     "searching": "Looking for what {name} left behind…",
     "searchingNote": "Only folders, registry keys and shortcuts with its exact name, not used by other apps.",
-    "quarantineNote": "Everything goes to Quarantine for {days} days: you can bring it back with one click.",
+    "quarantineNote": "Everything goes to Quarantine for {days} days.",
     "adminLeftovers": "Windows will ask for permission for {count}.",
     "cleaning": "Moving {count} to Quarantine…",
     "removedTitle": "{name} was removed",
@@ -906,7 +905,7 @@
   },
   "hidden": {
     "title": "Hidden items",
-    "subtitle": "Things you asked not to see again. They are still on your PC: the app just doesn't suggest them.",
+    "subtitle": "Things you chose not to see again.",
     "count": "{count} items",
     "countOne": "1 item",
     "tabs": {
@@ -1028,8 +1027,8 @@
     },
     "box": {
       "title": "Ask the AI?",
-      "hint": "The AI can guess what this folder is from its name and the names inside. It is advice: you decide.",
-      "hintOff": "The AI can guess what this folder is from its name and the names inside. It is off: you choose which one to use.",
+      "hint": "The AI can tell you what this folder is.",
+      "hintOff": "The AI can tell you what this folder is. Choose which one to use.",
       "ask": "Ask the AI",
       "retry": "Try again",
       "via": "Through {service}",
@@ -1048,8 +1047,6 @@
       "names": "Some names ({shown} of {total})",
       "showText": "See the exact text",
       "hideText": "Hide the exact text",
-      "never": "Never sent: what is inside the files, your user name, the list of your apps.",
-      "noTools": "{service} starts with no tools: it cannot read or change files.",
       "costCli": "No extra cost: it uses your subscription's limits.",
       "costApi": "Paid per question to the service, about 1 cent.",
       "costLocal": "Nothing leaves this PC, and it is free.",
@@ -1064,7 +1061,7 @@
       "noApp": "No installed app has this name",
       "modified": "Last change inside: {date}",
       "notWindows": "Not a Windows folder",
-      "mayBeWrong": "The AI can be wrong: that is why the folder goes to Quarantine, where you can restore it for {days} days.",
+      "mayBeWrong": "The AI can be wrong: check before removing.",
       "sentOnly": "Only names and numbers were sent, never what is inside the files.",
       "askAgain": "Ask again"
     },
@@ -1079,7 +1076,7 @@
       "looked": "The AI looked at {count} folders the app didn't know",
       "lookedOne": "The AI looked at 1 folder the app didn't know",
       "forget": "Clear answers",
-      "confirm": "I will send to {service} the names and numbers of {count} folders, never what is inside the files.",
+      "confirm": "I'll send {service} the names and sizes of {count} folders.",
       "ask": "Ask for {count}",
       "asking": "Asking the AI: {done} of {total} done…",
       "stop": "Stop",
@@ -1226,7 +1223,6 @@
     "tidy": "Tidy up Downloads",
     "aiOff": "With AI help on, you can search by writing a whole sentence.",
     "turnOn": "Turn it on",
-    "sentOnly": "Only this sentence is sent to {service}. The search runs on this PC: your file names stay here.",
     "title": "Search your files",
     "understanding": "{service} is reading your sentence…",
     "searching": "Searching this PC…",
@@ -1285,8 +1281,6 @@
     "capped": "Showing the first {shown} of {total}.",
     "tooMany": "Over 5,000 files match: only the first 5,000 can be moved. Add a filter to narrow it down.",
     "partial": "Your folders are very large: the search stopped after 400,000 files.",
-    "safety": "The AI only turned your sentence into these filters. Nothing moves on its own: you choose, and everything goes to Quarantine for {days} days.",
-    "safetyName": "The search runs on this PC. Nothing moves on its own: you choose, and everything goes to Quarantine for {days} days.",
     "failed": "The search did not work: {error}",
     "error": {
       "empty": "Write what you are looking for.",
@@ -1295,7 +1289,7 @@
   },
   "tidy": {
     "title": "Tidy up Downloads",
-    "subtitle": "The AI looks at the names of the files lying in Downloads and proposes a few folders. Nothing moves until you confirm, and you can put everything back.",
+    "subtitle": "The AI suggests folders for the loose files in Downloads.",
     "loose": "{files} lying loose in Downloads · {size}",
     "none": "Downloads is already tidy: there are no loose files.",
     "noDownloads": "No Downloads folder was found on this PC.",
@@ -1308,9 +1302,11 @@
     "folders": "{count} folders",
     "confirm": {
       "title": "What I send to {service}",
-      "intro": "The names of {files}, with size and month. Never what is inside them, and not where they are on your PC.",
+      "intro": "I'll send the name, size and month of {files}.",
       "notSent": "{files} more will be tidied next time.",
-      "send": "Send and propose"
+      "send": "Send and propose",
+      "showList": "See the list",
+      "hideList": "Hide the list"
     },
     "asking": "{service} is looking at the file names…",
     "plan": {
@@ -1331,14 +1327,14 @@
     },
     "installers": {
       "title": "Installers already used",
-      "desc": "Setup files of programs that are already installed. Tick them to move them to Quarantine."
+      "desc": "Installers of programs already installed. Tick them to remove them."
     },
     "apply": {
       "summary": "{files} into {folders}",
       "plusInstallers": "and {files} to Quarantine",
       "button": "Tidy up",
       "moving": "Tidying…",
-      "note": "Files are moved, never deleted. You can put everything back with one click.",
+      "note": "You can put everything back with one click.",
       "nothing": "Tick at least one file."
     },
     "done": {
@@ -1352,7 +1348,6 @@
       "back": "Back to Files",
       "open": "Open Downloads"
     },
-    "safety": "The AI only proposes. Nothing moves until you press “Tidy up”, and every tidy can be undone.",
     "failed": "It did not work: {error}",
     "error": {
       "noDownloads": "No Downloads folder was found on this PC.",
@@ -1402,7 +1397,7 @@
       "before": "Always on this PC",
       "after": "Online only, downloads when you open it",
       "freeing": "OneDrive is freeing {size} on this PC ({count}). It takes a few minutes, while OneDrive is running.",
-      "note": "Nothing goes to Quarantine and nothing is deleted, on the PC or on OneDrive. To open them again you need the internet.",
+      "note": "Nothing is deleted. You need internet to open them again.",
       "rule": "Files of 1 MB or more not changed in the last 30 days: files you are working on stay on the PC. It is the same as “Free up space” in OneDrive.",
       "button": "Free up {size} on this PC",
       "working": "Asking OneDrive…",
@@ -1423,7 +1418,7 @@
       "about": "Big videos, archives and disk images can live on another drive. I move them to the folder “{folder}” on {drive}: they stay yours, you open them from there, and you can move them back whenever you want.",
       "drive": "Move to",
       "folderName": "Moved from {letter}",
-      "note": "Nothing goes to Quarantine and nothing is deleted: each file is copied to {drive} first, and only then removed from {system}. Apps and games are never moved: they would stop working.",
+      "note": "Each file is copied to {drive}, then removed from {system}. Apps and games are not moved.",
       "rule": "Videos, archives, disk images and lossless audio of 100 MB or more in your folders. Files in OneDrive stay where they are.",
       "button": "Move {size} to {drive}",
       "working": "Moving…",
