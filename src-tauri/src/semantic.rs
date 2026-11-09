@@ -15,6 +15,7 @@
 mod docs;
 mod engine;
 mod frames;
+mod hardware;
 mod models;
 mod sha256;
 mod store;
@@ -22,7 +23,7 @@ mod store;
 use crate::ai::http::{self, HttpError, Url};
 use crate::files;
 use crate::search::{kind_of, FileKind};
-use models::{Pinned, Quality, ENGINE, ENGINE_VERSION};
+use models::{Pinned, Quality, ENGINE_VERSION};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs::{self, OpenOptions};
@@ -103,14 +104,17 @@ pub struct IndexSettings {
 }
 
 impl Default for IndexSettings {
+    /// With a graphics card the model runs many times faster: the more precise model
+    /// and whole videos. Without, the light model and a few frames per video.
     fn default() -> Self {
+        let gpu = hardware::get().gpu;
         IndexSettings {
             source: Source::Download,
-            quality: Quality::Light,
+            quality: if gpu { Quality::Better } else { Quality::Light },
             own_model: String::new(),
             own_vision: String::new(),
             server_url: String::new(),
-            depth: Depth::Partial,
+            depth: if gpu { Depth::Full } else { Depth::Partial },
             photos: true,
             videos: true,
             documents: true,
@@ -210,8 +214,17 @@ fn home(app: &AppHandle) -> Result<PathBuf, String> {
         .join("LocalIndex"))
 }
 
+/// The engine for this PC's folder: the version, and `-gpu` for the graphics card build.
+fn engine_name() -> String {
+    if hardware::get().gpu {
+        format!("{ENGINE_VERSION}-gpu")
+    } else {
+        ENGINE_VERSION.to_string()
+    }
+}
+
 fn engine_dir(home: &Path) -> PathBuf {
-    home.join("engine").join(ENGINE_VERSION)
+    home.join("engine").join(engine_name())
 }
 
 /// The engine's server, once unpacked and found (its path is kept in `ok`).
@@ -243,7 +256,7 @@ fn missing_bytes(home: &Path, quality: Quality) -> u64 {
         .sum();
     models
         + if engine_exe(home).is_none() {
-            ENGINE.size
+            models::engine().size
         } else {
             0
         }
@@ -330,7 +343,7 @@ fn model_id(settings: &IndexSettings) -> String {
 fn missing_for(home: &Path, settings: &IndexSettings) -> u64 {
     match settings.source {
         Source::Download => missing_bytes(home, settings.quality),
-        Source::Files if engine_exe(home).is_none() => ENGINE.size,
+        Source::Files if engine_exe(home).is_none() => models::engine().size,
         Source::Files | Source::Server => 0,
     }
 }
@@ -511,7 +524,7 @@ fn unpack_engine(home: &Path, zip: &Path) -> Result<(), String> {
     // Older engines are no longer needed.
     if let Ok(entries) = fs::read_dir(home.join("engine")) {
         for e in entries.flatten() {
-            if e.file_name() != ENGINE_VERSION {
+            if e.file_name().to_string_lossy() != engine_name() {
                 let _ = fs::remove_dir_all(e.path());
             }
         }
@@ -524,6 +537,7 @@ fn download_all(app: &AppHandle, settings: &IndexSettings) -> Result<(), String>
     let models_dir = h.join("models");
     fs::create_dir_all(&models_dir).map_err(|e| e.to_string())?;
     let quality = settings.quality;
+    let engine = models::engine();
     let need_engine = engine_exe(&h).is_none() && settings.source != Source::Server;
     // The person's own model needs only the engine.
     let missing: Vec<&Pinned> = quality
@@ -532,12 +546,12 @@ fn download_all(app: &AppHandle, settings: &IndexSettings) -> Result<(), String>
         .filter(|f| settings.source == Source::Download && !model_ok(&h, f))
         .collect();
     let total =
-        missing.iter().map(|f| f.size).sum::<u64>() + if need_engine { ENGINE.size } else { 0 };
+        missing.iter().map(|f| f.size).sum::<u64>() + if need_engine { engine.size } else { 0 };
     let mut before = 0;
     if need_engine {
-        let zip = fetch(app, &h, &ENGINE, before, total)?;
+        let zip = fetch(app, &h, engine, before, total)?;
         unpack_engine(&h, &zip)?;
-        before += ENGINE.size;
+        before += engine.size;
     }
     for f in missing {
         let part = fetch(app, &h, f, before, total)?;

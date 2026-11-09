@@ -34,6 +34,9 @@ windows = { version = "0.62", features = [
   # Reminders: Windows notifications (toasts).
   "Data_Xml_Dom",
   "Management_Deployment",
+  # The local index: is there a graphics card, which cores are the fast ones.
+  "Win32_Graphics_Dxgi",
+  "Win32_Graphics_Dxgi_Common",
   "Win32_Graphics_Gdi",
   # The local index: frames of videos through Media Foundation, which ships with Windows.
   "Win32_Media_MediaFoundation",
@@ -48,6 +51,7 @@ windows = { version = "0.62", features = [
   # Whether an app is open before its cache is emptied (process list).
   "Win32_System_Diagnostics_ToolHelp",
   "Win32_System_Registry",
+  "Win32_System_SystemInformation",
   "Win32_System_Threading",
   "Win32_System_Variant",
   "Win32_UI_Shell",

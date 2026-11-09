@@ -25,6 +25,24 @@ pub const ENGINE: Pinned = Pinned {
     size: 24_886_130,
 };
 
+/// The same, built for graphics cards through Vulkan (NVIDIA, AMD and Intel): used
+/// when the PC has one (`hardware.rs`). It also carries the processor build.
+pub const ENGINE_GPU: Pinned = Pinned {
+    file: "llama-b12207-bin-win-vulkan-x64.zip",
+    url: "https://github.com/ggml-org/llama.cpp/releases/download/b12207/llama-b12207-bin-win-vulkan-x64.zip",
+    sha256: "c8c84eff8b7eae83602d3cf2dd6defe16c47d1011b4a2514905c1817e3a909ca",
+    size: 37_844_756,
+};
+
+/// The engine for this PC.
+pub fn engine() -> &'static Pinned {
+    if super::hardware::get().gpu {
+        &ENGINE_GPU
+    } else {
+        &ENGINE
+    }
+}
+
 /// The engine's version: a new one is unpacked next to the model when this changes.
 pub const ENGINE_VERSION: &str = "b12207";
 
@@ -131,8 +149,10 @@ mod tests {
                 assert!(f.size > 100_000_000);
             }
         }
-        assert!(ENGINE.url.contains(ENGINE_VERSION));
-        assert!(ENGINE.url.ends_with(ENGINE.file));
-        assert_eq!(ENGINE.sha256.len(), 64);
+        for e in [&ENGINE, &ENGINE_GPU] {
+            assert!(e.url.contains(ENGINE_VERSION));
+            assert!(e.url.ends_with(e.file));
+            assert_eq!(e.sha256.len(), 64);
+        }
     }
 }

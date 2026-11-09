@@ -159,13 +159,32 @@ fn url(port: u16, path: &str) -> Url {
     }
 }
 
-fn threads() -> usize {
-    std::thread::available_parallelism()
-        .map(|n| (n.get() / 2).max(1))
-        .unwrap_or(2)
+/// Starts the server: on the graphics card when there is one, else (or when that
+/// fails) on the processor.
+fn start(setup: &Setup) -> Result<Running, String> {
+    let hw = super::hardware::get();
+    match start_on(setup, hw.gpu) {
+        Err(_) if hw.gpu => start_on(setup, false),
+        other => other,
+    }
 }
 
-fn start(setup: &Setup) -> Result<Running, String> {
+/// How the server uses this PC: the graphics card, or the processor's fast cores.
+pub fn placement(hw: &super::hardware::Hardware, gpu: bool) -> Vec<String> {
+    let mut args = vec!["--threads".to_string(), hw.threads.to_string()];
+    if let Some(mask) = hw.cpu_mask {
+        args.extend(["--cpu-mask".to_string(), format!("0x{mask:x}")]);
+    }
+    if gpu {
+        args.extend(["--n-gpu-layers".to_string(), "999".to_string()]);
+    } else if hw.gpu {
+        // The graphics card build, kept off the card.
+        args.extend(["--device", "none", "--no-mmproj-offload"].map(String::from));
+    }
+    args
+}
+
+fn start_on(setup: &Setup, gpu: bool) -> Result<Running, String> {
     let port = free_port()?;
     let log = File::create(&setup.log).map_err(|e| e.to_string())?;
     let mut cmd = Command::new(&setup.exe);
@@ -184,8 +203,7 @@ fn start(setup: &Setup) -> Result<Running, String> {
         ])
         .args(["--parallel", "1", "--host", "127.0.0.1", "--port"])
         .arg(port.to_string())
-        .arg("--threads")
-        .arg(threads().to_string())
+        .args(placement(super::hardware::get(), gpu))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::from(log));
@@ -423,6 +441,38 @@ mod tests {
             at("http://localhost:8080/v1/"),
             "http://localhost:8080/embeddings"
         );
+    }
+
+    #[test]
+    fn the_card_or_the_fast_cores() {
+        use super::super::hardware::Hardware;
+        let laptop = Hardware {
+            gpu: true,
+            threads: 6,
+            cpu_mask: Some(0xfff),
+        };
+        assert_eq!(
+            placement(&laptop, true),
+            [
+                "--threads",
+                "6",
+                "--cpu-mask",
+                "0xfff",
+                "--n-gpu-layers",
+                "999"
+            ]
+        );
+        assert_eq!(
+            placement(&laptop, false)[4..],
+            ["--device", "none", "--no-mmproj-offload"],
+            "the card failed: the processor"
+        );
+        let desktop = Hardware {
+            gpu: false,
+            threads: 4,
+            cpu_mask: None,
+        };
+        assert_eq!(placement(&desktop, false), ["--threads", "4"]);
     }
 
     #[test]
