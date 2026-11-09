@@ -1,6 +1,8 @@
 <script lang="ts">
   import QuickClean from "../components/QuickClean.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
+  import Icon from "../components/Icon.svelte";
+  import type { IconName } from "../icons";
   import { getSystemDisk, listFileGroups, listInstalledApps, listLeftovers, usesSampleData } from "../api";
   import { quarantine } from "../settings.svelte";
   import { formatBytes } from "../format";
@@ -72,11 +74,11 @@
   const reclaimPct = $derived(disk ? (reclaimable / disk.totalBytes) * 100 : 0);
   const lowSpace = $derived(disk ? disk.freeBytes / disk.totalBytes < 0.15 : false);
 
-  const tiles = [
-    { id: "apps" as Screen, icon: "📦", tint: "var(--tint-apps)", primary: false },
-    { id: "files" as Screen, icon: "📁", tint: "var(--tint-files)", primary: true },
-    { id: "leftovers" as Screen, icon: "🧹", tint: "var(--tint-leftovers)", primary: false },
-    { id: "map" as Screen, icon: "🗺️", tint: "var(--tint-map)", primary: false },
+  const tiles: { id: Screen; icon: IconName; primary: boolean }[] = [
+    { id: "apps", icon: "apps", primary: false },
+    { id: "files", icon: "folder", primary: true },
+    { id: "leftovers", icon: "broom", primary: false },
+    { id: "map", icon: "map", primary: false },
   ];
 </script>
 
@@ -120,7 +122,7 @@
 <section class="tiles">
   {#each tiles as tile (tile.id)}
     <div class="card tile" class:primary={tile.primary}>
-      <div class="ticon" style="background:{tile.tint}">{tile.icon}</div>
+      <div class="ticon"><Icon name={tile.icon} size={24} /></div>
       <h3>{t(`home.${tile.id}`)}</h3>
       <p class="muted">{t(`home.${tile.id}Text`)}</p>
       <div class="amount" class:calc={tileAmount(tile.id) === t("home.calculating")}>{tileAmount(tile.id)}</div>
@@ -129,7 +131,7 @@
   {/each}
 </section>
 
-<div class="card tip"><span aria-hidden="true">🛡️</span><span>{@html t("home.quarantineTip", { days: quarantine.keepDays })}</span></div>
+<div class="card tip"><span class="tip-icon"><Icon name="shieldCheck" size={20} /></span><span>{@html t("home.quarantineTip", { days: quarantine.keepDays })}</span></div>
 
 {#if quickClean}
   <QuickClean
@@ -158,9 +160,10 @@
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-top: 16px; }
   .tile { padding: 18px; display: flex; flex-direction: column; min-height: 230px; }
   .tile.primary { border: 2px solid var(--accent); }
-  .ticon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .ticon { width: 44px; height: 44px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; background: var(--icon-tile-bg); color: var(--icon-tile-fg); }
   .tile h3 { font-size: 16px; margin: 12px 0 4px; }
   .tile p { font-size: 12.5px; line-height: 1.45; flex: 1; }
   .amount { font-size: 20px; font-weight: 700; margin: 6px 0 10px; min-height: 26px; }
+  .tip-icon { display: flex; color: var(--accent); }
   .tip { display: flex; gap: 10px; align-items: center; margin-top: 14px; padding: 12px 16px; font-size: 13px; background: var(--tip-bg); border-color: var(--tip-border); }
 </style>

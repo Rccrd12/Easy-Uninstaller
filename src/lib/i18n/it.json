@@ -24,7 +24,7 @@
     "needsAdmin": "Windows chiede il permesso"
   },
   "home": {
-    "greeting": "Ciao 👋",
+    "greeting": "Ciao",
     "subtitle": "Ecco cosa puoi fare per liberare spazio.",
     "canFree": "Puoi liberare in sicurezza",
     "disk": "Disco {drive}",
@@ -43,7 +43,7 @@
     "mapText": "Guarda a colpo d'occhio cosa occupa più spazio.",
     "mapButton": "Apri la mappa",
     "quarantineTip": "File temporanei, cache e vecchi elementi del Cestino vengono eliminati subito: non servono più a nessuno. Tutto il resto va in <b>Quarantena</b> per {days} giorni e puoi ripristinarlo con un clic.",
-    "quickClean": "✨ Pulizia rapida",
+    "quickClean": "Pulizia rapida",
     "seeAll": "Vedi tutto",
     "quickCleanHint": "Solo le cose sicure, in un clic.",
     "calculating": "Sto calcolando…",
@@ -248,7 +248,7 @@
     "freeNowDrive": "eliminati, o spostati nella Quarantena sul disco {drive}",
     "held": "In quarantena per {days} giorni",
     "heldNote": "puoi ripristinarli, poi vengono eliminati e lo spazio torna libero",
-    "heldTip": "Tieni la Quarantena su un altro disco per liberare subito anche questo ›",
+    "heldTip": "Tieni la Quarantena su un altro disco per liberare subito anche questo",
     "free": "Libera {size}",
     "details": "Prima voglio vedere i dettagli",
     "cleaning": "Pulizia in corso…",
@@ -904,12 +904,12 @@
       "testing": "Provo…",
       "works": "Funziona. Risposta in {seconds} secondi.",
       "notes": {
-        "cliCost": "💶 Nessun costo extra: usa i limiti del tuo abbonamento.",
-        "cliTools": "🔒 Parte in una cartella vuota e senza strumenti: non può leggere, cambiare o cancellare file.",
-        "apiCost": "💶 Circa 1 centesimo a domanda con i modelli consigliati.",
-        "apiDirect": "🔒 La domanda va dal tuo PC al servizio, senza server nostri in mezzo.",
-        "localPrivate": "🔒 Nessun dato esce dal PC.",
-        "localFree": "💶 Gratis."
+        "cliCost": "Nessun costo extra: usa i limiti del tuo abbonamento.",
+        "cliTools": "Parte in una cartella vuota e senza strumenti: non può leggere, cambiare o cancellare file.",
+        "apiCost": "Circa 1 centesimo a domanda con i modelli consigliati.",
+        "apiDirect": "La domanda va dal tuo PC al servizio, senza server nostri in mezzo.",
+        "localPrivate": "Nessun dato esce dal PC.",
+        "localFree": "Gratis."
       },
       "autoStarts": "Si avvia da solo",
       "starting": "Avvio Unsloth Studio… {seconds} s",
@@ -924,19 +924,19 @@
       "leadEnd": ": decidi sempre tu, e tutto passa dalla Quarantena.",
       "online": {
         "title": "Online",
-        "a": "👍 Risposte migliori e veloci",
-        "b": "🎟️ Usa un abbonamento che hai già (Claude, ChatGPT, Google) tramite il suo programma, oppure una chiave API",
-        "c": "📤 Escono percorso e nomi dei file, mai il contenuto"
+        "a": "Risposte migliori e veloci",
+        "b": "Usa un abbonamento che hai già (Claude, ChatGPT, Google) tramite il suo programma, oppure una chiave API",
+        "c": "Escono percorso e nomi dei file, mai il contenuto"
       },
       "local": {
         "title": "Sul PC",
-        "a": "🔒 Nessun dato esce dal PC",
-        "b": "📦 Usa un programma che hai già: Ollama, LM Studio, Unsloth Studio…",
-        "c": "🐢 Più lento, e sbaglia più spesso sulle cartelle rare"
+        "a": "Nessun dato esce dal PC",
+        "b": "Usa un programma che hai già: Ollama, LM Studio, Unsloth Studio…",
+        "c": "Più lento, e sbaglia più spesso sulle cartelle rare"
       },
       "off": {
         "title": "No, grazie",
-        "a": "📚 L'app continua con le sue spiegazioni integrate"
+        "a": "L'app continua con le sue spiegazioni integrate"
       },
       "changeLater": "Puoi cambiare idea quando vuoi in Impostazioni.",
       "continue": "Continua",
