@@ -12,9 +12,10 @@ name: Release
 #
 #   git tag v0.2.0 && git push origin v0.2.0
 #
-# To rebuild an existing tag (for example after fixing this workflow), run it by hand
-# from the Actions tab and type the tag. Pull requests that change this file run it as a
-# dry run: everything except creating the release.
+# Or, without git: Actions > Release > Run workflow, on main, and type the new tag. If the
+# tag does not exist yet, it is created on the commit the run starts from. The same button
+# rebuilds an existing tag (for example after fixing this workflow). Pull requests that
+# change this file run it as a dry run: everything except creating the release.
 
 on:
   push:
@@ -22,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to build, e.g. v0.2.0"
+        description: "Tag to build, e.g. v0.2.0 (created on this branch if it does not exist yet)"
         required: true
         type: string
   pull_request:
@@ -44,6 +45,22 @@ jobs:
       TAG: ${{ inputs.tag || (github.event_name == 'push' && github.ref_name) || '' }}
       GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Create the tag when run by hand for a new version
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          if ($env:TAG -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
+            throw "Tag '$env:TAG' is not a version tag like v1.2.3 or v1.2.3-beta.1"
+          }
+          gh api "repos/${{ github.repository }}/git/ref/tags/$env:TAG" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Tag $env:TAG exists: building it as it is."
+          } else {
+            gh api "repos/${{ github.repository }}/git/refs" -f "ref=refs/tags/$env:TAG" -f "sha=${{ github.sha }}" | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "Could not create tag $env:TAG" }
+            Write-Host "Created tag $env:TAG on ${{ github.ref_name }} at ${{ github.sha }}."
+          }
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.TAG && format('refs/tags/{0}', env.TAG) || '' }}
