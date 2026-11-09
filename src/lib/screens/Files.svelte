@@ -462,19 +462,19 @@
           {:else if confirmAll}
             <p>{t("ai.all.confirm", { count: left, service: serviceLabel(settings.ai.service, settings.ai.model) })}</p>
             <div class="ai-buttons">
-              <button class="btn btn-ai" onclick={() => startAskAll(focused)}>✨ {t("ai.all.ask", { count: left })}</button>
+              <button class="btn btn-ai" onclick={() => startAskAll(focused)}><Icon name="sparkle" />{t("ai.all.ask", { count: left })}</button>
               <button class="btn btn-ghost" onclick={() => (confirmAll = false)}>{t("common.cancel")}</button>
             </div>
           {:else}
             {#if answered.length}
               {@const first = answerFor(answered[0].path)}
-              <p>✨ {t(answered.length === 1 ? "ai.all.lookedOne" : "ai.all.looked", { count: answered.length })}{first ? ` · ${serviceLabel(first.service, first.model)}` : ""}</p>
+              <p><Icon name="sparkle" />{t(answered.length === 1 ? "ai.all.lookedOne" : "ai.all.looked", { count: answered.length })}{first ? ` · ${serviceLabel(first.service, first.model)}` : ""}</p>
             {:else}
-              <p>✨ {t(left === 1 ? "ai.all.introOne" : "ai.all.intro", { count: left })}</p>
+              <p><Icon name="sparkle" />{t(left === 1 ? "ai.all.introOne" : "ai.all.intro", { count: left })}</p>
             {/if}
             <div class="ai-buttons">
               {#if left}
-                <button class="btn btn-ai" onclick={() => startAskAll(focused)}>✨ {answered.length ? t("ai.all.askRest", { count: left }) : t("ai.all.askAll")}</button>
+                <button class="btn btn-ai" onclick={() => startAskAll(focused)}><Icon name="sparkle" />{answered.length ? t("ai.all.askRest", { count: left }) : t("ai.all.askAll")}</button>
               {/if}
               {#if answered.length}
                 <button class="link" onclick={() => forgetAnswers(answered.map((i) => i.path))}>{t("ai.all.forget")}</button>
@@ -636,8 +636,9 @@
   .show-all { border: none; background: none; color: var(--accent); font-size: 12.5px; padding: 6px 0 0; text-align: left; cursor: pointer; }
   .wide { width: 100%; padding: 10px; margin-top: 14px; }
   .wide + .wide { margin-top: 8px; }
-  .ai-bar { margin-top: 12px; border: 1px solid var(--tip-border); background: var(--tip-bg); border-radius: var(--radius-sm); padding: 9px 11px; font-size: 12.5px; line-height: 1.4; }
-  .ai-bar p { display: flex; align-items: center; gap: 6px; }
+  .ai-bar { margin-top: 12px; border: 1px solid var(--border); border-left: 3px solid var(--ai); background: var(--bg); border-radius: var(--radius-sm); padding: 9px 11px; font-size: 12.5px; line-height: 1.4; }
+  .ai-bar p { display: flex; align-items: flex-start; gap: 6px; }
+  .ai-bar p :global(.icon) { color: var(--ai-fg); margin-top: 0.15em; }
   .ai-buttons { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
   .ai-buttons .btn { padding: 6px 12px; font-size: 12.5px; }
   .ai-bar .link { border: none; background: none; color: var(--accent); padding: 0; font-size: 12.5px; }

@@ -172,8 +172,8 @@
     <div class="row block">
       {#if settings.ai.mode === "online"}
         <div class="segmented tabs" role="tablist">
-          <button role="tab" aria-selected={aiTab === "cli"} class:on={aiTab === "cli"} onclick={() => (aiTab = "cli")}>🎟️ {t("ai.setup.tabCli")}</button>
-          <button role="tab" aria-selected={aiTab === "api"} class:on={aiTab === "api"} onclick={() => (aiTab = "api")}>🔑 {t("ai.setup.tabApi")}</button>
+          <button role="tab" aria-selected={aiTab === "cli"} class:on={aiTab === "cli"} onclick={() => (aiTab = "cli")}><Icon name="ticket" />{t("ai.setup.tabCli")}</button>
+          <button role="tab" aria-selected={aiTab === "api"} class:on={aiTab === "api"} onclick={() => (aiTab = "api")}><Icon name="key" />{t("ai.setup.tabApi")}</button>
         </div>
       {/if}
       {#key settings.ai.mode === "local" ? "local" : aiTab}
@@ -218,7 +218,7 @@
   <div class="row block">
     <span>{t("ai.settings.never")}</span>
     <div class="never">
-      {#each ["contents", "username", "apps", "personal"] as item (item)}<span>✅ {t(`ai.settings.neverItems.${item}`)}</span>{/each}
+      {#each ["contents", "username", "apps", "personal"] as item (item)}<span class="never-item"><Icon name="checkCircle" />{t(`ai.settings.neverItems.${item}`)}</span>{/each}
     </div>
   </div>
 </div>
@@ -262,5 +262,7 @@
   .block { flex-direction: column; align-items: stretch; gap: 10px; }
   .tabs { align-self: flex-start; }
   .never { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; }
+  .never-item { display: inline-flex; align-items: center; gap: 6px; }
+  .never-item :global(.icon) { color: var(--safe-fg); }
   .row .btn:disabled { opacity: 0.5; cursor: default; }
 </style>

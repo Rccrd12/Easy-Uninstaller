@@ -1,4 +1,8 @@
 <script lang="ts">
+  import Icon from "./Icon.svelte";
+  import type { IconName } from "../icons";
+
+  const NOTE_ICONS: Record<string, IconName> = { cliCost: "money", cliTools: "lock", apiCost: "money", apiDirect: "lock", localPrivate: "lock", localFree: "money" };
   import { onMount } from "svelte";
   import { aiModels, aiOpenPage, aiRemoveKey, aiServices, aiSetKey, aiTest } from "../api";
   import { ai, AI_SERVICES, aiConfig, aiErrorText, recommendedModel, serviceInfo, type AiKind, type AiServiceInfo } from "../ai.svelte";
@@ -180,18 +184,18 @@
         {@const off = s.kind === "cli" && status(s.id) && !status(s.id).found}
         <button class="option" class:on={selected === s.id} role="radio" aria-checked={selected === s.id} disabled={!!off} onclick={() => select(s.id)}>
           <span class="radio" aria-hidden="true"></span>
-          <span class="icon" aria-hidden="true">{s.icon}</span>
+          <span class="icon"><Icon name={s.icon} size={18} /></span>
           <span class="text">
             <b>{t(`ai.services.${s.id}.name`)}</b>
             <span class="muted">{subtitle(s)}</span>
           </span>
-          {#if b}<span class="badge {b.tone}">{b.tone === "ok" ? "✓ " : ""}{b.text}</span>{/if}
+          {#if b}<span class="badge {b.tone}">{#if b.tone === "ok"}<Icon name="check" size={12} />{/if}{b.text}</span>{/if}
         </button>
       {/each}
     </div>
     <div class="links">
       {#each missing as s (s.id)}
-        <button class="link" onclick={() => aiOpenPage(s.installPage ?? "")}>{t("ai.picker.howToInstall", { name: t(`ai.services.${s.id}.name`) })} ↗</button>
+        <button class="link" onclick={() => aiOpenPage(s.installPage ?? "")}>{t("ai.picker.howToInstall", { name: t(`ai.services.${s.id}.name`) })}<Icon name="openExternal" size={12} /></button>
         <span class="muted">·</span>
       {/each}
       <button class="link" disabled={checking} onclick={refresh}>{checking ? t("ai.picker.checking") : t("ai.picker.checkAgain")}</button>
@@ -213,7 +217,7 @@
           <span class="field-label">{t(info.id === "unsloth" ? "ai.picker.unslothKey" : "ai.picker.key")}{info.optionalKey ? ` (${t("ai.picker.optional")})` : ""}</span>
           {#if hasKey}
             <div class="saved">
-              <span class="ok-text">✓ {t("ai.picker.keyStored")}</span>
+              <span class="ok-text"><Icon name="check" size={14} />{t("ai.picker.keyStored")}</span>
               <button class="link" onclick={removeKey}>{t("ai.picker.removeKey")}</button>
             </div>
           {:else}
@@ -224,7 +228,7 @@
             {#if keyError}<span class="bad-text small">{keyError}</span>{/if}
           {/if}
           {#if info.keyPage}
-            <button class="link small" onclick={() => aiOpenPage(info.keyPage ?? "")}>{t("ai.picker.getKey")} ↗</button>
+            <button class="link small" onclick={() => aiOpenPage(info.keyPage ?? "")}>{t("ai.picker.getKey")}<Icon name="openExternal" size={12} /></button>
           {/if}
         </div>
       {/if}
@@ -266,7 +270,7 @@
           {test?.state === "running" ? (ai.starting !== null && info.id === "unsloth" ? t("ai.picker.starting", { seconds: ai.starting }) : t("ai.picker.testing")) : t("ai.picker.test")}
         </button>
         {#if test?.state === "ok"}
-          <span class="ok-text" role="status">✓ {t("ai.picker.works", { seconds: seconds(test.ms) })}</span>
+          <span class="ok-text" role="status"><Icon name="check" size={14} />{t("ai.picker.works", { seconds: seconds(test.ms) })}</span>
         {:else if test?.state === "fail"}
           <span class="bad-text" role="status">{test.error}</span>
         {/if}
@@ -274,7 +278,7 @@
 
       <ul class="notes">
         {#each kind === "cli" ? ["cliCost", "cliTools"] : kind === "api" ? ["apiCost", "apiDirect"] : ["localPrivate", "localFree"] as note (note)}
-          <li>{t(`ai.picker.notes.${note}`)}</li>
+          <li><Icon name={NOTE_ICONS[note]} />{t(`ai.picker.notes.${note}`)}</li>
         {/each}
       </ul>
     {/if}
@@ -293,16 +297,16 @@
   .option:disabled .text, .option:disabled .icon { opacity: 0.55; }
   .radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border-strong); flex: none; }
   .option.on .radio { border-color: var(--ai); box-shadow: inset 0 0 0 3px var(--surface); background: var(--ai); }
-  .icon { font-size: 18px; flex: none; width: 22px; text-align: center; }
+  .icon { display: flex; justify-content: center; flex: none; width: 22px; color: var(--text-muted); }
   .text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .text b { font-size: 13px; }
   .text .muted { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; flex: none; }
+  .badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; flex: none; }
   .badge.ok { background: var(--safe-bg); color: var(--safe-fg); }
   .badge.warn { background: var(--check-bg); color: var(--check-fg); }
   .badge.off { background: var(--track); color: var(--text-muted); }
   .links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; font-size: 12.5px; }
-  .link { border: none; background: none; color: var(--accent); padding: 0; font-size: 12.5px; text-align: left; }
+  .link { border: none; background: none; color: var(--accent); padding: 0; font-size: 12.5px; text-align: left; display: inline-flex; align-items: center; gap: 3px; }
   .link:disabled { opacity: 0.6; cursor: default; }
   .field { display: flex; flex-direction: column; gap: 4px; }
   .field-label { font-size: 12.5px; font-weight: 600; }
@@ -316,8 +320,10 @@
   .auto .small { display: block; font-weight: 400; margin-top: 2px; line-height: 1.4; }
   .test { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
   .test .btn:disabled, .key-row .btn:disabled { opacity: 0.5; cursor: default; }
-  .ok-text { color: var(--safe-fg); font-size: 12.5px; }
+  .ok-text { display: inline-flex; align-items: center; gap: 4px; color: var(--safe-fg); font-size: 12.5px; }
   .bad-text { color: var(--keep-fg); font-size: 12.5px; }
+  .notes li { display: flex; gap: 7px; align-items: flex-start; }
+  .notes li :global(.icon) { color: var(--text-muted); margin-top: 0.15em; }
   .notes { list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; line-height: 1.4; }
   @media (max-width: 760px) {
     .picker { grid-template-columns: 1fr; }
