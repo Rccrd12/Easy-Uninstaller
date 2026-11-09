@@ -384,8 +384,10 @@ export interface SearchFilter {
   /** Words that must all be in the file or folder names. */
   words: string[];
   sort: SearchSort;
-  /** Parts of the sentence a file name cannot show ("of the holidays"): shown, never searched. */
-  unsure: string[];
+  /** What the files show or are about ("holidays at the sea"): looked for in the local index. */
+  topic: string | null;
+  /** With a topic: also the files only a little like it. */
+  loose: boolean;
 }
 
 export interface FoundFile {
@@ -406,6 +408,59 @@ export interface SearchResult {
   tooMany: boolean;
   /** The search stopped early (a very large profile). */
   partial: boolean;
+  /** The topic was looked for in the local index: files in order of likeness. */
+  byTopic: boolean;
+  /** Photos and videos the index has not looked at yet. */
+  notIndexed: number;
+  /** Files left out for being only a little like the topic. */
+  lessAlike: number;
+  /** Why the topic could not be looked for (an `index.error.*` key). */
+  topicError: string | null;
+}
+
+// ── The local index (src-tauri/src/semantic.rs) ─────────────────────────────
+
+/** Light: 4-bit model. Better: 8-bit. Best: 16-bit, three times the size. */
+export type IndexQuality = "light" | "better" | "best";
+/** Quick: the video's preview. Partial: 8 frames. Full: one frame every 5 seconds. */
+export type IndexDepth = "quick" | "partial" | "full";
+
+export interface IndexSettings {
+  quality: IndexQuality;
+  depth: IndexDepth;
+  photos: boolean;
+  videos: boolean;
+  /** Through Windows Search, which already reads them. */
+  documents: boolean;
+  /** Every fixed drive, not only the user's folders. */
+  wholePc: boolean;
+  paused: boolean;
+}
+
+export interface IndexDownload {
+  doneBytes: number;
+  totalBytes: number;
+  /** Checking the files before they are used. */
+  verifying: boolean;
+}
+
+export interface IndexStatus {
+  settings: IndexSettings;
+  /** The chosen model and the engine are on this PC. */
+  ready: boolean;
+  download: IndexDownload | null;
+  /** An `index.error.*` key, maybe with `:detail`. */
+  error: string | null;
+  indexing: boolean;
+  /** Photos and videos in the index. */
+  indexed: number;
+  /** Still to look at in this round. */
+  pending: number;
+  /** The file being looked at. */
+  current: string | null;
+  diskBytes: number;
+  /** Still to download for the chosen model. */
+  downloadBytes: number;
 }
 
 // ── Tidying Downloads (src-tauri/src/tidy.rs) ──────────────────────────────

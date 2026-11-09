@@ -2,6 +2,7 @@
   import Icon from "./Icon.svelte";
   import { aiReady, openSetup } from "../ai.svelte";
   import { t } from "../i18n/index.svelte";
+  import { indexReady, watchIndex } from "../localIndex.svelte";
   import { settings } from "../settings.svelte";
 
   /**
@@ -16,7 +17,10 @@
     text = value;
   });
 
+  watchIndex();
   const ready = $derived(aiReady());
+  /** No AI, but the local index: a few words of what the files show. */
+  const content = $derived(!ready && indexReady());
   const service = $derived(t(`ai.services.${settings.ai.service}.name`));
 
   function submit(e: SubmitEvent) {
@@ -26,15 +30,15 @@
   }
 </script>
 
-<form class="bar" class:ai={ready} onsubmit={submit} role="search">
-  <span class="lead" aria-hidden="true"><Icon name={ready ? "sparkle" : "search"} size={18} /></span>
-  <input bind:value={text} maxlength="300" placeholder={t(ready ? "search.placeholderAi" : "search.placeholderName")} aria-label={t("search.title")} />
+<form class="bar" class:ai={ready || content} onsubmit={submit} role="search">
+  <span class="lead" aria-hidden="true"><Icon name={ready || content ? "sparkle" : "search"} size={18} /></span>
+  <input bind:value={text} maxlength="300" placeholder={t(ready ? "search.placeholderAi" : content ? "search.placeholderContent" : "search.placeholderName")} aria-label={t("search.title")} />
   <button class="btn btn-primary" type="submit" disabled={busy || !text.trim()}>{t("search.button")}</button>
 </form>
 <div class="under">
   {#if ready}
     <span class="muted note icon-line"><Icon name="lock" size={14} />{t("search.sentOnly", { service })}</span>
-  {:else}
+  {:else if !content}
     <span class="muted note">{t("search.aiOff")} <button type="button" class="link" onclick={() => openSetup()}>{t("search.turnOn")}</button></span>
   {/if}
   {#if onTidy}

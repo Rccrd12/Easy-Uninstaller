@@ -149,6 +149,18 @@ pub fn request(
     platform::request(method, url, headers, body, timeout)
 }
 
+/// Streams a big file (the local index's model) into `out`, carrying on from byte
+/// `from` when the server allows it. `progress(bytes, total)` hears every piece and
+/// stops the download by returning false. Redirects (to a download server) are followed.
+pub fn download(
+    url: &Url,
+    out: &mut std::fs::File,
+    from: u64,
+    progress: &mut dyn FnMut(u64, Option<u64>) -> bool,
+) -> Result<(), HttpError> {
+    platform::download(url, out, from, progress)
+}
+
 #[cfg(windows)]
 mod platform {
     use super::{HttpError, Response, Url, MAX_BODY};
@@ -288,6 +300,132 @@ mod platform {
             })
         }
     }
+
+    pub fn download(
+        url: &Url,
+        out: &mut std::fs::File,
+        from: u64,
+        progress: &mut dyn FnMut(u64, Option<u64>) -> bool,
+    ) -> Result<(), HttpError> {
+        use std::io::{Seek, SeekFrom, Write};
+        // A minute without a byte is a dead connection; the download itself may take long.
+        let ms = 60_000;
+        unsafe {
+            let session = Handle(WinHttpOpen(
+                &HSTRING::from("EasyUninstaller/1"),
+                WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+                PCWSTR::null(),
+                PCWSTR::null(),
+                0,
+            ));
+            if session.0.is_null() {
+                return Err(last_error());
+            }
+            WinHttpSetTimeouts(session.0, ms, 15_000, ms, ms).map_err(fail)?;
+            let connect = Handle(WinHttpConnect(
+                session.0,
+                &HSTRING::from(url.host.as_str()),
+                url.port,
+                0,
+            ));
+            if connect.0.is_null() {
+                return Err(last_error());
+            }
+            let req = Handle(WinHttpOpenRequest(
+                connect.0,
+                &HSTRING::from("GET"),
+                &HSTRING::from(url.path.as_str()),
+                PCWSTR::null(),
+                PCWSTR::null(),
+                std::ptr::null(),
+                if url.https {
+                    WINHTTP_FLAG_SECURE
+                } else {
+                    WINHTTP_OPEN_REQUEST_FLAGS(0)
+                },
+            ));
+            if req.0.is_null() {
+                return Err(last_error());
+            }
+            let head: Vec<u16> = if from > 0 {
+                format!("Range: bytes={from}-\r\n").encode_utf16().collect()
+            } else {
+                Vec::new()
+            };
+            WinHttpSendRequest(
+                req.0,
+                (!head.is_empty()).then_some(head.as_slice()),
+                None,
+                0,
+                0,
+                0,
+            )
+            .map_err(fail)?;
+            WinHttpReceiveResponse(req.0, std::ptr::null_mut()).map_err(fail)?;
+
+            let mut status = 0u32;
+            let mut size = std::mem::size_of::<u32>() as u32;
+            WinHttpQueryHeaders(
+                req.0,
+                WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                PCWSTR::null(),
+                Some(&mut status as *mut u32 as *mut c_void),
+                &mut size,
+                std::ptr::null_mut(),
+            )
+            .map_err(fail)?;
+            let mut done = match status {
+                206 => from,
+                200 => {
+                    // The server sends the whole file: start over.
+                    out.set_len(0)
+                        .map_err(|e| HttpError::Other(e.to_string()))?;
+                    0
+                }
+                other => return Err(HttpError::Other(format!("status {other}"))),
+            };
+            out.seek(SeekFrom::Start(done))
+                .map_err(|e| HttpError::Other(e.to_string()))?;
+            let mut length = 0u64;
+            let mut size = std::mem::size_of::<u64>() as u32;
+            let total = WinHttpQueryHeaders(
+                req.0,
+                WINHTTP_QUERY_CONTENT_LENGTH | WINHTTP_QUERY_FLAG_NUMBER64,
+                PCWSTR::null(),
+                Some(&mut length as *mut u64 as *mut c_void),
+                &mut size,
+                std::ptr::null_mut(),
+            )
+            .ok()
+            .map(|_| done + length);
+
+            let mut chunk = vec![0u8; 256 * 1024];
+            loop {
+                let mut read = 0u32;
+                WinHttpReadData(
+                    req.0,
+                    chunk.as_mut_ptr() as *mut c_void,
+                    chunk.len() as u32,
+                    &mut read,
+                )
+                .map_err(fail)?;
+                if read == 0 {
+                    break;
+                }
+                out.write_all(&chunk[..read as usize])
+                    .map_err(|e| HttpError::Other(e.to_string()))?;
+                done += read as u64;
+                if !progress(done, total) {
+                    return Err(HttpError::Other("cancelled".into()));
+                }
+            }
+            out.flush().map_err(|e| HttpError::Other(e.to_string()))?;
+            if total.is_some_and(|t| done < t) {
+                return Err(HttpError::Offline);
+            }
+            Ok(())
+        }
+    }
 }
 
 #[cfg(not(windows))]
@@ -302,6 +440,15 @@ mod platform {
         _body: Option<&[u8]>,
         _timeout: Duration,
     ) -> Result<Response, HttpError> {
+        Err(HttpError::Offline)
+    }
+
+    pub fn download(
+        _url: &Url,
+        _out: &mut std::fs::File,
+        _from: u64,
+        _progress: &mut dyn FnMut(u64, Option<u64>) -> bool,
+    ) -> Result<(), HttpError> {
         Err(HttpError::Offline)
     }
 }

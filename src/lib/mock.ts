@@ -394,7 +394,41 @@ export const sampleSearchPool: SampleFile[] = [
   file("", `${U}\\Documents\\Bills\\Gas Q1 2025.pdf`, 0.3 * MB, "2025-04-12"),
   file("", `${P}\\Sardinia 2022\\IMG_0441.jpg`, 5.8 * MB, "2023-09-02"),
   file("", `${U}\\Music\\Podcasts\\Episode 112.mp3`, 64 * MB, "2024-01-09"),
+  // Names that say nothing: only the local index can tell what they show.
+  file("", `${U}\\Videos\\W20240812RM.mp4`, 3.2 * GB, "2024-08-12"),
+  file("", `${U}\\Videos\\W20240716RM.mp4`, 1.9 * GB, "2024-07-16"),
+  file("", `${U}\\Videos\\W20240304RM.mp4`, 2.8 * GB, "2024-03-04"),
+  file("", `${D}\\C0047.MP4`, 1.4 * GB, "2023-06-21"),
+  file("", `${P}\\Camera\\IMG_20240812_101512.jpg`, 6.1 * MB, "2024-08-12"),
+  file("", `${P}\\Camera\\DSC04412.JPG`, 8.4 * MB, "2024-03-04"),
 ];
+
+/** What the sample photos and videos show, in both languages: the browser's pretend index. */
+const sampleAbout: Record<string, string> = {
+  "W20240812RM.mp4": "vacanze mare spiaggia holiday beach sea",
+  "W20240716RM.mp4": "vacanze montagna holiday mountain",
+  "W20240304RM.mp4": "cantiere lavori building site construction",
+  "C0047.MP4": "matrimonio wedding",
+  "IMG_20240812_101512.jpg": "vacanze mare spiaggia holiday beach sea",
+  "DSC04412.JPG": "cantiere building site construction",
+  "Beach - drone.mp4": "vacanze mare spiaggia holiday beach sea drone",
+  "GOPR0193.MP4": "vacanze mare holiday sea surf",
+  "Mountain_4K.mov": "vacanze montagna holiday mountain",
+  "Wedding video raw.mp4": "matrimonio wedding",
+  "Birthday Anna.mp4": "compleanno festa birthday party",
+  "Electricity March 2025.pdf": "bolletta luce electricity bill",
+  "Gas Q1 2025.pdf": "bolletta gas bill",
+};
+
+/** How alike a sample file is to a topic, roughly like the real index's scores. */
+function sampleLikeness(path: string, topic: string): number {
+  const name = path.slice(path.lastIndexOf("\\") + 1);
+  const about = (sampleAbout[name] ?? "").split(" ").map((w) => w.slice(0, 5));
+  const words = topic.toLowerCase().split(/[^a-zà-ù]+/).filter((w) => w.length >= 4).map((w) => w.slice(0, 5));
+  const hits = words.filter((w) => about.includes(w)).length;
+  const jitter = (name.length % 7) / 200;
+  return hits ? 0.27 + hits * 0.02 + jitter : 0.08 + jitter;
+}
 
 /**
  * In the browser there is no AI to ask: a few words of the sentence become the filter,
@@ -414,11 +448,11 @@ export function sampleUnderstand(sentence: string): SearchFilter {
   const places: SearchPlace[] = [];
   if (/download/.test(s)) places.push("downloads");
   if (/desktop/.test(s)) places.push("desktop");
-  // A topic ("delle vacanze", "of the wedding") that no file name can show.
-  const topic = /\b(?:delle|della|del|dei|degli|dello|of the|of my|from the|from my)\s+([a-zà-ù]+)/i.exec(sentence);
-  const named = /\b(?:holiday|vacation|wedding|birthday)s?\b/i.exec(sentence);
-  const unsure = topic && !/^(anno|anni|mesi|mese|settimana|year|years|months?|weeks?|download|desktop)$/i.test(topic[1]) ? [topic[0]] : named ? [named[0]] : [];
-  return { kinds, minBytes, maxBytes: null, unusedDays, recentDays, places, words: [], sort: /vecch|old/.test(s) && !minBytes ? "oldest" : "size", unsure };
+  // What the files show ("delle vacanze", "of the wedding"), which no file name tells.
+  const of = /\b(?:delle|della|del|dei|degli|dello|of the|of my|from the|from my)\s+([a-zà-ù]+)/i.exec(sentence);
+  const named = /\b(holiday|vacation|wedding|birthday|beach|mountain)s?\b/i.exec(sentence);
+  const topic = of && !/^(anno|anni|mesi|mese|settimana|year|years|months?|weeks?|download|desktop)$/i.test(of[1]) ? of[1] : named ? named[1] : null;
+  return { kinds, minBytes, maxBytes: null, unusedDays, recentDays, places, words: [], sort: /vecch|old/.test(s) && !minBytes ? "oldest" : "size", topic, loose: false };
 }
 
 const KIND_OF: [SearchKind, RegExp][] = [
@@ -434,7 +468,7 @@ const kindOf = (path: string) => KIND_OF.find(([, re]) => re.test(path))?.[0] ??
 const PLACE_DIRS: Record<SearchPlace, string> = { desktop: "Desktop", documents: "Documents", downloads: "Downloads", pictures: "Pictures", videos: "Videos", music: "Music" };
 
 /** The sample search: the same rules as search.rs, over `files`. */
-export function sampleSearch(filter: SearchFilter, files: SampleFile[]): SearchResult {
+export function sampleSearch(filter: SearchFilter, files: SampleFile[], indexReady = false): SearchResult {
   const now = Date.now();
   const age = (iso: string) => (now - new Date(`${iso}T00:00:00`).getTime()) / 86_400_000;
   const found = files.filter((f) => {
@@ -454,13 +488,32 @@ export function sampleSearch(filter: SearchFilter, files: SampleFile[]): SearchR
     newest: (a, b) => b.modified.localeCompare(a.modified),
   };
   found.sort(order[filter.sort]);
+  let shown = found;
+  let lessAlike = 0;
+  const byTopic = !!filter.topic && indexReady;
+  if (byTopic && filter.topic) {
+    const topic = filter.topic;
+    const media = found
+      .filter((f) => ["image", "video"].includes(kindOf(f.path) ?? ""))
+      .map((f) => ({ f, score: sampleLikeness(f.path, topic) }))
+      .sort((a, b) => b.score - a.score);
+    const best = media[0]?.score ?? 0;
+    const kept = media.filter((m) => filter.loose || m.score >= best - 0.08).map((m) => m.f);
+    lessAlike = media.length - kept.length;
+    const documents = found.filter((f) => kindOf(f.path) === "document" && sampleLikeness(f.path, topic) > 0.2);
+    shown = [...kept, ...documents];
+  }
   return {
     filter,
-    files: found.slice(0, 200).map((f) => ({ path: f.path, sizeBytes: f.sizeBytes, lastUsed: f.lastUsed })),
-    totalCount: found.length,
-    totalBytes: found.reduce((s, f) => s + f.sizeBytes, 0),
+    files: shown.slice(0, 200).map((f) => ({ path: f.path, sizeBytes: f.sizeBytes, lastUsed: f.lastUsed })),
+    totalCount: shown.length,
+    totalBytes: shown.reduce((s, f) => s + f.sizeBytes, 0),
     tooMany: false,
     partial: false,
+    byTopic,
+    notIndexed: 0,
+    lessAlike,
+    topicError: null,
   };
 }
 

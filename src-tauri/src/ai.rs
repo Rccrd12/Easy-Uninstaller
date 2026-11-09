@@ -16,7 +16,7 @@
 //! - answers are kept on this PC so the same folder is not asked twice.
 
 mod cli;
-mod http;
+pub(crate) mod http;
 mod keys;
 pub(crate) mod prompt;
 mod services;

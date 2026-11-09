@@ -150,6 +150,15 @@ words in the name), shown as chips you can remove or change, and the search runs
 so your file names never leave it. With the AI off, the box searches by name. Files you pick
 go to Quarantine.
 
+**Search by content** (Settings > Search by content): photos and videos found by what they
+show ("holidays at the sea"), even when they are called W20251201RM.mp4. The app downloads
+EmbeddingGemma 2 and llama.cpp once (about 750 MB, or 1.5 GB for the most precise model,
+each file checked by SHA-256), then indexes your photos and video frames in the background,
+at low priority, with pause. You choose the model size, how many frames of each video
+(the preview, 8 frames, or one every 5 seconds), what to index and where (your folders or
+the whole PC). Documents are found by their text through the index Windows already keeps.
+It works without the online AI too: the sentence itself is the topic.
+
 **Tidy up Downloads** (Files screen): the AI looks at the names of the files lying loose in
 Downloads (names, sizes and months only, shown before sending) and proposes a few folders in
 Downloads, Documents, Pictures, Videos or Music. Without the AI, files can be grouped by
@@ -190,7 +199,8 @@ maintainer privately for anything sensitive.
 15. ✅ First public release, 0.2.0
 16. ✅ AI help, phases 2 and 3: search your files by writing a sentence (only the sentence is
     sent, the search runs on this PC), and tidy up Downloads into proposed folders, with undo
-17. ⬜ Code-signed installer (SignPath) and a stable 1.0
+17. ✅ Search by content: a local index of photos and videos (EmbeddingGemma 2 on llama.cpp)
+18. ⬜ Code-signed installer (SignPath) and a stable 1.0
 
 ## Development
 
