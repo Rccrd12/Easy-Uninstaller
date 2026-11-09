@@ -127,6 +127,7 @@
     "isOpen": "It's open: close it and try again",
     "freed": "Freed {size}.",
     "openSkipped": "{count} apps were open and were skipped.",
+    "openSkippedOne": "1 app was open and was skipped.",
     "inUse": "{files} in use were left.",
     "failed": "Didn't work for {count} apps."
   },

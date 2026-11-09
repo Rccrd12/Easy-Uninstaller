@@ -127,6 +127,7 @@
     "isOpen": "È aperta: chiudila e riprova",
     "freed": "Liberati {size}.",
     "openSkipped": "{count} app erano aperte e sono state saltate.",
+    "openSkippedOne": "1 app era aperta ed è stata saltata.",
     "inUse": "{files} in uso sono rimasti.",
     "failed": "Non è riuscito per {count} app."
   },

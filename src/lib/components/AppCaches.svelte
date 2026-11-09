@@ -97,7 +97,7 @@
       <StatusIcon kind={result.failed || result.open ? "warn" : "ok"} />
       <span>
         {t("cache.freed", { size: formatBytes(result.freed) })}
-        {#if result.open}{" "}{t("cache.openSkipped", { count: result.open })}{/if}
+        {#if result.open}{" "}{result.open === 1 ? t("cache.openSkippedOne") : t("cache.openSkipped", { count: result.open })}{/if}
         {#if result.skipped}{" "}{t("cache.inUse", { files: fileCount(result.skipped) })}{/if}
         {#if result.failed}{" "}{t("cache.failed", { count: result.failed })}{/if}
       </span>
