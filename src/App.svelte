@@ -11,6 +11,7 @@
   import UpdateNotice from "./lib/components/UpdateNotice.svelte";
   import type { Screen } from "./lib/screens";
   import { loadQuarantine } from "./lib/settings.svelte";
+  import { loadReminders, noteAppOpened } from "./lib/reminders.svelte";
   import { checkOnStart } from "./lib/updates.svelte";
 
   let screen = $state<Screen>("home");
@@ -18,6 +19,9 @@
 
   // Defaults stay in place if this fails; Settings shows the error when saving.
   loadQuarantine().catch(() => {});
+  loadReminders().catch(() => {});
+  // On start and whenever the language changes (the notification texts follow it).
+  $effect(noteAppOpened);
   // A few seconds after start, so it never slows down the first screen.
   setTimeout(checkOnStart, 3000);
 </script>

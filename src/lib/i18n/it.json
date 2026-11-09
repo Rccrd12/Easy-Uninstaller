@@ -1027,5 +1027,27 @@
     "text": "Easy Uninstaller {version} è pronto. L'aggiornamento richiede pochi secondi.",
     "update": "Aggiorna",
     "later": "Più tardi"
+  },
+  "reminders": {
+    "title": "Promemoria",
+    "lowSpace": "Avvisami quando il disco è quasi pieno",
+    "lowSpaceHint": "Un avviso di Windows quando su {drive} resta libero meno del {percent}%. Se il disco resta pieno, al massimo una volta a settimana.",
+    "threshold": "Avvisa quando lo spazio libero scende sotto il",
+    "thresholdOption": "{percent}%",
+    "monthly": "Ricordami una pulizia ogni mese",
+    "monthlyHint": "Solo se non apri Easy Uninstaller da 30 giorni.",
+    "how": "Nessun programma resta acceso. Una volta al giorno Windows fa un controllo che dura meno di un secondo, e l'avviso compare solo quando serve.",
+    "sample": "Mostra un avviso di prova",
+    "sampleSent": "Inviato. Se non l'hai visto, controlla che le notifiche siano attive in Impostazioni di Windows > Sistema > Notifiche.",
+    "sampleFailed": "Windows non ha mostrato l'avviso ({error}).",
+    "saveFailed": "Non è stato possibile attivare il promemoria: {error}",
+    "notice": {
+      "lowSpaceTitle": "Il disco {drive} è quasi pieno",
+      "lowSpaceBody": "Restano solo {free} liberi ({percent}%). Apri Easy Uninstaller per liberare spazio in sicurezza.",
+      "monthlyTitle": "È ora di una pulizia",
+      "monthlyBody": "È passato un mese dall'ultimo controllo. Una Pulizia rapida richiede circa un minuto.",
+      "testTitle": "Gli avvisi di Easy Uninstaller sono attivi",
+      "testBody": "I promemoria appariranno così. Fai clic su un avviso per aprire l'app."
+    }
   }
 }

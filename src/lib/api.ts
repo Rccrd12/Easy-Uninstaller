@@ -45,6 +45,8 @@ import type {
   QuarantineEntry,
   QuarantineOptions,
   QuarantineSettings,
+  ReminderSettings,
+  ReminderTexts,
   RestorePointOutcome,
   RestoreReport,
   ReviewFile,
@@ -547,6 +549,39 @@ export async function deleteQuarantine(id: string): Promise<void> {
   if (isTauri()) return invoke("delete_quarantine", { id });
   const i = sampleQuarantine.findIndex((e) => e.id === id);
   if (i >= 0) sampleQuarantine.splice(i, 1);
+}
+
+// ── Reminders (src-tauri/src/reminders.rs) ─────────────────────────────────
+
+/** Free space limits offered for the "almost full" notice. Matches `THRESHOLD_CHOICES` in reminders.rs. */
+export const REMINDER_THRESHOLDS = [5, 10, 15, 20] as const;
+
+const sampleReminders: ReminderSettings = { lowSpace: false, threshold: 10, monthly: false };
+
+export async function getReminders(): Promise<ReminderSettings> {
+  if (isTauri()) return invoke<ReminderSettings>("get_reminders");
+  return { ...sampleReminders };
+}
+
+/**
+ * Saves the reminder choices: Windows gets (or loses) a small scheduled task that checks
+ * once a day. On failure nothing changes and the error is thrown.
+ */
+export async function setReminders(settings: ReminderSettings, texts: ReminderTexts): Promise<void> {
+  if (isTauri()) return invoke("set_reminders", { settings, texts });
+  await sleep(300);
+  Object.assign(sampleReminders, settings);
+}
+
+/** Each time the app opens and when the language changes: the monthly reminder counts from here. */
+export async function remindersOpened(texts: ReminderTexts): Promise<void> {
+  if (isTauri()) return invoke("reminders_opened", { texts });
+}
+
+/** Shows a sample Windows notification right away. */
+export async function previewReminder(title: string, body: string): Promise<void> {
+  if (isTauri()) return invoke("preview_reminder", { title, body });
+  await sleep(300);
 }
 
 /** Real: src-tauri/src/restore_point.rs. Windows asks the user for permission. */

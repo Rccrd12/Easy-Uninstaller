@@ -197,6 +197,26 @@ export interface QuarantineSettings {
   drive: string | null;
 }
 
+/** Mirrors `ReminderSettings` in src-tauri/src/reminders.rs. */
+export interface ReminderSettings {
+  /** A Windows notification when less than `threshold` percent of the system drive is free. */
+  lowSpace: boolean;
+  /** One of `REMINDER_THRESHOLDS` in api.ts. */
+  threshold: number;
+  /** A Windows notification when the app has not been opened for 30 days. */
+  monthly: boolean;
+}
+
+/** Mirrors `ReminderTexts` in src-tauri/src/reminders.rs: the notifications in the user's language. */
+export interface ReminderTexts {
+  lowSpaceTitle: string;
+  lowSpaceBody: string;
+  monthlyTitle: string;
+  monthlyBody: string;
+  /** The decimal separator for sizes. */
+  decimal: string;
+}
+
 /** Another fixed drive. Mirrors `DriveInfo` in src-tauri/src/disk.rs. */
 export interface DriveInfo {
   mountPoint: string;

@@ -37,6 +37,10 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
   you ask it to.
 - **Updates itself.** *Settings > Check for updates*: one click, and it opens again on the
   new version, with your settings and Quarantine as they were.
+- **Reminders, if you want them.** *Settings > Reminders*: a Windows notice when the system
+  disk is almost full, or a monthly reminder to clean up. Off by default. Nothing keeps
+  running: a small scheduled task checks once a day in under a second, and uninstalling
+  the app removes it.
 - **English and Italian.** Picked from your system language, changeable in Settings.
 - **Light and dark.** Follows the Windows mode by default, changeable in Settings.
 
