@@ -22,7 +22,7 @@ pub const ENGINE: Pinned = Pinned {
     file: "llama-b12207-bin-win-cpu-x64.zip",
     url: "https://github.com/ggml-org/llama.cpp/releases/download/b12207/llama-b12207-bin-win-cpu-x64.zip",
     sha256: "24447c546dca02bc449c7369eba07608cf5b170a59042ef388712654356d0d4c",
-    size: 23_700_000,
+    size: 24_886_130,
 };
 
 /// The engine's version: a new one is unpacked next to the model when this changes.
