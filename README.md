@@ -116,6 +116,12 @@ Safety is the first goal of this project, ahead of features and speed.
   previews; every duplicate set always keeps one copy. Files, folders, whole groups or
   leftovers you want to keep can be hidden, and shown again from Settings: hiding never
   moves or deletes anything.
+- **Space without deleting.** *Files > Free up space without deleting anything* never removes
+  a file. Files already saved on OneDrive can become "online only", the same as OneDrive's
+  own *Free up space*: OneDrive keeps them in the cloud and downloads them when opened. Big
+  videos, archives and disk images can move to another drive, into a folder named
+  *Moved from C*; each one can be moved back from the app. Files inside OneDrive, apps
+  and games are never moved.
 - **Personal files are never pre-selected.** Groups labelled *Check* or *Personal* are
   only removed if you tick them yourself.
 
@@ -227,6 +233,7 @@ src-tauri/              backend (Rust)
   src/space.rs          space map: what takes up the system drive
   src/uninstall.rs      runs uninstallers (quietly when possible) and Store app removal
   src/leftovers.rs      finds what an app left behind: folders, registry keys, shortcuts
+  src/offload.rs        space without deleting: OneDrive "online only", moving to another drive
   src/cleanup.rs        removes scanned files: some groups deleted, the rest to quarantine
   src/quarantine.rs     moves items to quarantine, restores and expires them
   src/elevated.rs       the few steps that need administrator rights

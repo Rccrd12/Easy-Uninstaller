@@ -1,7 +1,7 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage } from "./types";
+import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, InstalledApp, LeftoverItem, OffloadFile, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage } from "./types";
 
 export const sampleApps: InstalledApp[] = [
   { id: "photoshop", name: "Adobe Photoshop 2025", publisher: "Adobe", sizeBytes: 6.8 * GB, source: "win32", installedOn: "2025-01-14", lastUsed: "3 months ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#e3008c", icon: null },
@@ -378,3 +378,30 @@ export function sampleAiAnswer(path: string, lang: string, service: string, mode
     askedAt: nowS(),
   };
 }
+
+// ── Free up space without deleting ────────────────────────────────────────
+
+const OD = `${U}\\OneDrive`;
+const offloadFile = (path: string, sizeBytes: number, lastUsed: string): OffloadFile => ({ path, sizeBytes, lastUsed });
+
+/** OneDrive files on the PC and in the cloud, largest first. The rest are many small photos. */
+export const sampleOnlineFiles: OffloadFile[] = [
+  offloadFile(`${OD}\\Videos\\Luca's wedding.mp4`, 3.2 * GB, "2024-07-02"),
+  offloadFile(`${OD}\\Pictures\\2019\\Holidays 2019.zip`, 2.8 * GB, "2020-01-12"),
+  offloadFile(`${OD}\\Documents\\Phone backup.zip`, 1.9 * GB, "2023-11-30"),
+  offloadFile(`${OD}\\Videos\\Graduation.mov`, 1.1 * GB, "2022-10-21"),
+  offloadFile(`${OD}\\Pictures\\Camera Roll\\VID_20230812.mp4`, 740 * MB, "2023-08-12"),
+  offloadFile(`${OD}\\Documents\\Thesis\\Thesis - final.pdf`, 210 * MB, "2021-03-09"),
+  offloadFile(`${OD}\\Pictures\\Camera Roll\\IMG_4471.HEIC`, 6.1 * MB, "2023-09-17"),
+];
+export const sampleOnlineCount = 3408;
+export const sampleOnlineBytes = 12.4 * GB;
+
+/** Videos, archives and disk images in the user's folders, largest first. */
+export const sampleMoveFiles: OffloadFile[] = [
+  offloadFile(`${U}\\Videos\\Game capture 2025-02-03.mp4`, 5.6 * GB, "2025-02-03"),
+  offloadFile(`${U}\\Videos\\Family videos 2019.mkv`, 2.2 * GB, "2020-01-06"),
+  offloadFile(`${D}\\ubuntu-22.04-desktop-amd64.iso`, 1.2 * GB, "2023-02-11"),
+  offloadFile(`${D}\\Vacation photos.zip`, 860 * MB, "2023-09-03"),
+  offloadFile(`${U}\\Music\\Albums\\Live in Rome.flac`, 480 * MB, "2022-04-09"),
+];

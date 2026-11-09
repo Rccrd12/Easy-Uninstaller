@@ -629,7 +629,7 @@ pub async fn show_scanned_file(app: AppHandle, path: String) -> Result<(), Strin
 }
 
 #[cfg(windows)]
-mod platform {
+pub(crate) mod platform {
     use std::io;
     use std::os::windows::process::CommandExt;
     use std::path::Path;
@@ -698,7 +698,7 @@ mod platform {
 
 /// Easy Uninstaller targets Windows; elsewhere there are no previews and nothing opens.
 #[cfg(not(windows))]
-mod platform {
+pub(crate) mod platform {
     use std::io;
     use std::path::Path;
 

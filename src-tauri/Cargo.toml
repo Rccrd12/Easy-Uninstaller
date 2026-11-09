@@ -34,6 +34,8 @@ windows = { version = "0.62", features = [
   # The AI help: HTTPS through the system's WinHTTP, API keys in Credential Manager.
   "Win32_Networking_WinHttp",
   "Win32_Security_Credentials",
+  # OneDrive "online only": the same file attribute as OneDrive's own "Free up space".
+  "Win32_Storage_FileSystem",
   "Win32_System_Com",
   "Win32_System_Registry",
   "Win32_System_Threading",

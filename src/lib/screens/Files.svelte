@@ -5,6 +5,8 @@
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
   import Icon from "../components/Icon.svelte";
   import FileReview from "../components/FileReview.svelte";
+  import OffloadCards from "../components/OffloadCards.svelte";
+  import OffloadPanel from "../components/OffloadPanel.svelte";
   import StatusIcon from "../components/StatusIcon.svelte";
   import SafetyTag from "../components/SafetyTag.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
@@ -24,6 +26,7 @@
     usesSampleData,
   } from "../api";
   import { quarantine, settings } from "../settings.svelte";
+  import { loadOffload } from "../offload.svelte";
   import { ai, aiErrorText, aiReady, answerFor, askAll, forgetAnswers, loadSavedAnswers, openSetup, serviceLabel, stopAskAll } from "../ai.svelte";
   import { fileCount, formatBytes, removedLines, restoreSummary } from "../format";
   import { locale, t } from "../i18n/index.svelte";
@@ -67,6 +70,8 @@
   let menu = $state<{ group: FileGroup; x: number; y: number } | null>(null);
 
   const focused = $derived(groups.find((g) => g.id === focusedId) ?? null);
+  /** The "without deleting" cards (OneDrive, another drive) are not file groups. */
+  const isOffload = (id: string | null) => id === "offload-onedrive" || id === "offload-move";
 
   /** Groups of single files can be reviewed one by one; folder groups (temp) cannot. */
   const reviewable = (g: FileGroup) => g.items.length > 0 && g.items.every((i) => i.lastUsed !== null);
@@ -80,12 +85,13 @@
     scanning = true;
     error = null;
     progress = null;
+    loadOffload(rescan);
     listFileGroups({ rescan, onProgress: (p) => (progress = p) })
       .then((g) => {
         groups = g;
         // Pre-select only what is safe; anything else needs the user's eyes.
         checked = new Set(g.filter((x) => x.safety === "safe" && !x.reviewOnly).map((x) => x.id));
-        if (!g.some((x) => x.id === focusedId)) focusedId = null;
+        if (!isOffload(focusedId) && !g.some((x) => x.id === focusedId)) focusedId = null;
         loadSavedAnswers(g.filter((x) => x.reviewOnly).flatMap((x) => unknownItems(x).map((i) => i.path)));
       })
       .catch((e) => (error = String(e)))
@@ -303,7 +309,7 @@
     keepFileGroups(next);
     if (reviewing) reviewing = next.find((g) => g.id === reviewing?.id) ?? reviewing;
     checked = new Set([...checked].filter((id) => next.some((g) => g.id === id)));
-    if (!next.some((g) => g.id === focusedId)) focusedId = null;
+    if (!isOffload(focusedId) && !next.some((g) => g.id === focusedId)) focusedId = null;
     if (!focusedId) explained = null;
   }
 
@@ -382,8 +388,10 @@
       </div>
     {:else if groups.length === 0}
       <div class="card message"><span class="big-icon"><Icon name="checkCircle" size={26} /></span><p>{t("files.empty")}</p></div>
+      <OffloadCards {focusedId} onFocus={focus} />
     {:else}
-      {#each sections as section (section.title)}
+      {#each sections as section, i (section.title)}
+        {#if i === 1}<OffloadCards {focusedId} onFocus={focus} />{/if}
         {#if section.items.length}
           <h2>{t(section.title)}</h2>
           {#each section.items as group (group.id)}
@@ -527,6 +535,10 @@
           {moving ? t("files.moving") : actionLabel(deletes, !deletes, focused.sizeBytes)}
         </button>
       {/if}
+    {:else if isOffload(focusedId)}
+      {#key focusedId}
+        <OffloadPanel kind={focusedId === "offload-onedrive" ? "onedrive" : "move"} />
+      {/key}
     {:else}
       <p class="muted">{t("files.pickGroup")}</p>
     {/if}

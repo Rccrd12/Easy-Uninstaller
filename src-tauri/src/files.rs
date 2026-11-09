@@ -552,7 +552,7 @@ pub fn to_camel(id: &str) -> String {
 }
 
 /// Drops repeated folders and folders inside another one in the list, so nothing is counted twice.
-fn dedup_dirs(dirs: &[PathBuf]) -> Vec<PathBuf> {
+pub(crate) fn dedup_dirs(dirs: &[PathBuf]) -> Vec<PathBuf> {
     let mut out: Vec<PathBuf> = Vec::new();
     for dir in dirs {
         if !out.iter().any(|d| dir.starts_with(d)) {
@@ -565,7 +565,7 @@ fn dedup_dirs(dirs: &[PathBuf]) -> Vec<PathBuf> {
 
 /// Walks `root` without following links, calling `on_file` for every regular file.
 /// Folders for which `skip_dir` returns true are not entered. Unreadable entries are skipped.
-fn walk(
+pub(crate) fn walk(
     root: &Path,
     skip_dir: &dyn Fn(&Path) -> bool,
     on_file: &mut dyn FnMut(PathBuf, &Metadata),
@@ -601,7 +601,7 @@ fn walk(
 }
 
 /// In the user's folders, app data and developer folders are not personal files.
-fn skip_personal_dir(path: &Path) -> bool {
+pub(crate) fn skip_personal_dir(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
         return false;
     };

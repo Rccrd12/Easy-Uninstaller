@@ -10,6 +10,7 @@ mod elevated;
 mod explain;
 mod files;
 mod leftovers;
+mod offload;
 mod quarantine;
 mod regkey;
 mod restore_point;
@@ -30,6 +31,7 @@ pub fn run() {
         .manage(ai::Answers::default())
         .manage(files::LastScan::default())
         .manage(leftovers::LastLeftovers::default())
+        .manage(offload::LastOffload::default())
         .manage(uninstall::Pending::default())
         .manage(updater::PendingUpdate::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -56,6 +58,13 @@ pub fn run() {
             files::scan_files,
             leftovers::list_leftovers,
             leftovers::quarantine_leftovers,
+            offload::scan_offload,
+            offload::current_offload,
+            offload::make_online_only,
+            offload::keep_on_this_pc,
+            offload::move_to_drive,
+            offload::move_back_files,
+            offload::show_moved_file,
             quarantine::get_quarantine_options,
             quarantine::set_quarantine_settings,
             quarantine::list_quarantine,
