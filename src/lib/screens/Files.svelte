@@ -613,8 +613,8 @@
 <style>
   .layout { display: flex; gap: 18px; align-items: flex-start; }
   .col { flex: 1; min-width: 0; }
-  .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-  .head .btn { flex: none; margin-top: 4px; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .head .btn { flex: none; margin-block: -4px; } /* taller than the title: keeps the title where it is on every screen */
   h2 { font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.3px; text-transform: uppercase; margin: 14px 0 6px; }
   .group { display: flex; align-items: center; gap: 12px; padding: 11px 14px; margin-bottom: 7px; border-width: 2px; border-color: transparent; cursor: pointer; }
   .group.focused { border-color: var(--accent); }

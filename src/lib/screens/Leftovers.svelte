@@ -324,8 +324,8 @@
 {/if}
 
 <style>
-  .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-  .head .btn { flex: none; margin-top: 4px; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .head .btn { flex: none; margin-block: -4px; } /* taller than the title: keeps the title where it is on every screen */
   .group { padding: 6px 14px 4px; margin-bottom: 10px; }
   .group-head { display: flex; align-items: center; gap: 8px; padding: 8px 4px; border-bottom: 1px solid var(--border); font-size: 14px; }
   .group-head input { width: 18px; height: 18px; accent-color: var(--accent); margin-right: 3px; }

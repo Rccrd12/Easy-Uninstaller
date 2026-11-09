@@ -106,6 +106,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 h1 { font-size: 24px; font-weight: 600; }
+/* Every screen opens with its title: the same space below it everywhere, unless a
+   subtitle follows (it sets its own spacing). Screens with a button beside the title do the same. */
+main > h1:not(:has(+ .sub)) { margin-bottom: 16px; }
 button { font-family: inherit; font-size: 13px; cursor: pointer; color: var(--text); }
 input, select { font-family: inherit; color: var(--text); }
 select { background: var(--surface); }
