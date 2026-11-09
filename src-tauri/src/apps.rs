@@ -28,6 +28,10 @@ pub struct InstalledApp {
     /// 0 when Windows does not know and the install folder could not be measured.
     pub size_bytes: u64,
     pub source: AppSource,
+    /// As the app reports it ("12.3.1"); empty when unknown. Shown with the technical details.
+    pub version: String,
+    /// The install folder, when known. Shown with the technical details.
+    pub location: Option<String>,
     /// ISO date (YYYY-MM-DD).
     pub installed_on: Option<String>,
     /// Windows has no reliable "last used" value: always `None` for now.
@@ -104,6 +108,8 @@ fn from_registry(e: registry::Entry) -> InstalledApp {
         publisher: e.publisher,
         size_bytes,
         source: e.source,
+        version: e.version,
+        location: e.install_location,
         installed_on: e.installed_on,
         last_used: None,
         never_used: false,
@@ -121,6 +127,8 @@ fn from_store(e: store::Entry) -> InstalledApp {
         name: e.name,
         publisher: e.publisher,
         source: AppSource::Store,
+        version: e.version,
+        location: e.dirs.first().map(|d| d.to_string_lossy().into_owned()),
         installed_on: e.installed_on,
         last_used: None,
         never_used: false,
@@ -316,6 +324,8 @@ mod tests {
             publisher: "P".into(),
             size_bytes: 1,
             source: AppSource::Msi,
+            version: "1.0".into(),
+            location: None,
             installed_on: None,
             last_used: None,
             never_used: false,
@@ -328,6 +338,8 @@ mod tests {
         assert!(json.contains("\"sizeBytes\":1"));
         assert!(json.contains("\"source\":\"msi\""));
         assert!(json.contains("\"installedOn\":null"));
+        assert!(json.contains("\"version\":\"1.0\""));
+        assert!(json.contains("\"location\":null"));
         assert!(json.contains("\"neverUsed\":false"));
         assert!(json.contains("\"iconColor\":\"#000\""));
     }

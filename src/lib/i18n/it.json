@@ -391,6 +391,10 @@
       "light": "Chiaro",
       "dark": "Scuro"
     },
+    "largeText": "Testo più grande",
+    "largeTextHint": "Ingrandisce testi e pulsanti, per una lettura più agevole.",
+    "technical": "Mostra i dettagli tecnici",
+    "technicalHint": "Percorsi completi, chiavi di registro, versioni e cartelle di installazione. Disattivato: solo linguaggio semplice.",
     "quarantineDays": "Conserva gli elementi rimossi per",
     "days": "{days} giorni",
     "restorePoint": "Crea un punto di ripristino prima di disinstallare",
@@ -434,6 +438,15 @@
     "updateRetry": "Riprova",
     "updateAuto": "Controlla ogni volta che apri l'app",
     "updateAutoHint": "Chiede solo a GitHub, dove l'app è pubblicata, se c'è una versione nuova. Nulla del tuo PC viene inviato."
+  },
+  "technical": {
+    "registryPlain": "Un'impostazione salvata in Windows",
+    "version": "Versione {version}",
+    "sources": {
+      "win32": "Programma (Win32)",
+      "msi": "Windows Installer (MSI)",
+      "store": "Microsoft Store (MSIX)"
+    }
   },
   "categories": {
     "apps": "App",

@@ -391,6 +391,10 @@
       "light": "Light",
       "dark": "Dark"
     },
+    "largeText": "Larger text",
+    "largeTextHint": "Makes text and buttons bigger, so they are easier to read.",
+    "technical": "Show technical details",
+    "technicalHint": "Full paths, registry keys, versions and install folders. Off: plain language only.",
     "quarantineDays": "Keep removed items for",
     "days": "{days} days",
     "restorePoint": "Create a restore point before uninstalling",
@@ -434,6 +438,15 @@
     "updateRetry": "Try again",
     "updateAuto": "Check each time the app opens",
     "updateAutoHint": "It only asks GitHub, where the app is published, whether there is a new version. Nothing about your PC is sent."
+  },
+  "technical": {
+    "registryPlain": "A setting stored in Windows",
+    "version": "Version {version}",
+    "sources": {
+      "win32": "Program (Win32)",
+      "msi": "Windows Installer (MSI)",
+      "store": "Microsoft Store (MSIX)"
+    }
   },
   "categories": {
     "apps": "Apps",

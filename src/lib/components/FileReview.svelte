@@ -7,7 +7,7 @@
   import { quarantine } from "../settings.svelte";
   import { fileCount, formatBytes, formatDate } from "../format";
   import { locale, t } from "../i18n/index.svelte";
-  import { displayPath, folderOf, nameOf, topFolder, topFolderName } from "../paths";
+  import { displayPath, folderOf, nameOf, shownPath, topFolder, topFolderName } from "../paths";
   import type { Exclusion, FileGroup, FileSelection, GroupReview, ReviewFile } from "../types";
 
   let {
@@ -300,7 +300,7 @@
                   <div class="line">
                     {#if keep}<span class="tag tag-safe">{t("files.review.keep")}</span>{/if}
                     <span class="path" title={file.path}>
-                      {displayPath(nameOf(file.path) === nameOf(set[0].path) ? folderOf(file.path) : file.path)}
+                      {shownPath(nameOf(file.path) === nameOf(set[0].path) ? folderOf(file.path) : file.path)}
                     </span>
                   </div>
                   <div class="muted small">{t("files.review.changed", { date: formatDate(file.modified) })}</div>
@@ -321,7 +321,7 @@
             <FileThumb path={file.path} size={40} />
             <div class="text">
               <div class="name" title={file.path}>{nameOf(file.path)}</div>
-              <div class="muted small">{displayPath(folderOf(file.path))} · {t("files.lastUsed", { date: formatDate(file.lastUsed) })}</div>
+              <div class="muted small">{shownPath(folderOf(file.path))} · {t("files.lastUsed", { date: formatDate(file.lastUsed) })}</div>
             </div>
             {@render hidePill(file)}
             <span class="size">{formatBytes(file.sizeBytes)}</span>

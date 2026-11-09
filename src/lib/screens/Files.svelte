@@ -27,7 +27,7 @@
   import { ai, aiErrorText, aiReady, answerFor, askAll, forgetAnswers, loadSavedAnswers, openSetup, serviceLabel, stopAskAll } from "../ai.svelte";
   import { fileCount, formatBytes, removedLines, restoreSummary } from "../format";
   import { locale, t } from "../i18n/index.svelte";
-  import { displayPath, folderOf, nameOf } from "../paths";
+  import { displayPath, folderOf, nameOf, shownPath } from "../paths";
   import type { Screen } from "../screens";
   import type { Exclusion, FileGroup, FileItem, FileSelection, MoveReport, ScanProgress } from "../types";
 
@@ -318,10 +318,11 @@
   const dateOf = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(locale(), { year: "numeric", month: "short", day: "numeric" });
 
   function itemNote(item: FileItem): string {
-    if (item.duplicateOf) return t("files.copyOf", { path: shortPath(item.duplicateOf) });
-    if (item.originalPath) return t("files.wasIn", { path: folderOf(item.originalPath) });
-    // "C:\\Users\\you\\AppData\\Local" says less than "AppData\\Local" in a narrow panel.
-    const folder = folderOf(item.path).replace(/^.*?[\\/](AppData[\\/])/i, "$1");
+    if (item.duplicateOf) return t("files.copyOf", { path: settings.technical ? item.duplicateOf : shortPath(item.duplicateOf) });
+    if (item.originalPath) return t("files.wasIn", { path: shownPath(folderOf(item.originalPath)) });
+    // "C:\\Users\\you\\AppData\\Local" says less than "AppData\\Local" in a narrow panel,
+    // unless the technical details are on.
+    const folder = settings.technical ? folderOf(item.path) : folderOf(item.path).replace(/^.*?[\\/](AppData[\\/])/i, "$1");
     // What the AI said it is, beside where it is: the tag only says whether it can go.
     const label = item.explainId === null ? answerFor(item.path)?.label : undefined;
     if (label) return `${label} · ${folder}`;

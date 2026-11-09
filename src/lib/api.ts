@@ -3,6 +3,7 @@
 // (npm run dev) they fall back to sample data so the UI can be designed fast.
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GB } from "./format";
 import {
@@ -74,6 +75,23 @@ export async function setWindowTheme(theme: "system" | "light" | "dark"): Promis
     .setTheme(theme === "system" ? null : theme)
     .catch(() => {
       // Cosmetic only: the page colors already follow the choice.
+    });
+}
+
+/**
+ * Zooms the whole page, like Ctrl + in a browser: 1 is the normal size.
+ * The webview zoom keeps layout, menus and the window size consistent;
+ * the browser fallback uses CSS zoom, which is close enough to design with.
+ */
+export async function setPageZoom(factor: number): Promise<void> {
+  if (!isTauri()) {
+    document.documentElement.style.zoom = factor === 1 ? "" : String(factor);
+    return;
+  }
+  await getCurrentWebview()
+    .setZoom(factor)
+    .catch(() => {
+      // The text stays at its normal size.
     });
 }
 
