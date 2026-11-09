@@ -3,7 +3,7 @@
   import Icon from "../components/Icon.svelte";
   import AiServicePicker from "../components/AiServicePicker.svelte";
   import { AI_PARALLEL_CHOICES, aiStats, createRestorePoint, INDEX_DOWNLOAD_BYTES, indexCheck, indexFindModels, KEEP_DAYS_CHOICES, listExclusions } from "../api";
-  import { cancelIndexDownload, changeIndex, indexErrorText, installIndex, localIndex, removeIndex, watchIndex } from "../localIndex.svelte";
+  import { cancelIndexDownload, changeIndex, indexErrorText, installIndex, localIndex, removeIndex, retryIndex, watchIndex } from "../localIndex.svelte";
   import { forgetAnswers, serviceInfo } from "../ai.svelte";
   import { formatBytes } from "../format";
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
@@ -313,6 +313,8 @@
         <button class="btn btn-ghost" onclick={cancelIndexDownload}>{t("index.cancel")}</button>
       {:else if !ix.ready && ix.downloadBytes > 0}
         <button class="btn btn-primary" disabled={localIndex.busy} onclick={installIndex}><Icon name="download" />{t("index.download", { size: formatBytes(ix.downloadBytes) })}</button>
+      {:else if ix.ready && ix.error && !ix.indexing}
+        <button class="btn btn-primary" disabled={localIndex.busy} onclick={retryIndex}>{t("index.retry")}</button>
       {:else if st.paused}
         <button class="btn btn-ghost" onclick={() => changeIndex({ paused: false })}>{t("index.resume")}</button>
       {:else if ix.indexing}

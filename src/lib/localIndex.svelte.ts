@@ -1,6 +1,6 @@
 // The local index (src-tauri/src/semantic.rs) as the UI sees it: one shared,
 // reactive status, kept current by the events Rust sends while it downloads and indexes.
-import { indexCancelDownload, indexInstall, indexRemove, indexSetSettings, indexStatus, onIndexStatus } from "./api";
+import { indexCancelDownload, indexInstall, indexRemove, indexRetry, indexSetSettings, indexStatus, onIndexStatus } from "./api";
 import { t } from "./i18n/index.svelte";
 import type { IndexSettings, IndexStatus } from "./types";
 
@@ -33,6 +33,7 @@ async function run(action: () => Promise<IndexStatus | void>) {
 export const installIndex = () => run(indexInstall);
 export const cancelIndexDownload = () => run(indexCancelDownload);
 export const removeIndex = () => run(indexRemove);
+export const retryIndex = () => run(indexRetry);
 
 /** Saves a change of the choices. */
 export function changeIndex(change: Partial<IndexSettings>): Promise<void> {

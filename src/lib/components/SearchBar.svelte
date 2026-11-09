@@ -2,7 +2,7 @@
   import Icon from "./Icon.svelte";
   import { formatBytes } from "../format";
   import { locale, t } from "../i18n/index.svelte";
-  import { cancelIndexDownload, changeIndex, indexErrorText, installIndex, localIndex, watchIndex } from "../localIndex.svelte";
+  import { cancelIndexDownload, changeIndex, indexErrorText, installIndex, localIndex, retryIndex, watchIndex } from "../localIndex.svelte";
 
   /**
    * The search box of the Files screen. It opens once the files are indexed: a sentence
@@ -69,8 +69,12 @@
   {:else if !open && ix.settings.paused}
     <span class="muted note">{t("index.status.paused", { count: count(ix.indexed) })}</span>
     <button type="button" class="btn btn-ghost" onclick={() => changeIndex({ paused: false })}>{t("index.resume")}</button>
+  {:else if !open && ix.error}
+    <span class="note bad" role="alert">{indexErrorText(ix.error)}</span>
+    <button type="button" class="btn btn-primary" disabled={localIndex.busy} onclick={retryIndex}>{t("index.retry")}</button>
+    {#if onOptions}<button type="button" class="btn btn-ghost" onclick={onOptions}>{t("searchTopic.options")}</button>{/if}
   {:else if !open}
-    <span class="muted note">{ix.error ? indexErrorText(ix.error) : t("search.nothingIndexed")}</span>
+    <span class="muted note">{t("search.nothingIndexed")}</span>
     {#if onOptions}<button type="button" class="btn btn-ghost" onclick={onOptions}>{t("searchTopic.options")}</button>{/if}
   {:else}
     <span></span>
