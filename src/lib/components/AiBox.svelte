@@ -92,7 +92,7 @@
     </ul>
   </div>
   <p class="muted foot">{t("ai.answer.mayBeWrong", { days: quarantine.keepDays })}</p>
-  <p class="muted foot icon-line"><Icon name="lock" size={14} /><span>{t("ai.answer.sentOnly")} <button class="link" onclick={askAgain}>{t("ai.answer.askAgain")}</button></span></p>
+  <p class="muted foot icon-line"><span><button class="link" onclick={askAgain}>{t("ai.answer.askAgain")}</button></span></p>
 {:else if asking}
   <div class="box">
     <span class="label"><Icon name="sparkle" size={14} />{t("ai.box.title")}</span>

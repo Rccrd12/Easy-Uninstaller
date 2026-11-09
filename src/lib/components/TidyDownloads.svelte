@@ -389,6 +389,7 @@
   .label { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--ai-fg); }
   .intro-line { font-size: 13px; margin: 8px 0; }
   .sent { font-family: Consolas, "Cascadia Mono", monospace; font-size: 11.5px; line-height: 1.55; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow-y: auto; user-select: text; }
+  .link { border: none; background: none; color: var(--accent); padding: 0; font-size: 12.5px; align-self: flex-start; margin-bottom: 6px; }
   .promises { list-style: none; font-size: 12px; margin-top: 10px; display: flex; flex-direction: column; gap: 4px; line-height: 1.4; }
   .promises li { display: flex; gap: 7px; align-items: flex-start; }
   .promises li :global(.icon) { color: var(--text-muted); margin-top: 0.15em; }

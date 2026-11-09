@@ -292,7 +292,6 @@
       }
     },
     "scanning": "Looking for files you can remove…",
-    "scanNote": "We only look: nothing is changed or deleted.",
     "steps": {
       "caches": "Temporary files and caches",
       "downloads": "Your Downloads folder",
@@ -336,8 +335,8 @@
     "review": {
       "start": "Review",
       "oneByOne": "Review one by one",
-      "subtitle": "{files} · {size} · you choose what to remove and what to hide",
-      "dupSubtitle": "{count} identical copies · {size} · pick what to remove, one by one or all together",
+      "subtitle": "{files} · {size}",
+      "dupSubtitle": "{count} identical copies · {size}",
       "view": "View",
       "list": "List",
       "previews": "Previews",
@@ -381,8 +380,8 @@
       },
       "hideSelected": "Hide ({count})",
       "lookAtPhotos": "Look at the photos",
-      "similarSubtitle": "{sets} sets of similar photos · up to {size} to free · you choose which to keep",
-      "similarSubtitleOne": "1 set of similar photos · up to {size} to free · you choose which to keep",
+      "similarSubtitle": "{sets} sets of similar photos · up to {size} to free",
+      "similarSubtitleOne": "1 set of similar photos · up to {size} to free",
       "keepPhoto": "In each set, keep",
       "largest": "the largest (most detail)",
       "similarHint": "The photo marked Keep stays. The other selected ones go to Quarantine.",
@@ -405,7 +404,7 @@
   },
   "quick": {
     "title": "Quick clean",
-    "subtitle": "I only remove what is safe. Anything that needs a look is up to you, whenever you like.",
+    "subtitle": "I only remove what is safe.",
     "scanning": "Looking for what is safe to remove…",
     "freeNow": "Free space right away",
     "freeNowNote": "temporary files, caches and the like: deleted",
@@ -483,7 +482,6 @@
     "rescan": "Measure again",
     "measuring": "Measuring the space on your disk…",
     "checked": "{count} files checked",
-    "readOnly": "Looking only: nothing is changed or deleted.",
     "failed": "The space could not be measured: {error}",
     "retry": "Try again",
     "shownTotal": "Shown: {size}",
@@ -1062,7 +1060,6 @@
       "modified": "Last change inside: {date}",
       "notWindows": "Not a Windows folder",
       "mayBeWrong": "The AI can be wrong: check before removing.",
-      "sentOnly": "Only names and numbers were sent, never what is inside the files.",
       "askAgain": "Ask again"
     },
     "move": {

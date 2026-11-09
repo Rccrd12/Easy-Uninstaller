@@ -92,7 +92,6 @@
     <div class="status-title">{t("map.measuring")}</div>
     <div class="sweep" aria-hidden="true"><i></i></div>
     <span class="muted">{progress ? t("map.checked", { count: progress.filesChecked.toLocaleString(locale()) }) : " "}</span>
-    <p class="muted note icon-line"><Icon name="shieldCheck" />{t("map.readOnly")}</p>
   </div>
 {:else if error}
   <div class="card status row">

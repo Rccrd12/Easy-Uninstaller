@@ -401,7 +401,6 @@
             <span class="muted">{t("files.checked", { count: count(progress.filesChecked) })}</span>
           </div>
         {/if}
-        <p class="muted note icon-line"><Icon name="shieldCheck" />{t("files.scanNote")}</p>
       </div>
     {:else if error}
       <div class="card message">
@@ -646,7 +645,6 @@
   .steps i.current::after { content: ""; position: absolute; inset: 0; width: 40%; border-radius: 5px; background: var(--accent); animation: sweep 1.2s ease-in-out infinite; }
   @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
   .scan-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; flex-wrap: wrap; }
-  .note { font-size: 12.5px; margin-top: 14px; }
   .message { padding: 22px 24px; margin-top: 8px; display: flex; align-items: center; gap: 14px; }
   .message p { flex: 1; }
   .big-icon { display: flex; color: var(--safe-fg); }

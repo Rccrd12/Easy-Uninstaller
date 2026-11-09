@@ -292,7 +292,6 @@
       }
     },
     "scanning": "Sto cercando i file che puoi togliere…",
-    "scanNote": "Guardo soltanto: niente viene modificato o cancellato.",
     "steps": {
       "caches": "File temporanei e cache",
       "downloads": "La cartella Download",
@@ -336,8 +335,8 @@
     "review": {
       "start": "Rivedi",
       "oneByOne": "Rivedi uno per uno",
-      "subtitle": "{files} · {size} · scegli tu cosa togliere e cosa nascondere",
-      "dupSubtitle": "{count} copie identiche · {size} · scegli tu cosa togliere, una per una o tutte insieme",
+      "subtitle": "{files} · {size}",
+      "dupSubtitle": "{count} copie identiche · {size}",
       "view": "Vista",
       "list": "Lista",
       "previews": "Anteprime",
@@ -381,8 +380,8 @@
       },
       "hideSelected": "Nascondi ({count})",
       "lookAtPhotos": "Guarda le foto",
-      "similarSubtitle": "{sets} gruppi di foto simili · fino a {size} da liberare · scegli tu quali tenere",
-      "similarSubtitleOne": "1 gruppo di foto simili · fino a {size} da liberare · scegli tu quali tenere",
+      "similarSubtitle": "{sets} gruppi di foto simili · fino a {size} da liberare",
+      "similarSubtitleOne": "1 gruppo di foto simili · fino a {size} da liberare",
       "keepPhoto": "In ogni gruppo tieni",
       "largest": "la più grande (più dettagli)",
       "similarHint": "La foto segnata «Tieni» resta. Le altre selezionate vanno in Quarantena.",
@@ -405,7 +404,7 @@
   },
   "quick": {
     "title": "Pulizia rapida",
-    "subtitle": "Tolgo solo le cose sicure. Tutto quello da controllare lo decidi tu, con calma.",
+    "subtitle": "Tolgo solo le cose sicure.",
     "scanning": "Cerco quello che si può togliere in sicurezza…",
     "freeNow": "Spazio libero subito",
     "freeNowNote": "file temporanei, cache e simili: eliminati",
@@ -483,7 +482,6 @@
     "rescan": "Misura di nuovo",
     "measuring": "Sto misurando lo spazio sul disco…",
     "checked": "{count} file controllati",
-    "readOnly": "Guardo soltanto: niente viene modificato o cancellato.",
     "failed": "Non sono riuscito a misurare lo spazio: {error}",
     "retry": "Riprova",
     "shownTotal": "Mostrati: {size}",
@@ -1062,7 +1060,6 @@
       "modified": "Ultima modifica dentro: {date}",
       "notWindows": "Non è una cartella di Windows",
       "mayBeWrong": "L'AI può sbagliare: controlla prima di togliere.",
-      "sentOnly": "Inviati solo nomi e numeri, mai il contenuto dei file.",
       "askAgain": "Chiedi di nuovo"
     },
     "move": {
