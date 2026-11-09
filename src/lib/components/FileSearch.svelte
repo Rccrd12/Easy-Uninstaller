@@ -24,7 +24,7 @@
   const SIZES = [10 * MB, 100 * MB, 500 * MB, GB, 5 * GB];
   const UNUSED = [30, 90, 180, 365, 730, 1825];
   const RECENT = [1, 7, 30, 365];
-  const empty = (): SearchFilter => ({ kinds: [], minBytes: null, maxBytes: null, unusedDays: null, recentDays: null, places: [], words: [], sort: "size" });
+  const empty = (): SearchFilter => ({ kinds: [], minBytes: null, maxBytes: null, unusedDays: null, recentDays: null, places: [], words: [], sort: "size", unsure: [] });
 
   let current = $state("");
   let filter = $state<SearchFilter | null>(null);
@@ -280,6 +280,10 @@
       </div>
     {/if}
 
+    {#if f.unsure.length}
+      <p class="unsure icon-line"><Icon name="info" />{t("search.unsure", { what: f.unsure.join(", ") })}</p>
+    {/if}
+
     {#if phase === "searching" && !result}
       <div class="card status" role="status"><span class="spinner" aria-hidden="true"></span>{t("search.searching")}</div>
     {:else if phase === "error"}
@@ -377,6 +381,9 @@
   select, .words { font-family: inherit; font-size: 13px; padding: 6px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--surface); }
   .words { user-select: text; }
 
+
+  .unsure { font-size: 13px; line-height: 1.45; margin: -2px 0 10px; color: var(--text-muted); }
+  .unsure :global(.icon) { flex: none; }
 
   .summary { display: flex; align-items: center; gap: 10px; margin: 2px 0 8px; font-size: 14px; }
   .small-spin { width: 12px; height: 12px; }

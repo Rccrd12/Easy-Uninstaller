@@ -644,6 +644,8 @@ export interface SearchFilter {
   /** Words that must all be in the file or folder names. */
   words: string[];
   sort: SearchSort;
+  /** Parts of the sentence a file name cannot show ("of the holidays"): shown, never searched. */
+  unsure: string[];
 }
 
 export interface FoundFile {

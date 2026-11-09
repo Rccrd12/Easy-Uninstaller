@@ -587,7 +587,11 @@ export function sampleUnderstand(sentence: string): SearchFilter {
   const places: SearchPlace[] = [];
   if (/download/.test(s)) places.push("downloads");
   if (/desktop/.test(s)) places.push("desktop");
-  return { kinds, minBytes, maxBytes: null, unusedDays, recentDays, places, words: [], sort: /vecch|old/.test(s) && !minBytes ? "oldest" : "size" };
+  // A topic ("delle vacanze", "of the wedding") that no file name can show.
+  const topic = /\b(?:delle|della|del|dei|degli|dello|of the|of my|from the|from my)\s+([a-zà-ù]+)/i.exec(sentence);
+  const named = /\b(?:holiday|vacation|wedding|birthday)s?\b/i.exec(sentence);
+  const unsure = topic && !/^(anno|anni|mesi|mese|settimana|year|years|months?|weeks?|download|desktop)$/i.test(topic[1]) ? [topic[0]] : named ? [named[0]] : [];
+  return { kinds, minBytes, maxBytes: null, unusedDays, recentDays, places, words: [], sort: /vecch|old/.test(s) && !minBytes ? "oldest" : "size", unsure };
 }
 
 const KIND_OF: [SearchKind, RegExp][] = [

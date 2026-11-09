@@ -209,6 +209,10 @@ pub struct SearchFilter {
     pub words: Vec<String>,
     #[serde(default)]
     pub sort: SortBy,
+    /// Parts of the sentence a file name cannot show ("of the holidays"), as written.
+    /// Never searched for: only shown, so the person knows the results ignore them.
+    #[serde(default)]
+    pub unsure: Vec<String>,
 }
 
 impl SearchFilter {
@@ -241,6 +245,16 @@ impl SearchFilter {
         }
         words.truncate(MAX_WORDS);
         self.words = words;
+        let mut unsure: Vec<String> = Vec::new();
+        for u in &self.unsure {
+            let u: String = u.chars().filter(|c| !c.is_control()).take(60).collect();
+            let u = u.trim().to_string();
+            if !u.is_empty() && !unsure.iter().any(|x| x.eq_ignore_ascii_case(&u)) {
+                unsure.push(u);
+            }
+        }
+        unsure.truncate(3);
+        self.unsure = unsure;
         self
     }
 
@@ -441,7 +455,7 @@ Today is {today}. The request is written in {language}.
 Request: \"{sentence}\"
 
 Reply with one JSON object and nothing else:
-{{\"kinds\": [], \"minSizeMb\": null, \"maxSizeMb\": null, \"unusedDays\": null, \"recentDays\": null, \"places\": [], \"words\": [], \"sort\": \"size\"}}
+{{\"kinds\": [], \"minSizeMb\": null, \"maxSizeMb\": null, \"unusedDays\": null, \"recentDays\": null, \"places\": [], \"words\": [], \"unsure\": [], \"sort\": \"size\"}}
 
 - kinds: any of \"image\", \"video\", \"audio\", \"document\", \"archive\", \"program\", \"disc\" (disk images like .iso); [] for any file.
 - minSizeMb, maxSizeMb: sizes in MB (1 GB = 1024 MB), or null.
@@ -449,6 +463,7 @@ Reply with one JSON object and nothing else:
 - recentDays: changed in the last this many days (\"this week\" = 7), or null.
 - places: any of \"desktop\", \"documents\", \"downloads\", \"pictures\", \"videos\", \"music\"; [] for all the person's folders.
 - words: only words the person clearly wants in the file or folder name (a name, a brand, \"invoice\"), as they would be written in a file name; [] for topics a name may not show.
+- unsure: the parts of the request that a file's name, type, size, date or folder cannot tell (a topic, an event, who or what is in it, like \"of the holidays\"), copied as written in the request; [] when there are none.
 - sort: \"size\" (largest first), \"oldest\" (unused the longest) or \"newest\".
 
 If the request is not about finding files, reply {{\"notAbout\": true}}."
@@ -515,6 +530,16 @@ pub fn parse_filter(text: &str) -> Option<SearchFilter> {
                 .collect(),
             words,
             sort,
+            unsure: v
+                .get("unsure")
+                .and_then(|x| x.as_array())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str())
+                        .map(str::to_string)
+                        .collect()
+                })
+                .unwrap_or_default(),
         }
         .normalized(),
     )
@@ -669,6 +694,14 @@ mod tests {
         assert_eq!(f.places, [Place::Pictures, Place::Downloads]);
         assert_eq!(f.words, ["vacanze", "..Windows"]);
         assert_eq!(f.sort, SortBy::Oldest);
+        assert!(f.unsure.is_empty(), "no field, nothing unsure");
+
+        let holidays = parse_filter("{\"kinds\": [\"video\"], \"words\": [], \"unsure\": [\"delle vacanze\", \"\", \"Delle vacanze\", \"a\\nb\"], \"sort\": \"size\"}").unwrap();
+        assert_eq!(holidays.unsure, ["delle vacanze", "ab"]);
+        assert!(
+            holidays.words.is_empty(),
+            "a topic is never searched in the names"
+        );
 
         assert_eq!(parse_filter("{\"notAbout\": true}"), None);
         assert!(not_a_search("{\"notAbout\": true}"));
