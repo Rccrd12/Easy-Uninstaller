@@ -1,6 +1,8 @@
 //! The index on disk: for every photo and video looked at, its size, date and one
 //! vector per picture (a photo has one, a video one per frame looked at). Vectors
-//! are kept as 768 signed bytes each, so 10,000 photos take about 8 MB.
+//! are kept as one signed byte per number (768 for EmbeddingGemma 2), so 10,000
+//! photos take about 8 MB. Another model may give vectors of another size: the
+//! index keeps the size it was made with.
 //!
 //! The file is written to a temporary name and then renamed, so a crash never
 //! leaves half an index behind.
@@ -10,10 +12,11 @@ use std::fs::{self, File};
 use std::io::{self, BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
-/// Numbers per vector (EmbeddingGemma 2's full size).
-pub const DIM: usize = 768;
+/// Vectors shorter or longer than this are not a picture's meaning.
+pub const MIN_DIM: usize = 64;
+pub const MAX_DIM: usize = 8192;
 const MAGIC: &[u8; 4] = b"EUSI";
-const VERSION: u32 = 1;
+const VERSION: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
@@ -22,20 +25,22 @@ pub struct Entry {
     pub modified: u64,
     /// How deeply a video was looked at (`Depth as u8`); 0 for photos.
     pub depth: u8,
-    /// `DIM` bytes per picture, one after the other. Empty when nothing could be read.
+    /// One vector per picture, one after the other. Empty when nothing could be read.
     pub vectors: Vec<i8>,
 }
 
 impl Entry {
-    pub fn pictures(&self) -> usize {
-        self.vectors.len() / DIM
+    pub fn pictures(&self, dim: usize) -> usize {
+        self.vectors.len().checked_div(dim).unwrap_or(0)
     }
 
     /// How close the file is to `query` (unit length): the best of its pictures, from -1 to 1.
     pub fn score(&self, query: &[f32]) -> Option<f32> {
-        let (pictures, _) = self.vectors.as_chunks::<DIM>();
-        pictures
-            .iter()
+        if query.is_empty() {
+            return None;
+        }
+        self.vectors
+            .chunks_exact(query.len())
             .map(|v| v.iter().zip(query).map(|(a, b)| *a as f32 * b).sum::<f32>() / 127.0)
             .reduce(f32::max)
     }
@@ -43,34 +48,28 @@ impl Entry {
 
 #[derive(Debug, Default)]
 pub struct Index {
-    /// Which model made the vectors (`Quality::id`).
+    /// Which model made the vectors (`Quality::id`, or the user's own model).
     pub model: String,
+    /// Numbers per vector; 0 until the first one.
+    pub dim: usize,
     pub entries: HashMap<PathBuf, Entry>,
 }
 
 /// Unit length, then each number as a byte from -127 to 127.
 pub fn quantize(v: &[f32]) -> Option<Vec<i8>> {
-    if v.len() < DIM || v.iter().any(|x| !x.is_finite()) {
-        return None;
-    }
-    let v = &v[..DIM];
-    let norm = v.iter().map(|x| x * x).sum::<f32>().sqrt();
-    if norm <= f32::EPSILON {
-        return None;
-    }
+    let v = unit(v)?;
     Some(
         v.iter()
-            .map(|x| (x / norm * 127.0).round().clamp(-127.0, 127.0) as i8)
+            .map(|x| (x * 127.0).round().clamp(-127.0, 127.0) as i8)
             .collect(),
     )
 }
 
-/// Unit length, cut to `DIM` numbers (EmbeddingGemma's vectors may be cut short and stay usable).
+/// Unit length. `None` for a vector that is no vector (too short, not finite, all zeros).
 pub fn unit(v: &[f32]) -> Option<Vec<f32>> {
-    if v.len() < DIM || v.iter().any(|x| !x.is_finite()) {
+    if !(MIN_DIM..=MAX_DIM).contains(&v.len()) || v.iter().any(|x| !x.is_finite()) {
         return None;
     }
-    let v = &v[..DIM];
     let norm = v.iter().map(|x| x * x).sum::<f32>().sqrt();
     (norm > f32::EPSILON).then(|| v.iter().map(|x| x / norm).collect())
 }
@@ -95,6 +94,7 @@ impl Index {
     pub fn new(model: &str) -> Self {
         Index {
             model: model.to_string(),
+            dim: 0,
             entries: HashMap::new(),
         }
     }
@@ -121,7 +121,8 @@ impl Index {
         }
         let mut model = vec![0u8; len];
         r.read_exact(&mut model)?;
-        if read_u32(&mut r)? as usize != DIM {
+        let dim = read_u32(&mut r)? as usize;
+        if dim != 0 && !(MIN_DIM..=MAX_DIM).contains(&dim) {
             return Err(bad("vector size"));
         }
         let count = read_u64(&mut r)?;
@@ -142,7 +143,7 @@ impl Index {
             if pictures > 100_000 {
                 return Err(bad("pictures"));
             }
-            let mut bytes = vec![0u8; pictures * DIM];
+            let mut bytes = vec![0u8; pictures * dim];
             r.read_exact(&mut bytes)?;
             entries.insert(
                 PathBuf::from(path),
@@ -156,6 +157,7 @@ impl Index {
         }
         Ok(Index {
             model: String::from_utf8(model).map_err(|_| bad("model name"))?,
+            dim,
             entries,
         })
     }
@@ -168,7 +170,7 @@ impl Index {
             w.write_all(&VERSION.to_le_bytes())?;
             w.write_all(&(self.model.len() as u32).to_le_bytes())?;
             w.write_all(self.model.as_bytes())?;
-            w.write_all(&(DIM as u32).to_le_bytes())?;
+            w.write_all(&(self.dim as u32).to_le_bytes())?;
             // Paths that are not valid Unicode cannot be written as text: they are left out.
             let entries: Vec<(&str, &Entry)> = self
                 .entries
@@ -182,8 +184,9 @@ impl Index {
                 w.write_all(&e.size.to_le_bytes())?;
                 w.write_all(&e.modified.to_le_bytes())?;
                 w.write_all(&[e.depth])?;
-                w.write_all(&(e.pictures() as u32).to_le_bytes())?;
-                let bytes: Vec<u8> = e.vectors[..e.pictures() * DIM]
+                let pictures = e.pictures(self.dim);
+                w.write_all(&(pictures as u32).to_le_bytes())?;
+                let bytes: Vec<u8> = e.vectors[..pictures * self.dim]
                     .iter()
                     .map(|b| *b as u8)
                     .collect();
@@ -199,8 +202,10 @@ impl Index {
 mod tests {
     use super::*;
 
+    const D: usize = 768;
+
     fn vector(seed: usize) -> Vec<f32> {
-        (0..DIM)
+        (0..D)
             .map(|i| (((i * 7 + seed * 13) % 23) as f32) - 11.0)
             .collect()
     }
@@ -211,6 +216,7 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         let file = dir.join("index.bin");
         let mut index = Index::new("m1");
+        index.dim = D;
         let mut two = quantize(&vector(1)).unwrap();
         two.extend(quantize(&vector(2)).unwrap());
         index.entries.insert(
@@ -256,7 +262,7 @@ mod tests {
             depth: 2,
             vectors,
         };
-        assert_eq!(e.pictures(), 2);
+        assert_eq!(e.pictures(D), 2);
         let best = e.score(&q).unwrap();
         assert!(best > 0.99, "the second frame is the query itself: {best}");
         let empty = Entry {
@@ -264,7 +270,12 @@ mod tests {
             ..e
         };
         assert_eq!(empty.score(&q), None);
-        assert_eq!(quantize(&[0.0; DIM]), None);
-        assert_eq!(quantize(&[1.0; 10]), None);
+        assert_eq!(quantize(&[0.0; D]), None);
+        assert_eq!(quantize(&[1.0; 10]), None, "too short to be a vector");
+        assert_eq!(
+            quantize(&[1.0; 256]).map(|v| v.len()),
+            Some(256),
+            "any model's size"
+        );
     }
 }

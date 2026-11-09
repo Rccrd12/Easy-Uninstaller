@@ -181,7 +181,6 @@
 <div class="tidy">
   <button class="back" onclick={onBack}><Icon name="chevronLeft" size={14} />{t("files.title")}</button>
   <h1>{t("tidy.title")}</h1>
-  <p class="muted sub">{t("tidy.subtitle")}</p>
 
   {#if error}
     <div class="card status error-card" role="alert"><StatusIcon kind="warn" /><span>{error}</span></div>
@@ -207,7 +206,6 @@
               <button class="btn btn-ai" onclick={startAi}><Icon name="sparkle" />{t("tidy.askAi")}</button>
               <button class="btn btn-ghost" onclick={byType}><Icon name="list" />{t("tidy.byType")}</button>
             </div>
-            {#if !aiReady()}<p class="muted small ai-off">{t("tidy.aiOff")}</p>{/if}
           {/if}
         </div>
       </div>
@@ -223,7 +221,6 @@
     {#if undone}
       <p class="muted small undone">{t("tidy.done.undone", { files: fileCount(undone.restoredCount) })}{undone.failedCount ? ` ${t("tidy.done.undoFailed", { files: fileCount(undone.failedCount) })}` : ""}</p>
     {/if}
-    <p class="tip icon-line"><Icon name="shieldCheck" />{t("tidy.safety")}</p>
   {:else if phase === "confirm" && preview}
     <div class="card box">
       <span class="label"><Icon name="sparkle" size={14} />{t("tidy.confirm.title", { service: serviceLabel(settings.ai.service, settings.ai.model) })}</span>
@@ -231,8 +228,6 @@
       <pre class="sent">{preview.lines.join("\n")}</pre>
       {#if preview.notSentCount}<p class="muted small">{t("tidy.confirm.notSent", { files: fileCount(preview.notSentCount) })}</p>{/if}
       <ul class="promises">
-        <li><Icon name="stop" />{t("ai.confirm.never")}</li>
-        {#if kind === "cli"}<li><Icon name="lock" />{t("ai.confirm.noTools", { service })}</li>{/if}
         <li><Icon name="money" />{t(kind === "cli" ? "ai.confirm.costCli" : kind === "local" ? "ai.confirm.costLocal" : "ai.confirm.costApi")}</li>
       </ul>
       <div class="buttons">
@@ -293,7 +288,6 @@
           <span class="tile small-tile quarantine-tile" aria-hidden="true"><Icon name="quarantine" size={18} /></span>
           <div class="folder-text">
             <div class="folder-name"><b>{t("tidy.installers.title")}</b></div>
-            <div class="muted small">{t("tidy.installers.desc")}</div>
           </div>
           <span class="size">{formatBytes(p.installers.reduce((s, f) => s + f.sizeBytes, 0))}</span>
         </div>
@@ -316,7 +310,7 @@
     <div class="card footer">
       <div class="footer-text">
         <b>{t("tidy.apply.summary", { files: fileCount(moveCount), folders: folders(folderTotal) })}{#if pickedInstallers.size} {t("tidy.apply.plusInstallers", { files: fileCount(pickedInstallers.size) })}{/if}</b>
-        <span class="muted small">{moveCount || pickedInstallers.size ? t("tidy.apply.note") : t("tidy.apply.nothing")}</span>
+        <span class="muted small">{moveCount || pickedInstallers.size ? "" : t("tidy.apply.nothing")}</span>
       </div>
       <span class="grow"></span>
       <button class="btn btn-ghost" disabled={phase === "applying"} onclick={() => { plan = null; load(); }}>{t("common.cancel")}</button>
@@ -364,7 +358,6 @@
   .tidy { padding-bottom: 8px; }
   .back { border: none; background: none; color: var(--text-muted); font-size: 13px; padding: 2px 0; margin-bottom: 4px; display: inline-flex; align-items: center; gap: 4px; }
   .back:hover { color: var(--accent); }
-  .sub { margin: 3px 0 14px; max-width: 760px; line-height: 1.45; }
   h2 { font-size: 16px; font-weight: 600; }
   .small { font-size: 12px; }
   .grow { flex: 1; }
@@ -381,11 +374,8 @@
   .intro-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .intro-text b { font-size: 15px; }
   .buttons { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-  .ai-off { margin-top: 8px; }
   .last { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; }
   .undone { margin: -4px 0 12px; }
-  .tip { font-size: 12.5px; line-height: 1.45; background: var(--tip-bg); border: 1px solid var(--tip-border); border-radius: var(--radius-sm); padding: 9px 12px; margin-bottom: 12px; }
-  .tip :global(.icon) { color: var(--ai); flex: none; }
 
   .box { border-left: 3px solid var(--ai); padding: 14px 16px; }
   .label { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--ai-fg); }

@@ -67,11 +67,30 @@ impl Depth {
     }
 }
 
+/// Which model looks at the pictures. Mirrors `IndexSource` in types.ts.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum Source {
+    /// EmbeddingGemma 2, downloaded by the app (`quality` says which).
+    #[default]
+    Download,
+    /// GGUF files already on this PC, run by the downloaded llama.cpp.
+    Files,
+    /// A llama.cpp server the person runs on this PC.
+    Server,
+}
+
 /// The choices of Settings > Local index. Mirrors `IndexSettings` in types.ts.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct IndexSettings {
+    pub source: Source,
     pub quality: Quality,
+    /// `Files`: the model (`.gguf`) and the part that reads pictures (`mmproj…gguf`).
+    pub own_model: String,
+    pub own_vision: String,
+    /// `Server`: its address, on this PC only.
+    pub server_url: String,
     pub depth: Depth,
     pub photos: bool,
     pub videos: bool,
@@ -84,7 +103,11 @@ pub struct IndexSettings {
 impl Default for IndexSettings {
     fn default() -> Self {
         IndexSettings {
+            source: Source::Download,
             quality: Quality::Light,
+            own_model: String::new(),
+            own_vision: String::new(),
+            server_url: String::new(),
             depth: Depth::Partial,
             photos: true,
             videos: true,
@@ -110,7 +133,7 @@ pub struct DownloadInfo {
 #[serde(rename_all = "camelCase")]
 pub struct IndexStatus {
     pub settings: IndexSettings,
-    /// The model of `settings.quality` and the engine are on this PC, checked.
+    /// The chosen model can be used: downloaded and checked, or the person's own.
     pub ready: bool,
     pub download: Option<DownloadInfo>,
     /// The last problem, as an i18n key (`index.error.*`), maybe with `:detail`.
@@ -125,8 +148,30 @@ pub struct IndexStatus {
     pub current: Option<String>,
     /// What the model, the engine and the index take on disk.
     pub disk_bytes: u64,
-    /// What is still to download for `settings.quality`.
+    /// What is still to download for the chosen model.
     pub download_bytes: u64,
+}
+
+/// What "Try" found out about a model. Mirrors `IndexCheck` in types.ts.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexCheck {
+    pub text: bool,
+    pub pictures: bool,
+    /// Numbers per vector.
+    pub dim: u32,
+    /// The first problem, as an i18n key (`index.error.*`), maybe with `:detail`.
+    pub error: Option<String>,
+}
+
+/// A model found on this PC (LM Studio, llama.cpp, Hugging Face). Mirrors `OwnModel` in types.ts.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct OwnModel {
+    pub model: String,
+    /// The `mmproj` file beside it, when there is one: without it pictures cannot be read.
+    pub vision: Option<String>,
+    pub bytes: u64,
 }
 
 #[derive(Default)]
@@ -202,18 +247,90 @@ fn missing_bytes(home: &Path, quality: Quality) -> u64 {
         }
 }
 
-fn ready(home: &Path, quality: Quality) -> bool {
-    engine_exe(home).is_some() && quality.files().iter().all(|f| model_ok(home, f))
+/// The person's own server, when its address is one on this PC: pictures never leave it.
+fn server_url(settings: &IndexSettings) -> Option<Url> {
+    Url::parse(&settings.server_url).filter(|u| !u.https && u.is_loopback())
 }
 
-fn setup(home: &Path, quality: Quality) -> Option<engine::Setup> {
-    let [text, vision] = quality.files();
-    Some(engine::Setup {
-        exe: engine_exe(home)?,
-        text: model_path(home, text),
-        vision: model_path(home, vision),
-        log: home.join("engine.log"),
-    })
+fn own_file(path: &str) -> Option<PathBuf> {
+    let p = PathBuf::from(path.trim());
+    let gguf = p
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("gguf"));
+    (gguf && p.is_absolute() && p.is_file()).then_some(p)
+}
+
+/// Who turns pictures and words into vectors, once everything it needs is on this PC.
+fn engine_for(home: &Path, settings: &IndexSettings) -> Option<engine::Engine> {
+    match settings.source {
+        Source::Download => {
+            let [text, vision] = settings.quality.files();
+            if !(model_ok(home, text) && model_ok(home, vision)) {
+                return None;
+            }
+            Some(engine::Engine {
+                backend: engine::Backend::Own(engine::Setup {
+                    exe: engine_exe(home)?,
+                    text: model_path(home, text),
+                    vision: Some(model_path(home, vision)),
+                    log: home.join("engine.log"),
+                }),
+                gemma: true,
+            })
+        }
+        Source::Files => {
+            let text = own_file(&settings.own_model)?;
+            let vision = match settings.own_vision.trim() {
+                "" => None,
+                v => Some(own_file(v)?),
+            };
+            let gemma = text.file_name().is_some_and(|n| {
+                n.to_string_lossy()
+                    .to_lowercase()
+                    .contains("embeddinggemma")
+            });
+            Some(engine::Engine {
+                backend: engine::Backend::Own(engine::Setup {
+                    exe: engine_exe(home)?,
+                    text,
+                    vision,
+                    log: home.join("engine.log"),
+                }),
+                gemma,
+            })
+        }
+        Source::Server => Some(engine::Engine {
+            backend: engine::Backend::Server(server_url(settings)?),
+            gemma: false,
+        }),
+    }
+}
+
+fn ready(home: &Path, settings: &IndexSettings) -> bool {
+    engine_for(home, settings).is_some()
+}
+
+/// Which model made the vectors: an index made by another one starts over.
+fn model_id(settings: &IndexSettings) -> String {
+    match settings.source {
+        Source::Download => settings.quality.id().to_string(),
+        Source::Files => {
+            let size = fs::metadata(settings.own_model.trim())
+                .map(|m| m.len())
+                .unwrap_or(0);
+            format!("file:{}:{size}", settings.own_model.trim())
+        }
+        Source::Server => format!("server:{}", settings.server_url.trim()),
+    }
+}
+
+/// Bytes still to download: the engine for the person's own files, nothing for their server.
+fn missing_for(home: &Path, settings: &IndexSettings) -> u64 {
+    match settings.source {
+        Source::Download => missing_bytes(home, settings.quality),
+        Source::Files if engine_exe(home).is_none() => ENGINE.size,
+        Source::Files | Source::Server => 0,
+    }
 }
 
 fn dir_size(dir: &Path) -> u64 {
@@ -252,9 +369,9 @@ impl LocalIndex {
         // Loaded once and kept: searches need it too.
         let indexed = match (self.index.lock(), h.as_ref()) {
             (Ok(mut slot), Some(h)) => {
-                let model = settings.quality.id();
+                let model = model_id(&settings);
                 if slot.as_ref().is_none_or(|i| i.model != model) {
-                    *slot = Some(Index::load_or_new(&h.join("index.bin"), model));
+                    *slot = Some(Index::load_or_new(&h.join("index.bin"), &model));
                 }
                 slot.as_ref().map(|i| i.entries.len() as u64).unwrap_or(0)
             }
@@ -262,12 +379,9 @@ impl LocalIndex {
         };
         let inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         IndexStatus {
-            ready: h.as_ref().is_some_and(|h| ready(h, settings.quality)),
+            ready: h.as_ref().is_some_and(|h| ready(h, &settings)),
             disk_bytes: h.as_ref().map(|h| dir_size(h)).unwrap_or(0),
-            download_bytes: h
-                .as_ref()
-                .map(|h| missing_bytes(h, settings.quality))
-                .unwrap_or(0),
+            download_bytes: h.as_ref().map(|h| missing_for(h, &settings)).unwrap_or(0),
             settings,
             download: inner.download.clone(),
             error: inner.error.clone(),
@@ -402,15 +516,17 @@ fn unpack_engine(home: &Path, zip: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn download_all(app: &AppHandle, quality: Quality) -> Result<(), String> {
+fn download_all(app: &AppHandle, settings: &IndexSettings) -> Result<(), String> {
     let h = home(app)?;
     let models_dir = h.join("models");
     fs::create_dir_all(&models_dir).map_err(|e| e.to_string())?;
-    let need_engine = engine_exe(&h).is_none();
+    let quality = settings.quality;
+    let need_engine = engine_exe(&h).is_none() && settings.source != Source::Server;
+    // The person's own model needs only the engine.
     let missing: Vec<&Pinned> = quality
         .files()
         .into_iter()
-        .filter(|f| !model_ok(&h, f))
+        .filter(|f| settings.source == Source::Download && !model_ok(&h, f))
         .collect();
     let total =
         missing.iter().map(|f| f.size).sum::<u64>() + if need_engine { ENGINE.size } else { 0 };
@@ -427,6 +543,9 @@ fn download_all(app: &AppHandle, quality: Quality) -> Result<(), String> {
         fs::rename(&part, &dest).map_err(|e| e.to_string())?;
         fs::write(dest.with_extension("ok"), f.sha256).map_err(|e| e.to_string())?;
         before += f.size;
+    }
+    if settings.source != Source::Download {
+        return Ok(());
     }
     // The files of another choice are no longer needed.
     let keep: Vec<&str> = quality.files().iter().map(|f| f.file).collect();
@@ -570,15 +689,17 @@ fn index_round(app: &AppHandle, generation: u64) -> Result<(), String> {
     let current = || state.generation.load(Ordering::SeqCst) == generation;
     let settings = state.settings(app);
     let h = home(app)?;
-    if settings.paused || !ready(&h, settings.quality) || !current() {
+    if settings.paused || !current() {
         return Ok(());
     }
-    let setup = setup(&h, settings.quality).ok_or("index.error.engine:missing")?;
-    let model = settings.quality.id();
+    let Some(engine) = engine_for(&h, &settings) else {
+        return Ok(());
+    };
+    let model = model_id(&settings);
     let todo = {
         let mut slot = state.index.lock().map_err(|e| e.to_string())?;
         if slot.as_ref().is_none_or(|i| i.model != model) {
-            *slot = Some(Index::load_or_new(&h.join("index.bin"), model));
+            *slot = Some(Index::load_or_new(&h.join("index.bin"), &model));
         }
         let index = slot.as_mut().ok_or("no index")?;
         plan(&settings, index)
@@ -604,13 +725,13 @@ fn index_round(app: &AppHandle, generation: u64) -> Result<(), String> {
         });
         emit(app, false);
         let pictures = frames::pictures(&item.path, item.kind, settings.depth);
-        let mut vectors = Vec::new();
+        let mut each: Vec<Vec<i8>> = Vec::new();
         for png in &pictures {
             if !current() {
                 break;
             }
-            match engine::embed(&setup, &engine::Input::Picture(png)) {
-                Ok(v) => vectors.extend(store::quantize(&v).unwrap_or_default()),
+            match engine::embed(&engine, &engine::Input::Picture(png)) {
+                Ok(v) => each.extend(store::quantize(&v)),
                 Err(e) => {
                     result = Err(e);
                     break;
@@ -625,6 +746,14 @@ fn index_round(app: &AppHandle, generation: u64) -> Result<(), String> {
         }
         if let Ok(mut slot) = state.index.lock() {
             if let Some(index) = slot.as_mut() {
+                // The first vector sets the size; a model that changes it is not trusted.
+                let dim = each.first().map_or(index.dim, Vec::len);
+                if (index.dim != 0 && dim != index.dim) || each.iter().any(|v| v.len() != dim) {
+                    result = Err("index.error.engine:size".into());
+                    break;
+                }
+                index.dim = dim;
+                let vectors = each.concat();
                 index.entries.insert(
                     item.path.clone(),
                     store::Entry {
@@ -697,7 +826,7 @@ pub struct Found {
 /// Whether a topic search can run now (the model is downloaded).
 pub fn can_search(app: &AppHandle) -> bool {
     let settings = app.state::<LocalIndex>().settings(app);
-    home(app).is_ok_and(|h| ready(&h, settings.quality))
+    home(app).is_ok_and(|h| ready(&h, &settings))
 }
 
 /// Looks for `topic` in the index (and Windows Search for documents). Blocking:
@@ -712,14 +841,14 @@ pub fn find(app: &AppHandle, topic: &str, media: bool, documents: bool) -> Resul
         not_indexed: state.inner.lock().map(|i| i.pending).unwrap_or(0),
     };
     if media {
-        let setup = setup(&h, settings.quality).ok_or("index.error.notReady")?;
-        let query = engine::embed(&setup, &engine::Input::Query(topic))?;
+        let engine = engine_for(&h, &settings).ok_or("index.error.notReady")?;
+        let query = engine::embed(&engine, &engine::Input::Query(topic))?;
         let mut slot = state.index.lock().map_err(|e| e.to_string())?;
-        let model = settings.quality.id();
+        let model = model_id(&settings);
         if slot.as_ref().is_none_or(|i| i.model != model) {
-            *slot = Some(Index::load_or_new(&h.join("index.bin"), model));
+            *slot = Some(Index::load_or_new(&h.join("index.bin"), &model));
         }
-        if let Some(index) = slot.as_ref() {
+        if let Some(index) = slot.as_ref().filter(|i| i.dim == query.len()) {
             found.media = index
                 .entries
                 .iter()
@@ -749,7 +878,8 @@ pub fn index_set_settings(app: AppHandle, settings: IndexSettings) -> Result<Ind
     let state = app.state::<LocalIndex>();
     let before = state.settings(&app);
     state.save_settings(&app, &settings)?;
-    let changed_files = before.quality != settings.quality
+    let changed_model = model_id(&before) != model_id(&settings);
+    let changed_files = changed_model
         || before.depth != settings.depth
         || before.photos != settings.photos
         || before.videos != settings.videos
@@ -759,7 +889,7 @@ pub fn index_set_settings(app: AppHandle, settings: IndexSettings) -> Result<Ind
     } else if changed_files || before.paused {
         start_round(&app);
     }
-    if before.quality != settings.quality {
+    if changed_model {
         if let Ok(mut slot) = state.index.lock() {
             *slot = None;
         }
@@ -777,7 +907,7 @@ pub fn index_install(app: AppHandle) -> Result<IndexStatus, String> {
         return Ok(state.status(&app));
     }
     state.cancel_download.store(false, Ordering::SeqCst);
-    let quality = state.settings(&app).quality;
+    let settings = state.settings(&app);
     state.update(|i| {
         i.error = None;
         i.download = Some(DownloadInfo {
@@ -788,7 +918,7 @@ pub fn index_install(app: AppHandle) -> Result<IndexStatus, String> {
     });
     let worker = app.clone();
     std::thread::spawn(move || {
-        let result = download_all(&worker, quality);
+        let result = download_all(&worker, &settings);
         let state = worker.state::<LocalIndex>();
         state.update(|i| {
             i.download = None;
@@ -806,6 +936,148 @@ pub fn index_install(app: AppHandle) -> Result<IndexStatus, String> {
     let status = state.status(&app);
     let _ = app.emit(EVENT, status.clone());
     Ok(status)
+}
+
+/// Tries a model before it is used: a few words, then a small picture. Starting
+/// a model takes a while the first time.
+#[tauri::command]
+pub async fn index_check(app: AppHandle, settings: IndexSettings) -> Result<IndexCheck, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let h = home(&app)?;
+        let mut check = IndexCheck {
+            text: false,
+            pictures: false,
+            dim: 0,
+            error: None,
+        };
+        let engine = match engine_for(&h, &settings) {
+            Some(e) => e,
+            None if settings.source == Source::Files && engine_exe(&h).is_none() => {
+                check.error = Some("index.error.needEngine".into());
+                return Ok(check);
+            }
+            None => {
+                check.error = Some("index.error.notFound".into());
+                return Ok(check);
+            }
+        };
+        let words = match engine::embed(&engine, &engine::Input::Query("holidays at the sea")) {
+            Ok(v) => v,
+            Err(e) => {
+                check.error = Some(e);
+                return Ok(check);
+            }
+        };
+        check.text = true;
+        check.dim = words.len() as u32;
+        if let engine::Backend::Own(engine::Setup { vision: None, .. }) = engine.backend {
+            check.error = Some("index.error.noVision".into());
+            return Ok(check);
+        }
+        match engine::embed(&engine, &engine::Input::Picture(&test_picture())) {
+            Ok(v) if v.len() == words.len() => check.pictures = true,
+            Ok(_) => check.error = Some("index.error.engine:size".into()),
+            Err(e) => check.error = Some(e),
+        }
+        Ok(check)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// A small picture for the check: a blue sky over a yellow beach.
+fn test_picture() -> Vec<u8> {
+    let side = 64u32;
+    let mut rgba = Vec::with_capacity((side * side * 4) as usize);
+    for y in 0..side {
+        for _ in 0..side {
+            let px = if y < side * 2 / 3 {
+                [90, 160, 230, 255]
+            } else {
+                [235, 210, 140, 255]
+            };
+            rgba.extend_from_slice(&px);
+        }
+    }
+    crate::apps::icon::encode_png(side, side, &rgba)
+}
+
+/// Where other apps keep the models they downloaded.
+fn model_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    for var in ["LLAMA_CACHE", "LMSTUDIO_MODELS"] {
+        if let Some(d) = std::env::var_os(var) {
+            dirs.push(PathBuf::from(d));
+        }
+    }
+    if let Some(d) = std::env::var_os("HF_HOME") {
+        dirs.push(PathBuf::from(d).join("hub"));
+    }
+    if let Some(d) = std::env::var_os("LOCALAPPDATA") {
+        dirs.push(PathBuf::from(d).join("llama.cpp"));
+    }
+    if let Some(p) = files::profile_dir() {
+        for rel in [
+            ".lmstudio/models",
+            ".cache/lm-studio/models",
+            ".cache/llama.cpp",
+            ".cache/huggingface/hub",
+        ] {
+            dirs.push(p.join(rel));
+        }
+    }
+    dirs.retain(|d| d.is_dir());
+    files::dedup_dirs(&dirs)
+}
+
+/// Embedding models (`.gguf` with "embed" in the name) in `dirs`, each with the
+/// `mmproj` file beside it, if any.
+fn models_in(dirs: &[PathBuf]) -> Vec<OwnModel> {
+    let mut found: Vec<(PathBuf, u64)> = Vec::new();
+    for dir in dirs {
+        let mut walked = 0u32;
+        files::walk(dir, &|_| false, &mut |path, meta| {
+            walked += 1;
+            let gguf = path
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("gguf"));
+            if walked < 200_000 && gguf {
+                found.push((path, meta.len()));
+            }
+        });
+    }
+    let name = |p: &Path| {
+        p.file_name()
+            .map(|n| n.to_string_lossy().to_lowercase())
+            .unwrap_or_default()
+    };
+    let mut out: Vec<OwnModel> = found
+        .iter()
+        .filter(|(p, _)| {
+            let n = name(p);
+            n.contains("embed") && !n.starts_with("mmproj")
+        })
+        .map(|(p, bytes)| OwnModel {
+            model: p.to_string_lossy().into_owned(),
+            vision: found
+                .iter()
+                .filter(|(v, _)| v.parent() == p.parent() && name(v).starts_with("mmproj"))
+                .map(|(v, _)| v.to_string_lossy().into_owned())
+                .min(),
+            bytes: *bytes,
+        })
+        .collect();
+    out.sort_by(|a, b| a.model.cmp(&b.model));
+    out.dedup_by(|a, b| a.model == b.model);
+    out
+}
+
+/// Embedding models other apps already downloaded (LM Studio, llama.cpp, Hugging Face).
+#[tauri::command]
+pub async fn index_find_models() -> Vec<OwnModel> {
+    tauri::async_runtime::spawn_blocking(|| models_in(&model_dirs()))
+        .await
+        .unwrap_or_default()
 }
 
 /// Stops the download; what came already is kept for the next try.
@@ -903,6 +1175,46 @@ mod platform {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn embedding_models_are_found_with_their_picture_part() {
+        let dir = std::env::temp_dir().join(format!("eu-models-{}", std::process::id()));
+        let lm = dir.join("lmstudio-community").join("embeddinggemma-2-GGUF");
+        let chat = dir.join("other").join("chat-GGUF");
+        fs::create_dir_all(&lm).unwrap();
+        fs::create_dir_all(&chat).unwrap();
+        fs::write(lm.join("embeddinggemma-2-Q4_K_M.gguf"), b"m").unwrap();
+        fs::write(lm.join("mmproj-embeddinggemma-2-F16.gguf"), b"v").unwrap();
+        fs::write(chat.join("chat-Q4.gguf"), b"c").unwrap();
+        fs::write(chat.join("nomic-embed-text.gguf"), b"e").unwrap();
+        let found = models_in(std::slice::from_ref(&dir));
+        assert_eq!(found.len(), 2, "chat models are left out: {found:?}");
+        let gemma = found
+            .iter()
+            .find(|m| m.model.contains("embeddinggemma"))
+            .unwrap();
+        assert!(gemma.vision.as_deref().unwrap().contains("mmproj"));
+        let nomic = found.iter().find(|m| m.model.contains("nomic")).unwrap();
+        assert_eq!(nomic.vision, None, "no picture part beside it");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_server_must_be_on_this_pc() {
+        let with = |url: &str| IndexSettings {
+            source: Source::Server,
+            server_url: url.into(),
+            ..IndexSettings::default()
+        };
+        assert!(server_url(&with("http://127.0.0.1:8080")).is_some());
+        assert!(server_url(&with("http://localhost:8080/v1")).is_some());
+        assert!(server_url(&with("http://192.168.1.5:8080")).is_none());
+        assert!(server_url(&with("https://example.com")).is_none());
+        assert_ne!(
+            model_id(&with("http://127.0.0.1:8080")),
+            Quality::Light.id()
+        );
+    }
 
     #[test]
     fn system_folders_are_skipped_only_at_the_top() {

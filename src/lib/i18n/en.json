@@ -1014,19 +1014,13 @@
     }
   },
   "search": {
-    "placeholderAi": "Describe the files you are looking for, e.g. “videos over 500 MB I haven't opened in a year”",
-    "placeholderName": "Search your files by name",
     "placeholderContent": "Describe what the files show, e.g. “holidays at the sea”",
     "button": "Search",
     "tidy": "Tidy up Downloads",
-    "aiOff": "With AI help on, you can search by writing a whole sentence.",
-    "turnOn": "Turn it on",
-    "sentOnly": "Only this sentence is sent to {service}. The search runs on this PC: your file names stay here.",
     "title": "Search your files",
     "understanding": "{service} is reading your sentence…",
     "searching": "Searching this PC…",
     "understood": "I understood:",
-    "byName": "Searching by name:",
     "lookingFor": "Looking for:",
     "edit": "Change",
     "doneEditing": "Done",
@@ -1081,21 +1075,19 @@
     "capped": "Showing the first {shown} of {total}.",
     "tooMany": "Over 5,000 files match: only the first 5,000 can be moved. Add a filter to narrow it down.",
     "partial": "Your folders are very large: the search stopped after 400,000 files.",
-    "safety": "The AI only turned your sentence into these filters. Nothing moves on its own: you choose, and everything goes to Quarantine for {days} days.",
-    "safetyName": "The search runs on this PC. Nothing moves on its own: you choose, and everything goes to Quarantine for {days} days.",
     "failed": "The search did not work: {error}",
     "error": {
       "empty": "Write what you are looking for.",
       "notSearch": "That does not look like a search for files. Try describing them, e.g. “PDFs in Downloads from last year”."
-    }
+    },
+    "placeholderLocked": "Index your files to search them",
+    "needServer": "Your model's server is not set.",
+    "getModel": "Download the model ({size})",
+    "useOwn": "Use your own",
+    "nothingIndexed": "No photos or videos indexed yet."
   },
   "searchTopic": {
-    "title": "Search for “{topic}” inside photos and videos",
-    "hint": "It needs the model that recognizes what they show: {size} to download.",
-    "download": "Download the model",
     "options": "Options",
-    "indexing": "Still indexing: {left} files to look at.",
-    "refresh": "Refresh",
     "more": "Show the less alike too ({count})",
     "chip": "like “{topic}”",
     "byTopic": "Most alike first",
@@ -1103,57 +1095,44 @@
   },
   "index": {
     "title": "Search by content",
-    "hint": "Finds photos and videos by what they show, even when the name says nothing.",
     "status": {
       "none": "Model not downloaded",
-      "noneHint": "{size} to download, once.",
       "downloading": "Downloading the model: {done} of {total}",
       "verifying": "Checking the downloaded files…",
       "indexing": "Indexing: {done} done, {left} to look at",
       "current": "Now: {name}",
       "paused": "Paused: {count} indexed",
       "ready": "Ready: {count} indexed",
-      "files": "{count} files"
+      "files": "{count} files",
+      "ownNone": "Model not set"
     },
     "download": "Download ({size})",
     "cancel": "Cancel",
     "pause": "Pause",
     "resume": "Resume",
     "quality": {
-      "label": "Model",
+      "label": "Quality",
       "light": "Light",
       "better": "Better",
       "best": "Best",
-      "hints": {
-        "light": "{size}. Fine on any PC.",
-        "better": "{size}. A little more precise.",
-        "best": "{size}. The most precise, at twice the size."
-      },
       "changed": "The new model needs a download, then the index starts over."
     },
     "depth": {
       "label": "Videos",
       "quick": "Quick",
       "partial": "Partial",
-      "full": "Full",
-      "hints": {
-        "quick": "Only the preview of each video.",
-        "partial": "8 frames per video.",
-        "full": "One frame every 5 seconds: much slower."
-      }
+      "full": "Full"
     },
     "what": {
       "label": "What to search",
       "photos": "Photos",
       "videos": "Videos",
-      "documents": "Documents",
-      "documentsHint": "Documents are found by the Windows index, with nothing more to download."
+      "documents": "Documents"
     },
     "where": {
       "label": "Where",
       "mine": "Your folders",
-      "all": "The whole PC",
-      "allHint": "Other drives too, except the Windows and program folders."
+      "all": "The whole PC"
     },
     "space": "Space used",
     "remove": "Delete model and index",
@@ -1163,25 +1142,47 @@
       "badFile": "A downloaded file is not the expected one ({detail}): it was deleted.",
       "engine": "The model did not start ({detail}).",
       "engineSlow": "The model does not answer: try again.",
-      "notReady": "The model is not downloaded yet."
+      "notReady": "The model is not downloaded yet.",
+      "serverOff": "Nothing answers at that address: is the server on?",
+      "notFound": "File or address not valid (only on this PC).",
+      "noVision": "Reads only text: the mmproj file is missing.",
+      "needEngine": "Also needs llama.cpp, downloaded with «Use this»."
+    },
+    "source": {
+      "label": "Model",
+      "download": "EmbeddingGemma",
+      "files": "My files",
+      "server": "My server"
+    },
+    "own": {
+      "found": "Found on this PC",
+      "searching": "Looking for models…",
+      "noneFound": "No embedding model found in LM Studio or llama.cpp.",
+      "textOnly": "text only",
+      "model": "Model (.gguf)",
+      "vision": "Pictures (mmproj .gguf)",
+      "url": "Address",
+      "try": "Try",
+      "trying": "Trying…",
+      "ok": "Works · {dim} numbers per vector",
+      "use": "Use this",
+      "inUse": "In use"
     }
   },
   "tidy": {
     "title": "Tidy up Downloads",
-    "subtitle": "The AI looks at the names of the files lying in Downloads and proposes a few folders. Nothing moves until you confirm, and you can put everything back.",
     "loose": "{files} lying loose in Downloads · {size}",
     "none": "Downloads is already tidy: there are no loose files.",
     "noDownloads": "No Downloads folder was found on this PC.",
     "askAi": "Propose folders with AI",
     "byType": "Sort by type, without AI",
-    "aiOff": "AI help is off: you can sort by type, or turn it on for folders with clearer names.",
     "lastRun": "Last tidy, {date}: {files} into {folders}.",
     "undoLast": "Put them back",
     "folderOne": "1 folder",
     "folders": "{count} folders",
     "confirm": {
       "title": "What I send to {service}",
-      "intro": "The names of {files}, with size and month. Never what is inside them, and not where they are on your PC.",
+      "intro": "Names of {files}, with size and month.",
       "notSent": "{files} more will be tidied next time.",
       "send": "Send and propose"
     },
@@ -1190,9 +1191,9 @@
       "title": "Proposal: {files} into {folders}",
       "byType": "Sorted by type",
       "byAi": "Proposed by {service}",
-      "left": "{files} stay where they are: the AI was not sure where they go.",
+      "left": "{files} stay where they are.",
       "leftByType": "{files} of other kinds stay where they are.",
-      "notSent": "{files} were not looked at this time: run it again afterwards.",
+      "notSent": "{files} not looked at this time.",
       "new": "New folder",
       "exists": "Already there",
       "in": "in {place}",
@@ -1203,15 +1204,13 @@
       "pick": "Move {name}"
     },
     "installers": {
-      "title": "Installers already used",
-      "desc": "Setup files of programs that are already installed. Tick them to move them to Quarantine."
+      "title": "Installers already used"
     },
     "apply": {
       "summary": "{files} into {folders}",
       "plusInstallers": "and {files} to Quarantine",
       "button": "Tidy up",
       "moving": "Tidying…",
-      "note": "Files are moved, never deleted. You can put everything back with one click.",
       "nothing": "Tick at least one file."
     },
     "done": {
@@ -1225,7 +1224,6 @@
       "back": "Back to Files",
       "open": "Open Downloads"
     },
-    "safety": "The AI only proposes. Nothing moves until you press “Tidy up”, and every tidy can be undone.",
     "failed": "It did not work: {error}",
     "error": {
       "noDownloads": "No Downloads folder was found on this PC.",

@@ -157,7 +157,12 @@ each file checked by SHA-256), then indexes your photos and video frames in the 
 at low priority, with pause. You choose the model size, how many frames of each video
 (the preview, 8 frames, or one every 5 seconds), what to index and where (your folders or
 the whole PC). Documents are found by their text through the index Windows already keeps.
-It works without the online AI too: the sentence itself is the topic.
+Instead of the download you can use your own embedding model: a GGUF file already on the PC
+(found in the LM Studio, llama.cpp and Hugging Face folders) or a llama.cpp server running on
+it; *Try* checks that it reads both words and pictures before it is used.
+The search box opens once files are indexed. Sizes, dates and kinds in the sentence are read
+on this PC and the rest is what the files should show; the online AI is asked only when part
+of a sentence cannot be read that way.
 
 **Tidy up Downloads** (Files screen): the AI looks at the names of the files lying loose in
 Downloads (names, sizes and months only, shown before sending) and proposes a few folders in

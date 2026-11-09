@@ -89,3 +89,13 @@ export function readSentence(sentence: string): SearchFilter {
   const topic = words.join(" ").trim();
   return { kinds, minBytes, maxBytes, unusedDays, recentDays, places, words: [], sort: "size", topic: topic || null, loose: false };
 }
+
+/**
+ * Words that say a size, a date or an order the rules above did not read: left in the
+ * topic, they would be looked for as what the files show. Then the AI is asked, if it is on.
+ */
+const UNREAD = /\d|\b(più|meno|oltre|sotto|prima|dopo|fino|mesi|mese|anni|anno|settimane|giorni|ieri|scors[oa]|grandi|piccoli|pesanti|vecchi|recenti|nuovi|ultimi|more|less|over|under|before|after|since|until|between|months?|years?|weeks?|days?|yesterday|last|big|bigger|large|larger|small|smaller|heavy|old|older|recent|newest|oldest)\b/i;
+
+/** The sentence holds something the rules could not read (an edge case for the AI). */
+export const needsHelp = (filter: SearchFilter): boolean => !!filter.topic && UNREAD.test(filter.topic);
+

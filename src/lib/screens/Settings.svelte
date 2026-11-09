@@ -2,14 +2,14 @@
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
   import Icon from "../components/Icon.svelte";
   import AiServicePicker from "../components/AiServicePicker.svelte";
-  import { AI_PARALLEL_CHOICES, aiStats, createRestorePoint, INDEX_DOWNLOAD_BYTES, KEEP_DAYS_CHOICES, listExclusions } from "../api";
+  import { AI_PARALLEL_CHOICES, aiStats, createRestorePoint, INDEX_DOWNLOAD_BYTES, indexCheck, indexFindModels, KEEP_DAYS_CHOICES, listExclusions } from "../api";
   import { cancelIndexDownload, changeIndex, indexErrorText, installIndex, localIndex, removeIndex, watchIndex } from "../localIndex.svelte";
   import { forgetAnswers, serviceInfo } from "../ai.svelte";
   import { formatBytes } from "../format";
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
   import { quarantine, saveQuarantine, saveSettings, settings } from "../settings.svelte";
   import type { Screen } from "../screens";
-  import type { AiMode, AiStats, IndexDepth, IndexQuality, RestorePointOutcome } from "../types";
+  import type { AiMode, AiStats, IndexCheck, IndexDepth, IndexQuality, IndexSource, OwnModel, RestorePointOutcome } from "../types";
   import { getTheme, setTheme, themes } from "../theme.svelte";
   import { check, install, update } from "../updates.svelte";
   // Only this field ends up in the bundle; the release workflow keeps it in sync with the tag.
@@ -77,6 +77,57 @@
   const ix = $derived(localIndex.status);
   const count = (n: number) => n.toLocaleString(getLanguage());
   const percent = (done: number, total: number) => (total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0);
+
+  // One's own model: chosen here, tried, and only then used.
+  const sources: IndexSource[] = ["download", "files", "server"];
+  let tab = $state<IndexSource | null>(null);
+  let draft = $state({ ownModel: "", ownVision: "", serverUrl: "" });
+  let found = $state<OwnModel[] | null>(null);
+  let checking = $state(false);
+  let checked = $state<{ key: string; result: IndexCheck } | null>(null);
+  const shownSource = $derived(tab ?? ix?.settings.source ?? "download");
+  const draftKey = $derived(`${shownSource}|${draft.ownModel.trim()}|${draft.ownVision.trim()}|${draft.serverUrl.trim()}`);
+  const savedKey = $derived(ix ? `${ix.settings.source}|${ix.settings.ownModel}|${ix.settings.ownVision}|${ix.settings.serverUrl}` : "");
+  const result = $derived(checked?.key === draftKey ? checked.result : null);
+  const usable = $derived(!!result && (result.pictures || result.error === "index.error.needEngine"));
+  const fileName = (p: string) => p.split(/[\\/]/).pop() ?? p;
+
+  function pickSource(source: IndexSource) {
+    if (!ix) return;
+    tab = source;
+    draft = { ownModel: ix.settings.ownModel, ownVision: ix.settings.ownVision, serverUrl: ix.settings.serverUrl || "http://127.0.0.1:8080" };
+    if (source === "download") {
+      if (ix.settings.source !== "download") changeIndex({ source });
+    } else if (source === "files" && !found) {
+      indexFindModels()
+        .then((m) => {
+          found = m;
+          if (!draft.ownModel && m[0]) draft = { ...draft, ownModel: m[0].model, ownVision: m[0].vision ?? "" };
+        })
+        .catch(() => (found = []));
+    }
+  }
+
+  async function tryModel() {
+    if (!ix || checking) return;
+    checking = true;
+    const key = draftKey;
+    try {
+      const result = await indexCheck({ ...ix.settings, source: shownSource, ...trimmed() });
+      checked = { key, result };
+    } catch (e) {
+      checked = { key, result: { text: false, pictures: false, dim: 0, error: String(e) } };
+    } finally {
+      checking = false;
+    }
+  }
+
+  const trimmed = () => ({ ownModel: draft.ownModel.trim(), ownVision: draft.ownVision.trim(), serverUrl: draft.serverUrl.trim() });
+
+  async function useModel() {
+    await changeIndex({ source: shownSource, ...trimmed() });
+    if (localIndex.status && !localIndex.status.ready && localIndex.status.downloadBytes > 0) installIndex();
+  }
 
   async function makeRestorePoint() {
     restorePoint = "creating";
@@ -245,22 +296,22 @@
         {#if ix.download}
           <span class="version">{ix.download.verifying ? t("index.status.verifying") : t("index.status.downloading", { done: formatBytes(ix.download.doneBytes), total: formatBytes(ix.download.totalBytes) })}</span>
           <span class="bar" class:indeterminate={ix.download.verifying}><span style:width="{ix.download.verifying ? 30 : percent(ix.download.doneBytes, ix.download.totalBytes)}%"></span></span>
+        {:else if !ix.ready && st.source !== "download"}
+          <span class="version">{t("index.status.ownNone")}</span>
         {:else if !ix.ready}
           <span class="version">{t("index.status.none")}</span>
-          <span class="muted hint">{t("index.hint")} {t("index.status.noneHint", { size: formatBytes(ix.downloadBytes) })}</span>
         {:else if ix.indexing}
           <span class="version">{t("index.status.indexing", { done: count(ix.indexed), left: count(ix.pending) })}</span>
           <span class="bar"><span style:width="{percent(ix.indexed, ix.indexed + ix.pending)}%"></span></span>
           {#if ix.current}<span class="muted hint current">{t("index.status.current", { name: ix.current })}</span>{/if}
         {:else}
           <span class="version">{t(st.paused ? "index.status.paused" : "index.status.ready", { count: count(ix.indexed) })}</span>
-          <span class="muted hint">{t("index.hint")}</span>
         {/if}
         {#if ix.error}<span class="hint bad" role="alert">{indexErrorText(ix.error)}</span>{/if}
       </span>
       {#if ix.download}
         <button class="btn btn-ghost" onclick={cancelIndexDownload}>{t("index.cancel")}</button>
-      {:else if !ix.ready}
+      {:else if !ix.ready && ix.downloadBytes > 0}
         <button class="btn btn-primary" disabled={localIndex.busy} onclick={installIndex}><Icon name="download" />{t("index.download", { size: formatBytes(ix.downloadBytes) })}</button>
       {:else if st.paused}
         <button class="btn btn-ghost" onclick={() => changeIndex({ paused: false })}>{t("index.resume")}</button>
@@ -269,20 +320,72 @@
       {/if}
     </div>
     <div class="row theme">
-      <span id="index-quality">
-        {t("index.quality.label")}
-        <span class="muted hint">{t(`index.quality.hints.${st.quality}`, { size: formatBytes(INDEX_DOWNLOAD_BYTES[st.quality]) })}</span>
+      <span id="index-source">
+        {t("index.source.label")}
       </span>
-      <div class="segmented" role="radiogroup" aria-labelledby="index-quality">
-        {#each qualities as q (q)}
-          <button role="radio" aria-checked={st.quality === q} class:on={st.quality === q} disabled={!!ix.download} onclick={() => changeIndex({ quality: q })}>{t(`index.quality.${q}`)}</button>
+      <div class="segmented" role="radiogroup" aria-labelledby="index-source">
+        {#each sources as src (src)}
+          <button role="radio" aria-checked={shownSource === src} class:on={shownSource === src} disabled={!!ix.download} onclick={() => pickSource(src)}>{t(`index.source.${src}`)}</button>
         {/each}
       </div>
     </div>
+    {#if shownSource === "download"}
+      <div class="row theme">
+        <span id="index-quality">
+          {t("index.quality.label")}
+          <span class="muted hint">{formatBytes(INDEX_DOWNLOAD_BYTES[st.quality])}</span>
+        </span>
+        <div class="segmented" role="radiogroup" aria-labelledby="index-quality">
+          {#each qualities as q (q)}
+            <button role="radio" aria-checked={st.quality === q} class:on={st.quality === q} disabled={!!ix.download} onclick={() => changeIndex({ quality: q })}>{t(`index.quality.${q}`)}</button>
+          {/each}
+        </div>
+      </div>
+    {:else}
+      <div class="row own">
+        {#if shownSource === "files"}
+          {#if found === null && tab === "files"}
+            <span class="muted hint">{t("index.own.searching")}</span>
+          {:else if found && found.length === 0}
+            <span class="muted hint">{t("index.own.noneFound")}</span>
+          {:else if found}
+            <span class="hint">{t("index.own.found")}</span>
+            <div class="found" role="radiogroup" aria-label={t("index.own.found")}>
+              {#each found as m (m.model)}
+                <button role="radio" aria-checked={draft.ownModel === m.model} class:on={draft.ownModel === m.model} onclick={() => (draft = { ...draft, ownModel: m.model, ownVision: m.vision ?? "" })}>
+                  <b>{fileName(m.model)}</b>
+                  <span class="muted">{formatBytes(m.bytes)}{m.vision ? "" : ` · ${t("index.own.textOnly")}`}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+          <label class="path"><span>{t("index.own.model")}</span><input bind:value={draft.ownModel} placeholder="C:\…\model.gguf" spellcheck="false" /></label>
+          <label class="path"><span>{t("index.own.vision")}</span><input bind:value={draft.ownVision} placeholder="C:\…\mmproj.gguf" spellcheck="false" /></label>
+        {:else}
+          <label class="path"><span>{t("index.own.url")}</span><input bind:value={draft.serverUrl} placeholder="http://127.0.0.1:8080" spellcheck="false" /></label>
+        {/if}
+        <div class="own-actions">
+          <span class="grow">
+            {#if checking}
+              <span class="muted hint">{t("index.own.trying")}</span>
+            {:else if result?.pictures}
+              <span class="hint ok">{t("index.own.ok", { dim: result.dim })}</span>
+            {:else if result?.error}
+              <span class="hint bad" role="alert">{indexErrorText(result.error)}</span>
+            {/if}
+          </span>
+          <button class="btn btn-ghost" disabled={checking} onclick={tryModel}>{t("index.own.try")}</button>
+          {#if draftKey === savedKey}
+            <span class="hint ok">{t("index.own.inUse")}</span>
+          {:else}
+            <button class="btn btn-primary" disabled={!usable || localIndex.busy} onclick={useModel}>{t("index.own.use")}</button>
+          {/if}
+        </div>
+      </div>
+    {/if}
     <div class="row theme">
       <span id="index-depth">
         {t("index.depth.label")}
-        <span class="muted hint">{t(`index.depth.hints.${st.depth}`)}</span>
       </span>
       <div class="segmented" role="radiogroup" aria-labelledby="index-depth">
         {#each depths as d (d)}
@@ -293,7 +396,6 @@
     <div class="row theme">
       <span>
         {t("index.what.label")}
-        <span class="muted hint">{t("index.what.documentsHint")}</span>
       </span>
       <div class="checks">
         <label><input type="checkbox" checked={st.photos} onchange={(e) => changeIndex({ photos: e.currentTarget.checked })} />{t("index.what.photos")}</label>
@@ -304,7 +406,6 @@
     <div class="row theme">
       <span id="index-where">
         {t("index.where.label")}
-        {#if st.wholePc}<span class="muted hint">{t("index.where.allHint")}</span>{/if}
       </span>
       <div class="segmented" role="radiogroup" aria-labelledby="index-where">
         <button role="radio" aria-checked={!st.wholePc} class:on={!st.wholePc} onclick={() => changeIndex({ wholePc: false })}>{t("index.where.mine")}</button>
@@ -420,6 +521,15 @@
   .checks label { display: inline-flex; align-items: center; gap: 6px; }
   .checks input { width: 16px; height: 16px; accent-color: var(--accent); }
   .current { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row.own { flex-direction: column; align-items: stretch; gap: 8px; }
+  .found { display: flex; flex-direction: column; gap: 4px; }
+  .found button { display: flex; justify-content: space-between; gap: 12px; text-align: left; border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); padding: 7px 10px; font-size: 12.5px; }
+  .found button.on { border-color: var(--accent); background: var(--accent-soft); }
+  .found b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .path { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+  .path span { width: 160px; flex: none; }
+  .row .path input { flex: 1; width: auto; height: auto; min-width: 0; padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); font-size: 12.5px; user-select: text; }
+  .own-actions { display: flex; align-items: center; gap: 10px; }
   .segmented button:disabled { opacity: 0.5; cursor: default; }
   .hint.ok { color: var(--safe-fg); font-weight: 600; }
   .hint.bad { color: var(--check-fg); font-weight: 600; }

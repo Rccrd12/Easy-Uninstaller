@@ -86,6 +86,8 @@ pub fn run() {
             semantic::index_install,
             semantic::index_cancel_download,
             semantic::index_remove,
+            semantic::index_check,
+            semantic::index_find_models,
             space::scan_space,
             tidy::tidy_overview,
             tidy::tidy_preview,
