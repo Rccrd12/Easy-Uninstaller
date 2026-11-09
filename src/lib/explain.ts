@@ -11,6 +11,8 @@ export interface KnownFolder {
   verdict: Verdict;
   /** Product names, not translated. */
   madeBy: string;
+  /** The app's own folder: never offered for quarantine (Rust refuses it too). */
+  noMove?: boolean;
 }
 
 const byId = new Map<string, KnownFolder>(known.folders.map((f) => [f.id, f as KnownFolder]));

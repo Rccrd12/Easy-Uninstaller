@@ -501,8 +501,6 @@
     "source": "Explanation built into the app · no data sent",
     "unknownTitle": "I have no explanation for “{name}”",
     "unknownHint": "A folder is usually named after the app or company that made it. If you don't recognise it, leave it where it is.",
-    "aiSoon": "In the future you will be able to ask the AI assistant, if you turn it on.",
-    "askAi": "Ask AI · coming soon",
     "back": "Back to {group}",
     "folders": {
       "temp": {
@@ -659,6 +657,11 @@
         "label": "Package manager",
         "what": "Chocolatey or Scoop and the programs they installed.",
         "ifRemoved": "Programs installed with them would stop working or could no longer be updated."
+      },
+      "easyUninstaller": {
+        "label": "Easy Uninstaller's data",
+        "what": "This app's own folder: its settings, the AI answers and the Quarantine, that is the files you removed in the last few days, kept so you can still put them back. That is why it can be large.",
+        "ifRemoved": "You could no longer restore what is in the Quarantine. To free this space, open Quarantine and delete what you no longer need, or pick fewer days or another drive in Settings."
       }
     },
     "move": {
@@ -704,5 +707,289 @@
     "shownAgainMany": "Shown again: {count}.",
     "failed": "Couldn't save: {error}",
     "leftoverOf": "{app} leftover"
+  },
+  "ai": {
+    "services": {
+      "claude-code": {
+        "name": "Claude Code",
+        "sub": "Claude Pro or Max subscription"
+      },
+      "codex": {
+        "name": "Codex",
+        "sub": "ChatGPT Plus or Pro subscription"
+      },
+      "antigravity-cli": {
+        "name": "Antigravity CLI",
+        "sub": "Google AI Pro or Ultra subscription"
+      },
+      "anthropic": {
+        "name": "Claude",
+        "sub": "Anthropic",
+        "keyHint": "sk-ant-…"
+      },
+      "openai": {
+        "name": "OpenAI",
+        "sub": "GPT",
+        "keyHint": "sk-…"
+      },
+      "google": {
+        "name": "Google Gemini",
+        "sub": "Google AI Studio",
+        "keyHint": "AIza…"
+      },
+      "openrouter": {
+        "name": "OpenRouter",
+        "sub": "Many models with one key",
+        "keyHint": "sk-or-…"
+      },
+      "custom": {
+        "name": "Other service",
+        "sub": "OpenAI-compatible: address and key",
+        "keyHint": "Key, if the service wants one"
+      },
+      "ollama": {
+        "name": "Ollama",
+        "sub": "localhost:11434"
+      },
+      "lmstudio": {
+        "name": "LM Studio",
+        "sub": "localhost:1234"
+      },
+      "unsloth": {
+        "name": "Unsloth Studio",
+        "sub": "needs its sk-unsloth key",
+        "keyHint": "sk-unsloth-…"
+      },
+      "local-custom": {
+        "name": "Other server",
+        "sub": "OpenAI-compatible: address",
+        "keyHint": "Key, if the server wants one"
+      }
+    },
+    "error": {
+      "notInstalled": "{service} is not installed on this PC.",
+      "notSignedIn": "{service} is not signed in. Open it once in a terminal and sign in, then try again.",
+      "noKey": "Add the API key first.",
+      "badKey": "The service refused the key. Check that it is right and still active.",
+      "keyFormat": "That does not look like a key: paste it again, with no spaces.",
+      "offline": "No answer from {service}. Check that it is running (or that you are online).",
+      "timeout": "{service} took too long to answer.",
+      "badAnswer": "The answer could not be read. Try again, or pick another model.",
+      "refused": "The app does not ask the AI about this folder.",
+      "server": "{service} answered with an error",
+      "notFound": "{service} does not know this model",
+      "tooMany": "Too many questions in a short time, or the plan's limit is reached. Try again later.",
+      "noService": "Pick a service first.",
+      "noModel": "Pick a model first.",
+      "badAddress": "That address is not valid. Example: http://localhost:8000/v1",
+      "notLocal": "The address must be on this PC (localhost or 127.0.0.1).",
+      "needsHttps": "The address must start with https://",
+      "other": "Something went wrong: {error}",
+      "unslothStart": "Unsloth Studio could not be started.",
+      "unslothStopped": "Unsloth Studio closed while starting. Open it once from its own shortcut to see why.",
+      "unslothSlow": "Unsloth Studio did not start within 3 minutes. Open it once from its own shortcut to see why."
+    },
+    "verdict": {
+      "removable": "Probably removable",
+      "keep": "Better keep it",
+      "unknown": "Doesn't know"
+    },
+    "confidence": {
+      "low": "low confidence",
+      "medium": "medium confidence",
+      "high": "high confidence"
+    },
+    "box": {
+      "title": "Ask the AI?",
+      "hint": "The AI can guess what this folder is from its name and the names inside. It is advice: you decide.",
+      "hintOff": "The AI can guess what this folder is from its name and the names inside. It is off: you choose which one to use.",
+      "ask": "Ask the AI",
+      "retry": "Try again",
+      "via": "Through {service}",
+      "asking": "Asking {service}…",
+      "askingHint": "Usually a few seconds.",
+      "askingLocal": "A model on this PC can take a minute, more the first time.",
+      "startingHint": "The first start can take a minute."
+    },
+    "confirm": {
+      "title": "Ask the AI?",
+      "intro": "I will send to {service} only this:",
+      "folder": "Folder",
+      "size": "Size",
+      "modified": "Last change",
+      "subfolders": "Subfolders",
+      "names": "Some names ({shown} of {total})",
+      "showText": "See the exact text",
+      "hideText": "Hide the exact text",
+      "never": "Never sent: what is inside the files, your user name, the list of your apps.",
+      "noTools": "{service} starts with no tools: it cannot read or change files.",
+      "costCli": "No extra cost: it uses your subscription's limits.",
+      "costApi": "Paid per question to the service, about 1 cent.",
+      "costLocal": "Nothing leaves this PC, and it is free.",
+      "dontAsk": "Don't ask me again (you can change it in Settings)"
+    },
+    "answer": {
+      "title": "The AI's answer",
+      "madeBy": "Probably made by {name}",
+      "overridden": "The AI thought it could go, but {app} is installed: better keep it.",
+      "checked": "Checked on your PC",
+      "appInstalled": "{app} is installed",
+      "noApp": "No installed app has this name",
+      "modified": "Last change inside: {date}",
+      "notWindows": "Not a Windows folder",
+      "mayBeWrong": "The AI can be wrong: that is why the folder goes to Quarantine, where you can restore it for {days} days.",
+      "sentOnly": "Only names and numbers were sent, never what is inside the files.",
+      "askAgain": "Ask again"
+    },
+    "move": {
+      "keepText": "The AI says to keep it:"
+    },
+    "all": {
+      "intro": "{count} folders here are unknown to the app. The AI can guess what they are.",
+      "introOne": "One folder here is unknown to the app. The AI can guess what it is.",
+      "askAll": "Ask the AI for all",
+      "askRest": "Ask for the other {count}",
+      "looked": "The AI looked at {count} folders the app didn't know",
+      "lookedOne": "The AI looked at 1 folder the app didn't know",
+      "forget": "Clear answers",
+      "confirm": "I will send to {service} the names and numbers of {count} folders, never what is inside the files.",
+      "ask": "Ask for {count}",
+      "asking": "Asking the AI: {done} of {total} done…",
+      "stop": "Stop",
+      "failed": "{count} could not be answered. Open a folder to see why."
+    },
+    "picker": {
+      "intro": {
+        "cli": "Programs already on your PC, signed in to your account. The app uses them as you would.",
+        "api": "You only pay what you use, directly to the service.",
+        "local": "Programs for models on this PC. The app checks which ones are running."
+      },
+      "found": "Found",
+      "notInstalled": "Not installed",
+      "keySaved": "Key saved",
+      "on": "Running",
+      "off": "Off",
+      "needsKey": "Key",
+      "models": "{count} models",
+      "oneModel": "1 model",
+      "howToInstall": "How to install {name}",
+      "checkAgain": "Check again",
+      "checking": "Checking…",
+      "address": "Address",
+      "addressHint": {
+        "api": "For example https://api.groq.com/openai/v1",
+        "local": "Leave it empty for the usual one."
+      },
+      "key": "API key",
+      "unslothKey": "Unsloth Studio key",
+      "optional": "optional",
+      "saveKey": "Save",
+      "keyStored": "Saved in Windows (Credential Manager)",
+      "removeKey": "Remove",
+      "getKey": "How do I get a key?",
+      "model": "Model",
+      "loadingModels": "Loading the models…",
+      "keyFirst": "Add the key: the list comes from the service.",
+      "addressFirst": "Write the address: the list comes from the server.",
+      "recommended": "recommended",
+      "modelHint": {
+        "claudeCode": "Also Opus (more precise, uses more of your limits) or Haiku (faster).",
+        "cli": "The models your subscription offers.",
+        "api": "The list comes from the service.",
+        "local": "The models you already downloaded. Bigger is more precise but slower."
+      },
+      "modelName": "Model name",
+      "noList": "The list could not be read: type the model's name.",
+      "test": "Test",
+      "testing": "Testing…",
+      "works": "It works. Answered in {seconds} seconds.",
+      "notes": {
+        "cliCost": "💶 No extra cost: it uses your subscription's limits.",
+        "cliTools": "🔒 It starts in an empty folder with no tools: it cannot read, change or delete files.",
+        "apiCost": "💶 About 1 cent per question with the recommended models.",
+        "apiDirect": "🔒 The question goes from your PC to the service, with no server of ours in between.",
+        "localPrivate": "🔒 Nothing leaves this PC.",
+        "localFree": "💶 Free."
+      },
+      "autoStarts": "Starts by itself",
+      "starting": "Starting Unsloth Studio… {seconds} s",
+      "autoStart": "Start and stop it by itself",
+      "autoStartHint": "Started with no window when a question needs it, and stopped 5 minutes after the last one. Only the one this app started is ever stopped."
+    },
+    "setup": {
+      "title": "Turn on the AI help?",
+      "step": "Step {step} of 2",
+      "lead": "The AI explains the folders the app does not know and tells you whether they look useful.",
+      "leadBold": "It never moves anything by itself",
+      "leadEnd": ": you always decide, and everything goes through Quarantine.",
+      "online": {
+        "title": "Online",
+        "a": "👍 Better and faster answers",
+        "b": "🎟️ Uses a subscription you already have (Claude, ChatGPT, Google) through its program, or an API key",
+        "c": "📤 Folder paths and file names are sent, never what is inside"
+      },
+      "local": {
+        "title": "On this PC",
+        "a": "🔒 No data leaves the PC",
+        "b": "📦 Uses a program you already have: Ollama, LM Studio, Unsloth Studio…",
+        "c": "🐢 Slower, and more often wrong on rare folders"
+      },
+      "off": {
+        "title": "No, thanks",
+        "a": "📚 The app keeps using its built-in explanations"
+      },
+      "changeLater": "You can change your mind at any time in Settings.",
+      "continue": "Continue",
+      "onlineTitle": "Choose the online service",
+      "localTitle": "Choose the program on this PC",
+      "tabCli": "With your subscription",
+      "tabApi": "With an API key",
+      "back": "Back",
+      "done": "Done",
+      "doneAsk": "Done, ask the AI"
+    },
+    "settings": {
+      "title": "AI help",
+      "new": "New",
+      "mode": "Where the AI works",
+      "modeHint": {
+        "off": "Off: the app only uses its built-in explanations.",
+        "online": "An online service: through your subscription's program or with an API key.",
+        "local": "A model on this PC: nothing leaves it."
+      },
+      "modes": {
+        "off": "Off",
+        "online": "Online",
+        "local": "On this PC"
+      },
+      "confirm": "Ask me before each question",
+      "confirmHint": "Shows you exactly what leaves the PC.",
+      "month": "This month",
+      "monthCount": "{count} questions",
+      "monthOne": "1 question",
+      "costCli": "no extra cost (subscription)",
+      "costApi": "paid to the service, about 1 cent each",
+      "costLocal": "free, on this PC",
+      "saved": "Answers saved on this PC",
+      "savedCount": "{count} folders: they are not asked about again.",
+      "savedOne": "1 folder: it is not asked about again.",
+      "clear": "Clear",
+      "never": "What never leaves the PC",
+      "neverItems": {
+        "contents": "What is inside your files",
+        "username": "Your user name",
+        "apps": "The list of your apps",
+        "personal": "Documents, Pictures, Desktop, Downloads"
+      },
+      "parallel": "Questions at the same time",
+      "parallelHint": "For “Ask for all”. More finish sooner, but use up your limits or credit faster."
+    },
+    "tag": {
+      "removable": "Can likely go",
+      "keep": "Better keep it",
+      "unknown": "Not sure",
+      "mark": "AI",
+      "title": "The AI says: {verdict}. {what}"
+    }
   }
 }

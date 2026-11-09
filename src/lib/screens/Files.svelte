@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AiSetup from "../components/AiSetup.svelte";
   import ExplainCard from "../components/ExplainCard.svelte";
   import ExplainTag from "../components/ExplainTag.svelte";
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
@@ -21,7 +22,8 @@
     restoreQuarantine,
     usesSampleData,
   } from "../api";
-  import { quarantine } from "../settings.svelte";
+  import { quarantine, settings } from "../settings.svelte";
+  import { ai, aiErrorText, aiReady, answerFor, askAll, forgetAnswers, loadSavedAnswers, openSetup, serviceLabel, stopAskAll } from "../ai.svelte";
   import { fileCount, formatBytes, removedLines, restoreSummary } from "../format";
   import { locale, t } from "../i18n/index.svelte";
   import { displayPath, folderOf, nameOf } from "../paths";
@@ -83,6 +85,7 @@
         // Pre-select only what is safe; anything else needs the user's eyes.
         checked = new Set(g.filter((x) => x.safety === "safe" && !x.reviewOnly).map((x) => x.id));
         if (!g.some((x) => x.id === focusedId)) focusedId = null;
+        loadSavedAnswers(g.filter((x) => x.reviewOnly).flatMap((x) => unknownItems(x).map((i) => i.path)));
       })
       .catch((e) => (error = String(e)))
       .finally(() => (scanning = false));
@@ -245,6 +248,31 @@
     }
   }
 
+  /** Folders of a review-only group the app has no explanation for: those the AI can be asked about. */
+  const unknownItems = (g: FileGroup) => (g.reviewOnly ? g.items.filter((i) => i.explainId === null) : []);
+
+  /** "Ask AI for all": shown first when the user wants to see what is sent. */
+  let confirmAll = $state(false);
+  let allFailed = $state<string | null>(null);
+
+  function startAskAll(g: FileGroup) {
+    allFailed = null;
+    if (!aiReady()) {
+      openSetup(() => startAskAll(g));
+      return;
+    }
+    if (settings.ai.confirm && !confirmAll) {
+      confirmAll = true;
+      return;
+    }
+    confirmAll = false;
+    askAll(unknownItems(g))
+      .then((failed) => {
+        if (failed) allFailed = t("ai.all.failed", { count: failed });
+      })
+      .catch((e) => (allFailed = aiErrorText(e)));
+  }
+
   /** Moves one folder of a review-only group (unknown folders) into quarantine. */
   async function moveFolder(group: FileGroup, item: FileItem) {
     if (moving) return;
@@ -293,6 +321,9 @@
     if (item.originalPath) return t("files.wasIn", { path: folderOf(item.originalPath) });
     // "C:\\Users\\you\\AppData\\Local" says less than "AppData\\Local" in a narrow panel.
     const folder = folderOf(item.path).replace(/^.*?[\\/](AppData[\\/])/i, "$1");
+    // What the AI said it is, beside where it is: the tag only says whether it can go.
+    const label = item.explainId === null ? answerFor(item.path)?.label : undefined;
+    if (label) return `${label} · ${folder}`;
     return item.lastUsed ? `${folder} · ${t("files.lastUsed", { date: dateOf(item.lastUsed) })}` : folder;
   }
 
@@ -419,6 +450,39 @@
         <dt>{t("files.size")}</dt><dd>{formatBytes(focused.sizeBytes)}</dd>
         {#if !focused.reviewOnly}<dt>{t("files.files")}</dt><dd>{count(focused.itemCount)}</dd>{/if}
       </dl>
+      {#if focused.reviewOnly && unknownItems(focused).length}
+        {@const unknown = unknownItems(focused)}
+        {@const answered = unknown.filter((i) => answerFor(i.path))}
+        {@const left = unknown.length - answered.length}
+        <div class="ai-bar">
+          {#if ai.batch}
+            <p><span class="spinner" aria-hidden="true"></span>{t("ai.all.asking", { done: ai.batch.done, total: ai.batch.total })}</p>
+            <button class="link" onclick={stopAskAll}>{t("ai.all.stop")}</button>
+          {:else if confirmAll}
+            <p>{t("ai.all.confirm", { count: left, service: serviceLabel(settings.ai.service, settings.ai.model) })}</p>
+            <div class="ai-buttons">
+              <button class="btn btn-ai" onclick={() => startAskAll(focused)}>✨ {t("ai.all.ask", { count: left })}</button>
+              <button class="btn btn-ghost" onclick={() => (confirmAll = false)}>{t("common.cancel")}</button>
+            </div>
+          {:else}
+            {#if answered.length}
+              {@const first = answerFor(answered[0].path)}
+              <p>✨ {t(answered.length === 1 ? "ai.all.lookedOne" : "ai.all.looked", { count: answered.length })}{first ? ` · ${serviceLabel(first.service, first.model)}` : ""}</p>
+            {:else}
+              <p>✨ {t(left === 1 ? "ai.all.introOne" : "ai.all.intro", { count: left })}</p>
+            {/if}
+            <div class="ai-buttons">
+              {#if left}
+                <button class="btn btn-ai" onclick={() => startAskAll(focused)}>✨ {answered.length ? t("ai.all.askRest", { count: left }) : t("ai.all.askAll")}</button>
+              {/if}
+              {#if answered.length}
+                <button class="link" onclick={() => forgetAnswers(answered.map((i) => i.path))}>{t("ai.all.forget")}</button>
+              {/if}
+            </div>
+          {/if}
+          {#if allFailed}<p class="ai-error" role="alert">{allFailed}</p>{/if}
+        </div>
+      {/if}
       <div class="label list-label">{t("files.largest")}</div>
       <ul class="items" class:all={showAll}>
         {#each showAll ? focused.items : focused.items.slice(0, SHOWN_ITEMS) as item (item.path)}
@@ -430,11 +494,11 @@
                 <div class="item-name">{nameOf(item.originalPath ?? item.path)}</div>
                 <div class="muted item-note">{itemNote(item)}</div>
               </div>
-              {#if canExplain}<ExplainTag explainId={item.explainId} />{/if}
+              {#if canExplain}<ExplainTag explainId={item.explainId} answer={answerFor(item.path)} />{/if}
               <span class="item-size">{formatBytes(item.sizeBytes)}</span>
             </svelte:element>
-            <button class="hide-pill" disabled={moving} onclick={() => hideDetail(item)} aria-label={t("files.hideItem", { name: nameOf(item.originalPath ?? item.path) })}>
-              <EyeOffIcon size={14} /> {t("files.hide")}
+            <button class="hide-btn" disabled={moving} onclick={() => hideDetail(item)} aria-label={t("files.hideItem", { name: nameOf(item.originalPath ?? item.path) })} title={t("files.hide")}>
+              <EyeOffIcon size={15} />
             </button>
           </li>
         {/each}
@@ -467,6 +531,10 @@
     {/if}
   </aside>
 </div>
+{/if}
+
+{#if ai.setup}
+  <AiSetup />
 {/if}
 
 {#if notice}
@@ -540,7 +608,8 @@
   .message p { flex: 1; }
   .big-icon { font-size: 26px; }
 
-  .side { width: 330px; flex: none; padding: 18px; min-height: 420px; display: flex; flex-direction: column; position: sticky; top: 0; }
+  /* Wider on a wide window: the group rows need less room than the folder list. */
+  .side { width: clamp(340px, 34vw, 600px); flex: none; padding: 18px; min-height: 420px; display: flex; flex-direction: column; position: sticky; top: 0; }
   .label { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; color: var(--text-muted); text-transform: uppercase; }
   .side h3 { font-size: 17px; margin: 6px 0 4px; }
   .side h4 { font-size: 12.5px; margin-top: 10px; }
@@ -551,9 +620,10 @@
   dd { font-weight: 600; }
   .list-label { margin-top: 14px; }
   .items { list-style: none; margin-top: 6px; }
-  .items li { border-bottom: 1px solid var(--border); }
-  .item-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; width: 100%; border: none; background: none; color: inherit; font: inherit; text-align: left; }
-  .item-row.clickable { cursor: pointer; padding: 6px 6px; margin: 0 -6px; width: calc(100% + 12px); border-radius: var(--radius-sm); }
+  /* Hide sits last on every row, in its own place: it never covers the tag or the size. */
+  .items li { border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 4px; }
+  .item-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; flex: 1; min-width: 0; border: none; background: none; color: inherit; font: inherit; text-align: left; }
+  .item-row.clickable { cursor: pointer; padding: 6px 6px; margin-left: -6px; border-radius: var(--radius-sm); }
   .item-row.clickable:hover { background: var(--hover); }
   .item-text { flex: 1; min-width: 0; }
   .item-name, .item-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -565,16 +635,24 @@
   .show-all { border: none; background: none; color: var(--accent); font-size: 12.5px; padding: 6px 0 0; text-align: left; cursor: pointer; }
   .wide { width: 100%; padding: 10px; margin-top: 14px; }
   .wide + .wide { margin-top: 8px; }
+  .ai-bar { margin-top: 12px; border: 1px solid var(--tip-border); background: var(--tip-bg); border-radius: var(--radius-sm); padding: 9px 11px; font-size: 12.5px; line-height: 1.4; }
+  .ai-bar p { display: flex; align-items: center; gap: 6px; }
+  .ai-buttons { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+  .ai-buttons .btn { padding: 6px 12px; font-size: 12.5px; }
+  .ai-bar .link { border: none; background: none; color: var(--accent); padding: 0; font-size: 12.5px; }
+  .ai-error { color: var(--keep-fg); margin-top: 6px; }
+  .spinner { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--tip-border); border-top-color: var(--ai); animation: spin 0.9s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .review-link { border: none; background: none; color: var(--accent); font-size: 12.5px; font-weight: 600; padding: 4px 6px; border-radius: var(--radius-sm); white-space: nowrap; }
   .review-link:hover { background: var(--accent-soft); }
 
   .dots { flex: none; border: none; background: none; font-size: 18px; line-height: 1; padding: 4px 8px; margin-right: -6px; border-radius: var(--radius-sm); color: var(--text-muted); }
   .dots:hover { background: var(--hover); color: var(--text); }
   /* Over the size on hover, so the name keeps its room. */
-  .items li { position: relative; }
-  .hide-pill { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 999px; padding: 3px 10px; font-size: 12px; opacity: 0; transition: opacity 0.12s; }
-  .items li:hover .hide-pill, .hide-pill:focus-visible { opacity: 1; }
-  .hide-pill:hover { background: var(--hover); }
+  .hide-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-right: -4px; border: none; background: none; border-radius: var(--radius-sm); color: var(--text-muted); opacity: 0.55; transition: opacity 0.12s, background 0.12s; }
+  .items li:hover .hide-btn, .hide-btn:focus-visible { opacity: 1; }
+  .hide-btn:hover { background: var(--hover); color: var(--text); }
+  .hide-btn:disabled { opacity: 0.3; cursor: default; }
   .hidden-link { display: flex; align-items: center; gap: 8px; margin-top: 16px; border: none; background: none; padding: 6px 2px; font-size: 13px; color: var(--text-muted); text-align: left; }
   .link-action { color: var(--accent); font-weight: 600; }
   .hidden-link:hover .link-action { text-decoration: underline; }
