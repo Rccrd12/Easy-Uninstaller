@@ -15,6 +15,10 @@ export interface InstalledApp {
   publisher: string;
   sizeBytes: number;
   source: AppSource;
+  /** As the app reports it ("12.3.1"); empty when unknown. Shown with the technical details. */
+  version: string;
+  /** The install folder, when known. Shown with the technical details. */
+  location: string | null;
   /** ISO date, or null when Windows does not record it. */
   installedOn: string | null;
   /** Human readable, approximate. null when unknown: Windows has no reliable "last used" value. */

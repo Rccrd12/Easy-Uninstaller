@@ -1,7 +1,7 @@
 // User preferences kept in the webview's local storage, plus the quarantine
 // choices, which Rust keeps (it needs them to expire entries on start).
 // Reactive: components reading `settings` or `quarantine` re-render when a value changes.
-import { getQuarantineOptions, setQuarantineSettings } from "./api";
+import { getQuarantineOptions, setPageZoom, setQuarantineSettings, usesSampleData } from "./api";
 import type { AiMode, DriveInfo, QuarantineSettings } from "./types";
 
 const STORAGE_KEY = "settings";
@@ -30,6 +30,10 @@ interface Settings {
   restorePoint: boolean;
   /** Ask GitHub whether a newer version exists each time the app opens. */
   checkUpdates: boolean;
+  /** Bigger text and buttons: the whole window is zoomed by `LARGE_TEXT_ZOOM`. */
+  largeText: boolean;
+  /** Show full paths, registry keys, versions and install folders instead of plain names. */
+  technical: boolean;
   ai: AiSettings;
 }
 
@@ -38,6 +42,8 @@ interface Settings {
 const defaults: Settings = {
   restorePoint: false,
   checkUpdates: true,
+  largeText: false,
+  technical: false,
   ai: { mode: "off", service: "", model: "", modelLabel: "", urls: {}, confirm: true, autoStart: true, parallel: 4 },
 };
 
@@ -60,6 +66,33 @@ export function saveSettings(): void {
   } catch {
     // Not persisted; the choice still applies for this session.
   }
+}
+
+/** How much "Larger text" zooms the window: text, buttons and spacing grow together. */
+export const LARGE_TEXT_ZOOM = 1.2;
+/** The smallest page the layout is made for: the window's minimum size in tauri.conf.json. */
+const MIN_PAGE = { width: 900, height: 600 };
+
+let appliedZoom = 1;
+let listening = false;
+
+/**
+ * Applies the text size choice; call once before mounting the app and after each change.
+ * The zoom shrinks the page the layout sees, so in a small window it grows less:
+ * the page never gets smaller than the window's minimum size.
+ */
+export function applyTextSize(): void {
+  // The webview zoom also shrinks innerWidth; the browser fallback (CSS zoom) does not.
+  const scale = usesSampleData() ? 1 : appliedZoom;
+  const fit = Math.min((window.innerWidth * scale) / MIN_PAGE.width, (window.innerHeight * scale) / MIN_PAGE.height);
+  const zoom = settings.largeText ? Math.max(1, Math.min(LARGE_TEXT_ZOOM, Math.floor(fit * 100) / 100)) : 1;
+  if (!listening) {
+    window.addEventListener("resize", applyTextSize);
+    listening = true;
+  }
+  if (Math.abs(zoom - appliedZoom) < 0.01) return;
+  appliedZoom = zoom;
+  void setPageZoom(zoom);
 }
 
 /** The quarantine choices, loaded from Rust by `loadQuarantine` (defaults until then). */

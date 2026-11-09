@@ -2,6 +2,7 @@
   import { quarantine } from "../settings.svelte";
   import { knownFolder } from "../explain";
   import { formatBytes } from "../format";
+  import { shownPath } from "../paths";
   import { t } from "../i18n/index.svelte";
   import { answerFor } from "../ai.svelte";
   import type { FileItem } from "../types";
@@ -42,7 +43,7 @@
   <span class="icon"><Icon name={folderIcon} size={24} /></span>
   <div class="head-text">
     <h3 title={shown}>{name}</h3>
-    <div class="muted where" title={parent}>{parent} · {formatBytes(item.sizeBytes)}</div>
+    <div class="muted where" title={parent}>{shownPath(parent)} · {formatBytes(item.sizeBytes)}</div>
   </div>
 </div>
 

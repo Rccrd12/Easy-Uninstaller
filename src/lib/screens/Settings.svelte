@@ -6,7 +6,7 @@
   import { forgetAnswers, serviceInfo } from "../ai.svelte";
   import { formatBytes } from "../format";
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
-  import { quarantine, saveQuarantine, saveSettings, settings } from "../settings.svelte";
+  import { applyTextSize, quarantine, saveQuarantine, saveSettings, settings } from "../settings.svelte";
   import type { Screen } from "../screens";
   import type { AiMode, AiStats, RestorePointOutcome } from "../types";
   import { getTheme, setTheme, themes } from "../theme.svelte";
@@ -97,6 +97,20 @@
       {/each}
     </div>
   </div>
+  <label class="row">
+    <span>
+      {t("settings.largeText")}
+      <span class="muted hint">{t("settings.largeTextHint")}</span>
+    </span>
+    <input type="checkbox" bind:checked={settings.largeText} onchange={() => { saveSettings(); applyTextSize(); }} />
+  </label>
+  <label class="row">
+    <span>
+      {t("settings.technical")}
+      <span class="muted hint">{t("settings.technicalHint")}</span>
+    </span>
+    <input type="checkbox" bind:checked={settings.technical} onchange={saveSettings} />
+  </label>
   <label class="row">
     <span>
       {t("settings.quarantineDays")}

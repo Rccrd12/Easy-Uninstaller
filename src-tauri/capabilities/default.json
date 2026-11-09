@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Permissions for the main window. Kept minimal on purpose.",
   "windows": ["main"],
-  "permissions": ["core:default", "core:window:allow-set-theme"]
+  "permissions": ["core:default", "core:window:allow-set-theme", "core:webview:allow-set-webview-zoom"]
 }

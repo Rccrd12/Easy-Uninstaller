@@ -5,7 +5,7 @@
   import { addExclusions, listExclusions, removeExclusions } from "../api";
   import { relativeTime } from "../format";
   import { locale, t } from "../i18n/index.svelte";
-  import { displayPath, folderOf, nameOf } from "../paths";
+  import { folderOf, nameOf, shownPath } from "../paths";
   import type { Screen } from "../screens";
   import type { Exclusion, HiddenKind } from "../types";
 
@@ -49,9 +49,9 @@
 
   function whereOf(e: Exclusion): string {
     if (e.kind === "group") return t("hidden.groupNote");
-    if (e.kind === "folder") return `${displayPath(e.path)} · ${t("hidden.folderNote")}`;
-    if (e.kind === "leftover") return displayPath(e.path);
-    return displayPath(folderOf(e.path));
+    if (e.kind === "folder") return `${shownPath(e.path)} · ${t("hidden.folderNote")}`;
+    if (e.kind === "leftover") return shownPath(e.path);
+    return shownPath(folderOf(e.path));
   }
 
   async function showAgain(items: Exclusion[]) {

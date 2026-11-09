@@ -10,6 +10,8 @@ pub struct Entry {
     pub id: String,
     pub name: String,
     pub publisher: String,
+    /// "1.2.3.4"; empty when Windows does not say.
+    pub version: String,
     pub installed_on: Option<String>,
     /// Folders removed together with the app: the package and its local data.
     pub dirs: Vec<PathBuf>,
@@ -192,6 +194,10 @@ fn to_entry(pkg: &windows::ApplicationModel::Package, local: Option<&Path>) -> O
         publisher: pkg
             .PublisherDisplayName()
             .map(|s| s.to_string())
+            .unwrap_or_default(),
+        version: id
+            .Version()
+            .map(|v| format!("{}.{}.{}.{}", v.Major, v.Minor, v.Build, v.Revision))
             .unwrap_or_default(),
         installed_on: pkg
             .InstalledDate()

@@ -4,6 +4,7 @@
   import { listInstalledApps, usesSampleData } from "../api";
   import { formatBytes, formatDate } from "../format";
   import { t } from "../i18n/index.svelte";
+  import { settings } from "../settings.svelte";
   import type { InstalledApp } from "../types";
 
   type Filter = "all" | "unused" | "preinstalled" | "recent" | "store";
@@ -62,6 +63,30 @@
     if (a.installedOn) return t("apps.installedOn", { date: formatDate(a.installedOn) });
     return "";
   }
+
+  // Mirrors SCOPES in src-tauri/src/apps/registry.rs: app ids are `reg:<scope>:<key name>`.
+  const UNINSTALL_KEYS: Record<string, string> = {
+    hklm: "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+    hklm32: "HKLM\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+    hkcu: "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+  };
+
+  /** Where Windows lists the app: its Uninstall registry key, or its Store package name. */
+  function listedAt(a: InstalledApp): string {
+    const m = /^reg:(\w+):(.+)$/.exec(a.id);
+    if (m && UNINSTALL_KEYS[m[1]]) return `${UNINSTALL_KEYS[m[1]]}\\${m[2]}`;
+    return a.id.replace(/^store:/, "");
+  }
+
+  /** The technical details line: kind of installer, version, folder and registry key. */
+  function technical(a: InstalledApp): string {
+    return [
+      t(`technical.sources.${a.source}`),
+      a.version && t("technical.version", { version: a.version }),
+      a.location,
+      listedAt(a),
+    ].filter(Boolean).join(" · ");
+  }
   const total = $derived(apps.reduce((s, a) => s + a.sizeBytes, 0));
   const largest = $derived(Math.max(1, ...apps.map((a) => a.sizeBytes)));
   const selectedBytes = $derived(apps.filter((a) => selected.has(a.id)).reduce((s, a) => s + a.sizeBytes, 0));
@@ -118,6 +143,7 @@
     <div class="info">
       <div class="name">{app.name}</div>
       <div class="muted meta">{[app.publisher, detail(app)].filter(Boolean).join(" · ")}</div>
+      {#if settings.technical}{@const tech = technical(app)}<div class="muted meta tech" title={tech.replaceAll(" · ", "\n")}>{tech}</div>{/if}
     </div>
     {#if app.bloatware}<span class="tag tag-keep">{t("apps.bloatware")}</span>
     {:else if app.neverUsed}<span class="tag tag-check">{t("apps.neverUsed")}</span>{/if}
@@ -165,6 +191,7 @@
   .name, .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .name { font-size: 14.5px; font-weight: 600; }
   .meta { font-size: 12px; }
+  .tech { font-size: 11.5px; margin-top: 1px; user-select: text; }
   .size { margin-left: auto; text-align: right; font-size: 13.5px; width: 100px; flex: none; }
   .meter { height: 4px; background: var(--track); border-radius: 2px; margin-top: 4px; }
   .meter i { display: block; height: 4px; border-radius: 2px; background: var(--accent); }

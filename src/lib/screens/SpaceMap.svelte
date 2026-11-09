@@ -4,6 +4,7 @@
   import { listInstalledApps, scanSpace, usesSampleData } from "../api";
   import { formatBytes } from "../format";
   import { locale, t } from "../i18n/index.svelte";
+  import { shownPath } from "../paths";
   import type { Screen } from "../screens";
   import { blocksForView, legendFor, spaceBlocks, type MapView } from "../spacemap";
   import { squarify } from "../treemap";
@@ -134,7 +135,7 @@
         <span class="muted">
           {t(`categories.${selected.category}`)} · {formatBytes(selected.sizeBytes)} · {t("map.ofDisk", { share: share(selected.sizeBytes) })}
         </span>
-        {#if selected.path}<span class="muted path">{selected.path}</span>
+        {#if selected.path}<span class="muted path" title={selected.path}>{shownPath(selected.path)}</span>
         {:else if selected.labelKey}<span class="muted path">{t(`map.hints.${selected.id.startsWith("other:") ? "other" : selected.id}`)}</span>{/if}
       </div>
       {#if target}
