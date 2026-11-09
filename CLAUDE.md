@@ -26,6 +26,9 @@ space. Goals in order: **safe**, **simple for non-technical users**, **lightweig
 - The AI never acts alone: it explains (`ai.rs`), turns a sentence into a search filter
   (`search.rs`) or proposes folders (`tidy.rs`). Only names and numbers are sent, never
   file contents, and nothing is ticked, moved or removed until the user presses a button.
+- The local index (`semantic.rs`) is read only. What it downloads (model, llama.cpp) is pinned
+  by URL and SHA-256 in `semantic/models.rs` and never run before the check; everything it
+  keeps lives in its own `LocalIndex` folder, which "Delete model and index" removes whole.
 - Windows-only code goes behind `#[cfg(windows)]` with a stub for other platforms, so the crate
   still builds and tests on Linux/macOS.
 - Lightness matters: think twice before adding a dependency (frontend or Rust); prefer

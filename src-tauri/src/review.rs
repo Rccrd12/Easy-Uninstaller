@@ -661,6 +661,11 @@ pub async fn show_scanned_file(app: AppHandle, path: String) -> Result<(), Strin
     platform::reveal(&path).map_err(|e| e.to_string())
 }
 
+/// Windows's own preview of a file (a photo, a video's frame) as PNG bytes, for the local index.
+pub(crate) fn thumbnail_png(path: &Path, size: u32) -> Option<Vec<u8>> {
+    platform::thumbnail_png(path, size)
+}
+
 #[cfg(windows)]
 pub(crate) mod platform {
     use std::io;
@@ -677,6 +682,10 @@ pub(crate) mod platform {
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
     pub fn thumbnail(path: &Path, size: u32) -> Option<String> {
+        thumbnail_png(path, size).map(|png| crate::apps::icon::png_data_url(&png))
+    }
+
+    pub fn thumbnail_png(path: &Path, size: u32) -> Option<Vec<u8>> {
         // SAFETY: COM is set up for this thread and undone below when we did set it up.
         let init = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
         let result = (|| {
@@ -688,9 +697,9 @@ pub(crate) mod platform {
                 let bitmap = factory
                     .GetImage(SIZE { cx: side, cy: side }, SIIGBF_THUMBNAILONLY)
                     .ok()?;
-                let url = crate::apps::icon::from_bitmap(bitmap);
+                let png = crate::apps::icon::png_from_bitmap(bitmap);
                 let _ = DeleteObject(bitmap.into());
-                url
+                png
             }
         })();
         if init.is_ok() {
@@ -736,6 +745,10 @@ pub(crate) mod platform {
     use std::path::Path;
 
     pub fn thumbnail(_path: &Path, _size: u32) -> Option<String> {
+        None
+    }
+
+    pub fn thumbnail_png(_path: &Path, _size: u32) -> Option<Vec<u8>> {
         None
     }
 

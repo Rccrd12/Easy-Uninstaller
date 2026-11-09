@@ -46,11 +46,11 @@ pub fn from_icon_location(_location: &str) -> Option<String> {
     None
 }
 
-/// A bitmap, such as a file thumbnail from Windows, as a PNG `data:` URL.
+/// A bitmap, such as a file thumbnail from Windows, as PNG bytes.
 #[cfg(windows)]
-pub fn from_bitmap(bitmap: windows::Win32::Graphics::Gdi::HBITMAP) -> Option<String> {
+pub fn png_from_bitmap(bitmap: windows::Win32::Graphics::Gdi::HBITMAP) -> Option<Vec<u8>> {
     let (width, height, rgba) = windows_icon::bitmap_pixels(bitmap)?;
-    Some(png_data_url(&encode_png(width, height, &rgba)))
+    Some(encode_png(width, height, &rgba))
 }
 
 /// `"C:\App\app.exe",0` / `C:\App\app.ico` / `%SystemRoot%\x.dll,-12` to (path, index).
@@ -425,7 +425,7 @@ fn adler32(data: &[u8]) -> u32 {
     (b << 16) | a
 }
 
-fn base64(data: &[u8]) -> String {
+pub(crate) fn base64(data: &[u8]) -> String {
     const ABC: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
     for chunk in data.chunks(3) {

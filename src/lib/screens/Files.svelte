@@ -369,7 +369,7 @@
   {@const g = reviewing}
   <FileReview group={g} {version} busy={moving || undoing} onBack={() => (reviewing = null)} onMove={moveSelection} onHide={hide} />
 {:else if searching !== null}
-  <FileSearch sentence={searching} onBack={() => { searching = null; backFromTool(); }} />
+  <FileSearch sentence={searching} onBack={() => { searching = null; backFromTool(); }} onOptions={() => onNavigate("settings")} />
 {:else if tidying}
   <TidyDownloads onBack={() => { tidying = false; backFromTool(); }} />
 {:else}

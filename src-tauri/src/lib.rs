@@ -20,6 +20,7 @@ mod reminders;
 mod restore_point;
 mod review;
 mod search;
+mod semantic;
 mod space;
 mod startup;
 mod tidy;
@@ -48,6 +49,7 @@ pub fn run() {
         .manage(reinstall::Prepared::default())
         .manage(offload::LastOffload::default())
         .manage(search::LastSearch::default())
+        .manage(semantic::LocalIndex::default())
         .manage(tidy::Tidy::default())
         .manage(uninstall::Pending::default())
         .manage(updater::PendingUpdate::default())
@@ -56,6 +58,7 @@ pub fn run() {
             quarantine::init(app.handle())?;
             reminders::init(app.handle())?;
             history::init(app.handle())?;
+            semantic::init(app.handle());
             review::init(app.handle())
         })
         .invoke_handler(tauri::generate_handler![
@@ -114,6 +117,11 @@ pub fn run() {
             search::search_understand,
             search::search_files,
             search::quarantine_found,
+            semantic::index_status,
+            semantic::index_set_settings,
+            semantic::index_install,
+            semantic::index_cancel_download,
+            semantic::index_remove,
             space::scan_space,
             startup::list_startup_apps,
             startup::set_startup_apps,
@@ -134,6 +142,7 @@ pub fn run() {
         .run(|_app, event| {
             if let tauri::RunEvent::Exit = event {
                 ai::on_exit();
+                semantic::on_exit();
             }
         });
 }

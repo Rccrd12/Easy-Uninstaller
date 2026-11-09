@@ -452,7 +452,6 @@
     "count": "{count} avanzi",
     "countOne": "1 avanzo",
     "searching": "Cerco gli avanzi…",
-    "scanNote": "Guardiamo soltanto: non cambiamo né cancelliamo nulla.",
     "empty": "Nessun avanzo trovato: il tuo PC è in ordine.",
     "historyNote": "Cerco anche le cartelle lasciate da app disinstallate in passato, a mano o con altri programmi.",
     "rescan": "Cerca di nuovo",
@@ -1203,9 +1202,7 @@
       "month": "Questo mese",
       "monthCount": "{count} domande",
       "monthOne": "1 domanda",
-      "costCli": "nessun costo extra (abbonamento)",
       "costApi": "si paga al servizio, circa 1 centesimo l'una",
-      "costLocal": "gratis, sul PC",
       "saved": "Risposte salvate sul PC",
       "savedCount": "{count} cartelle: non vengono chieste di nuovo.",
       "savedOne": "1 cartella: non viene chiesta di nuovo.",
@@ -1231,6 +1228,7 @@
   "search": {
     "placeholderAi": "Descrivi i file che cerchi, ad es. «video più grandi di 500 MB che non apro da un anno»",
     "placeholderName": "Cerca i tuoi file per nome",
+    "placeholderContent": "Descrivi cosa mostrano i file, ad es. «vacanze al mare»",
     "button": "Cerca",
     "tidy": "Riordina i Download",
     "aiOff": "Con l'aiuto AI attivo puoi cercare scrivendo una frase intera.",
@@ -1240,10 +1238,10 @@
     "searching": "Cerco su questo PC…",
     "understood": "Ho capito:",
     "byName": "Cerco per nome:",
+    "lookingFor": "Cerco:",
     "edit": "Modifica",
     "doneEditing": "Fatto",
     "anyFile": "Tutti i file",
-    "unsure": "Dal nome di un file non si capisce «{what}»: qui ci sono tutti i file che corrispondono al resto.",
     "removeChip": "Togli «{what}»",
     "kinds": {
       "image": "Foto e immagini",
@@ -1298,6 +1296,83 @@
     "error": {
       "empty": "Scrivi cosa stai cercando.",
       "notSearch": "Non sembra una ricerca di file. Prova a descriverli, ad es. «PDF nei Download dell'anno scorso»."
+    }
+  },
+  "searchTopic": {
+    "title": "Cerca «{topic}» dentro foto e video",
+    "hint": "Serve il modello che riconosce cosa mostrano: {size} da scaricare.",
+    "download": "Scarica il modello",
+    "options": "Opzioni",
+    "indexing": "Sto ancora indicizzando: {left} file da guardare.",
+    "refresh": "Aggiorna",
+    "more": "Mostra anche i meno simili ({count})",
+    "chip": "simili a «{topic}»",
+    "byTopic": "Prima i più simili",
+    "error": "Ricerca per contenuto non riuscita: {error}"
+  },
+  "index": {
+    "title": "Ricerca per contenuto",
+    "hint": "Trova foto e video da quello che mostrano, anche quando il nome non dice niente.",
+    "status": {
+      "none": "Modello non scaricato",
+      "noneHint": "{size} da scaricare, una volta sola.",
+      "downloading": "Scarico il modello: {done} di {total}",
+      "verifying": "Controllo i file scaricati…",
+      "indexing": "Indicizzo: {done} fatti, {left} da guardare",
+      "current": "Ora: {name}",
+      "paused": "In pausa: {count} indicizzati",
+      "ready": "Pronto: {count} indicizzati",
+      "files": "{count} file"
+    },
+    "download": "Scarica ({size})",
+    "cancel": "Annulla",
+    "pause": "Pausa",
+    "resume": "Riprendi",
+    "quality": {
+      "label": "Modello",
+      "light": "Leggero",
+      "better": "Migliore",
+      "best": "Massimo",
+      "hints": {
+        "light": "{size}. Va bene su qualsiasi PC.",
+        "better": "{size}. Un po' più preciso.",
+        "best": "{size}. Il più preciso, ma pesa il doppio."
+      },
+      "changed": "Il nuovo modello va scaricato, poi l'indice si rifà da capo."
+    },
+    "depth": {
+      "label": "Video",
+      "quick": "Veloce",
+      "partial": "Parziale",
+      "full": "Completa",
+      "hints": {
+        "quick": "Solo l'anteprima di ogni video.",
+        "partial": "8 fotogrammi per video.",
+        "full": "Un fotogramma ogni 5 secondi: molto più lento."
+      }
+    },
+    "what": {
+      "label": "Cosa cercare",
+      "photos": "Foto",
+      "videos": "Video",
+      "documents": "Documenti",
+      "documentsHint": "I documenti li trova l'indice di Windows, senza scaricare altro."
+    },
+    "where": {
+      "label": "Dove",
+      "mine": "Le tue cartelle",
+      "all": "Tutto il PC",
+      "allHint": "Anche gli altri dischi, tranne le cartelle di Windows e dei programmi."
+    },
+    "space": "Spazio usato",
+    "remove": "Elimina modello e indice",
+    "error": {
+      "offline": "Non riesco a scaricare: controlla la connessione e riprova.",
+      "download": "Download non riuscito ({detail}).",
+      "badFile": "Il file scaricato non è quello atteso ({detail}): l'ho eliminato.",
+      "engine": "Il modello non è partito ({detail}).",
+      "engineSlow": "Il modello non risponde: riprova.",
+      "notReady": "Il modello non è ancora scaricato."
     }
   },
   "tidy": {

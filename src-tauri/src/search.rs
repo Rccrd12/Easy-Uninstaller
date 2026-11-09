@@ -27,6 +27,10 @@ const MAX_KEPT: usize = 5000;
 /// The walk stops after this many files, so a search never takes minutes.
 const MAX_WALK: u64 = 400_000;
 const MAX_WORDS: usize = 6;
+const MAX_TOPIC_CHARS: usize = 120;
+/// With a topic, files this much less like it than the best one are left out
+/// (unless the person asks for them). Set by hand: scores from -1 to 1.
+const TOPIC_MARGIN: f32 = 0.08;
 const MAX_WORD_CHARS: usize = 40;
 /// A sentence longer than this is refused (it is not a search).
 pub const MAX_SENTENCE_CHARS: usize = 300;
@@ -209,10 +213,13 @@ pub struct SearchFilter {
     pub words: Vec<String>,
     #[serde(default)]
     pub sort: SortBy,
-    /// Parts of the sentence a file name cannot show ("of the holidays"), as written.
-    /// Never searched for: only shown, so the person knows the results ignore them.
+    /// What the files show or are about ("holidays at the sea"), which a name may
+    /// not tell: looked for in the local index (`semantic.rs`), closest first.
     #[serde(default)]
-    pub unsure: Vec<String>,
+    pub topic: Option<String>,
+    /// With a topic: also the files that are only a little like it.
+    #[serde(default)]
+    pub loose: bool,
 }
 
 impl SearchFilter {
@@ -245,16 +252,21 @@ impl SearchFilter {
         }
         words.truncate(MAX_WORDS);
         self.words = words;
-        let mut unsure: Vec<String> = Vec::new();
-        for u in &self.unsure {
-            let u: String = u.chars().filter(|c| !c.is_control()).take(60).collect();
-            let u = u.trim().to_string();
-            if !u.is_empty() && !unsure.iter().any(|x| x.eq_ignore_ascii_case(&u)) {
-                unsure.push(u);
-            }
-        }
-        unsure.truncate(3);
-        self.unsure = unsure;
+        self.topic = self
+            .topic
+            .as_deref()
+            .map(|t| {
+                t.chars()
+                    .map(|c| if c.is_control() { ' ' } else { c })
+                    .collect::<String>()
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                    .chars()
+                    .take(MAX_TOPIC_CHARS)
+                    .collect::<String>()
+            })
+            .filter(|t| !t.is_empty());
         self
     }
 
@@ -316,6 +328,14 @@ pub struct SearchResult {
     pub too_many: bool,
     /// The walk stopped early (a very large profile).
     pub partial: bool,
+    /// The topic was looked for in the local index: the files are in order of likeness.
+    pub by_topic: bool,
+    /// Photos and videos the index has not looked at yet.
+    pub not_indexed: u64,
+    /// Files left out for being only a little like the topic.
+    pub less_alike: u64,
+    /// Why the topic could not be looked for (an `index.error.*` key).
+    pub topic_error: Option<String>,
 }
 
 /// The files of the last search, so that a move takes exactly what was found.
@@ -390,7 +410,92 @@ fn result(filter: SearchFilter, found: &[Seen], partial: bool) -> SearchResult {
         too_many: found.len() > MAX_KEPT,
         partial,
         filter,
+        by_topic: false,
+        not_indexed: 0,
+        less_alike: 0,
+        topic_error: None,
     }
+}
+
+/// True when `path` is inside one of the places the filter asks for (any, when none).
+fn in_places(filter: &SearchFilter, path: &Path) -> bool {
+    filter.places.is_empty()
+        || filter
+            .places
+            .iter()
+            .filter_map(|p| p.dir())
+            .any(|d| path.starts_with(d))
+}
+
+/// Keeps the files that pass the filter's other parts, in the order given.
+fn checked(
+    filter: &SearchFilter,
+    paths: impl IntoIterator<Item = PathBuf>,
+    now: SystemTime,
+) -> Vec<Seen> {
+    paths
+        .into_iter()
+        .filter(|p| in_places(filter, p))
+        .filter_map(|p| {
+            let meta = std::fs::symlink_metadata(&p).ok()?;
+            meta.is_file().then(|| Seen::from_meta(p, &meta))
+        })
+        .filter(|seen| filter.matches(&seen.path.to_string_lossy(), seen, now))
+        .collect()
+}
+
+/// Of files scored by likeness (best first), the ones close enough to the best.
+pub fn alike(scored: Vec<(PathBuf, f32)>, loose: bool) -> (Vec<PathBuf>, u64) {
+    let Some(best) = scored.first().map(|s| s.1) else {
+        return (Vec::new(), 0);
+    };
+    let cut = if loose { f32::MIN } else { best - TOPIC_MARGIN };
+    let total = scored.len();
+    let kept: Vec<PathBuf> = scored
+        .into_iter()
+        .take_while(|(_, score)| *score >= cut)
+        .map(|(p, _)| p)
+        .collect();
+    let left = (total - kept.len()) as u64;
+    (kept, left)
+}
+
+/// A search with a topic, through the local index: photos and videos by
+/// likeness, then documents Windows Search finds. Only files that pass the rest
+/// of the filter are kept.
+fn search_topic(
+    app: &AppHandle,
+    filter: &SearchFilter,
+    topic: &str,
+    now: SystemTime,
+) -> Result<SearchResult, String> {
+    let wants = |k: FileKind| filter.kinds.is_empty() || filter.kinds.contains(&k);
+    let media = wants(FileKind::Image) || wants(FileKind::Video);
+    let found = crate::semantic::find(app, topic, media, wants(FileKind::Document))?;
+    // Likeness among the files that pass the filter, so the best of them sets the bar.
+    let passing: HashSet<PathBuf> =
+        checked(filter, found.media.iter().map(|(p, _)| p.clone()), now)
+            .into_iter()
+            .map(|s| s.path)
+            .collect();
+    let scored: Vec<(PathBuf, f32)> = found
+        .media
+        .into_iter()
+        .filter(|(p, _)| passing.contains(p))
+        .collect();
+    let (media, less_alike) = alike(scored, filter.loose);
+    let mut paths = media;
+    for d in found.documents {
+        if !paths.contains(&d) {
+            paths.push(d);
+        }
+    }
+    let seen = checked(filter, paths, now);
+    let mut r = result(filter.clone(), &seen, false);
+    r.by_topic = true;
+    r.not_indexed = found.not_indexed;
+    r.less_alike = less_alike;
+    Ok(r)
 }
 
 /// Runs the search on this PC (read only) and keeps its files for a later move.
@@ -398,16 +503,52 @@ fn result(filter: SearchFilter, found: &[Seen], partial: bool) -> SearchResult {
 pub async fn search_files(app: AppHandle, filter: SearchFilter) -> Result<SearchResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let filter = filter.normalized();
-        let (found, partial) = search(&roots(&filter.places), &filter, SystemTime::now());
+        let now = SystemTime::now();
+        let mut topic_error = None;
+        if let Some(topic) = filter.topic.clone() {
+            if crate::semantic::can_search(&app) {
+                match search_topic(&app, &filter, &topic, now) {
+                    Ok(r) => {
+                        keep(&app, r.files.iter().map(|f| PathBuf::from(&f.path)), now)?;
+                        return Ok(r);
+                    }
+                    Err(e) => topic_error = Some(e),
+                }
+            }
+        }
+        // No index (yet): the rest of the filter, without the topic.
+        let (found, partial) = search(&roots(&filter.places), &filter, now);
         let kept: Vec<ScannedFile> = found.iter().take(MAX_KEPT).map(Seen::scanned).collect();
         *app.state::<LastSearch>()
             .0
             .lock()
             .map_err(|e| e.to_string())? = kept;
-        Ok(result(filter, &found, partial))
+        let mut r = result(filter, &found, partial);
+        r.topic_error = topic_error;
+        Ok(r)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// Keeps what a topic search found for a later move (as it is on disk now).
+fn keep(
+    app: &AppHandle,
+    paths: impl Iterator<Item = PathBuf>,
+    _now: SystemTime,
+) -> Result<(), String> {
+    let kept: Vec<ScannedFile> = paths
+        .take(MAX_KEPT)
+        .filter_map(|p| {
+            let meta = std::fs::symlink_metadata(&p).ok()?;
+            Some(Seen::from_meta(p, &meta).scanned())
+        })
+        .collect();
+    *app.state::<LastSearch>()
+        .0
+        .lock()
+        .map_err(|e| e.to_string())? = kept;
+    Ok(())
 }
 
 /// Moves the picked files of the last search to the quarantine (one entry).
@@ -455,7 +596,7 @@ Today is {today}. The request is written in {language}.
 Request: \"{sentence}\"
 
 Reply with one JSON object and nothing else:
-{{\"kinds\": [], \"minSizeMb\": null, \"maxSizeMb\": null, \"unusedDays\": null, \"recentDays\": null, \"places\": [], \"words\": [], \"unsure\": [], \"sort\": \"size\"}}
+{{\"kinds\": [], \"minSizeMb\": null, \"maxSizeMb\": null, \"unusedDays\": null, \"recentDays\": null, \"places\": [], \"words\": [], \"topic\": null, \"sort\": \"size\"}}
 
 - kinds: any of \"image\", \"video\", \"audio\", \"document\", \"archive\", \"program\", \"disc\" (disk images like .iso); [] for any file.
 - minSizeMb, maxSizeMb: sizes in MB (1 GB = 1024 MB), or null.
@@ -463,7 +604,7 @@ Reply with one JSON object and nothing else:
 - recentDays: changed in the last this many days (\"this week\" = 7), or null.
 - places: any of \"desktop\", \"documents\", \"downloads\", \"pictures\", \"videos\", \"music\"; [] for all the person's folders.
 - words: only words the person clearly wants in the file or folder name (a name, a brand, \"invoice\"), as they would be written in a file name; [] for topics a name may not show.
-- unsure: the parts of the request that a file's name, type, size, date or folder cannot tell (a topic, an event, who or what is in it, like \"of the holidays\"), copied as written in the request; [] when there are none.
+- topic: what the files should show or be about, which a name may not tell (\"holidays at the sea\", \"a building site\", \"my dog\"), a few words in the request's language; null when the request says nothing of the kind.
 - sort: \"size\" (largest first), \"oldest\" (unused the longest) or \"newest\".
 
 If the request is not about finding files, reply {{\"notAbout\": true}}."
@@ -530,16 +671,8 @@ pub fn parse_filter(text: &str) -> Option<SearchFilter> {
                 .collect(),
             words,
             sort,
-            unsure: v
-                .get("unsure")
-                .and_then(|x| x.as_array())
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|x| x.as_str())
-                        .map(str::to_string)
-                        .collect()
-                })
-                .unwrap_or_default(),
+            topic: v.get("topic").and_then(|x| x.as_str()).map(str::to_string),
+            loose: false,
         }
         .normalized(),
     )
@@ -694,10 +827,12 @@ mod tests {
         assert_eq!(f.places, [Place::Pictures, Place::Downloads]);
         assert_eq!(f.words, ["vacanze", "..Windows"]);
         assert_eq!(f.sort, SortBy::Oldest);
-        assert!(f.unsure.is_empty(), "no field, nothing unsure");
+        assert_eq!(f.topic, None, "no field, no topic");
 
-        let holidays = parse_filter("{\"kinds\": [\"video\"], \"words\": [], \"unsure\": [\"delle vacanze\", \"\", \"Delle vacanze\", \"a\\nb\"], \"sort\": \"size\"}").unwrap();
-        assert_eq!(holidays.unsure, ["delle vacanze", "ab"]);
+        let holidays = parse_filter("{\"kinds\": [\"video\"], \"words\": [], \"topic\": \" vacanze\\nal  mare \", \"sort\": \"size\"}").unwrap();
+        assert_eq!(holidays.topic.as_deref(), Some("vacanze al mare"));
+        let blank = parse_filter("{\"kinds\": [], \"topic\": \"  \"}").unwrap();
+        assert_eq!(blank.topic, None);
         assert!(
             holidays.words.is_empty(),
             "a topic is never searched in the names"
@@ -709,6 +844,23 @@ mod tests {
         assert_eq!(parse_filter("I would look in Pictures."), None);
         let all = parse_filter("{\"kinds\": [], \"places\": [\"desktop\", \"documents\", \"downloads\", \"pictures\", \"videos\", \"music\"]}").unwrap();
         assert!(all.places.is_empty(), "every folder is the same as none");
+    }
+
+    #[test]
+    fn only_files_close_to_the_best_are_kept() {
+        let scored = vec![
+            (PathBuf::from("a"), 0.31),
+            (PathBuf::from("b"), 0.27),
+            (PathBuf::from("c"), 0.12),
+            (PathBuf::from("d"), 0.05),
+        ];
+        let (kept, left) = alike(scored.clone(), false);
+        assert_eq!(kept, [PathBuf::from("a"), PathBuf::from("b")]);
+        assert_eq!(left, 2);
+        let (all, none_left) = alike(scored, true);
+        assert_eq!(all.len(), 4);
+        assert_eq!(none_left, 0);
+        assert_eq!(alike(Vec::new(), false), (Vec::new(), 0));
     }
 
     #[test]

@@ -452,7 +452,6 @@
     "count": "{count} leftovers",
     "countOne": "1 leftover",
     "searching": "Looking for leftovers…",
-    "scanNote": "We only look: nothing is changed or deleted.",
     "empty": "No leftovers found: your PC is tidy.",
     "historyNote": "I also look for folders left by apps uninstalled earlier, by hand or with other tools.",
     "rescan": "Search again",
@@ -1203,9 +1202,7 @@
       "month": "This month",
       "monthCount": "{count} questions",
       "monthOne": "1 question",
-      "costCli": "no extra cost (subscription)",
       "costApi": "paid to the service, about 1 cent each",
-      "costLocal": "free, on this PC",
       "saved": "Answers saved on this PC",
       "savedCount": "{count} folders: they are not asked about again.",
       "savedOne": "1 folder: it is not asked about again.",
@@ -1231,6 +1228,7 @@
   "search": {
     "placeholderAi": "Describe the files you are looking for, e.g. “videos over 500 MB I haven't opened in a year”",
     "placeholderName": "Search your files by name",
+    "placeholderContent": "Describe what the files show, e.g. “holidays at the sea”",
     "button": "Search",
     "tidy": "Tidy up Downloads",
     "aiOff": "With AI help on, you can search by writing a whole sentence.",
@@ -1240,10 +1238,10 @@
     "searching": "Searching this PC…",
     "understood": "I understood:",
     "byName": "Searching by name:",
+    "lookingFor": "Looking for:",
     "edit": "Change",
     "doneEditing": "Done",
     "anyFile": "All files",
-    "unsure": "A file name can't tell “{what}”, so these are all the files that match the rest.",
     "removeChip": "Remove “{what}”",
     "kinds": {
       "image": "Photos and images",
@@ -1298,6 +1296,83 @@
     "error": {
       "empty": "Write what you are looking for.",
       "notSearch": "That does not look like a search for files. Try describing them, e.g. “PDFs in Downloads from last year”."
+    }
+  },
+  "searchTopic": {
+    "title": "Search for “{topic}” inside photos and videos",
+    "hint": "It needs the model that recognizes what they show: {size} to download.",
+    "download": "Download the model",
+    "options": "Options",
+    "indexing": "Still indexing: {left} files to look at.",
+    "refresh": "Refresh",
+    "more": "Show the less alike too ({count})",
+    "chip": "like “{topic}”",
+    "byTopic": "Most alike first",
+    "error": "The search by content failed: {error}"
+  },
+  "index": {
+    "title": "Search by content",
+    "hint": "Finds photos and videos by what they show, even when the name says nothing.",
+    "status": {
+      "none": "Model not downloaded",
+      "noneHint": "{size} to download, once.",
+      "downloading": "Downloading the model: {done} of {total}",
+      "verifying": "Checking the downloaded files…",
+      "indexing": "Indexing: {done} done, {left} to look at",
+      "current": "Now: {name}",
+      "paused": "Paused: {count} indexed",
+      "ready": "Ready: {count} indexed",
+      "files": "{count} files"
+    },
+    "download": "Download ({size})",
+    "cancel": "Cancel",
+    "pause": "Pause",
+    "resume": "Resume",
+    "quality": {
+      "label": "Model",
+      "light": "Light",
+      "better": "Better",
+      "best": "Best",
+      "hints": {
+        "light": "{size}. Fine on any PC.",
+        "better": "{size}. A little more precise.",
+        "best": "{size}. The most precise, at twice the size."
+      },
+      "changed": "The new model needs a download, then the index starts over."
+    },
+    "depth": {
+      "label": "Videos",
+      "quick": "Quick",
+      "partial": "Partial",
+      "full": "Full",
+      "hints": {
+        "quick": "Only the preview of each video.",
+        "partial": "8 frames per video.",
+        "full": "One frame every 5 seconds: much slower."
+      }
+    },
+    "what": {
+      "label": "What to search",
+      "photos": "Photos",
+      "videos": "Videos",
+      "documents": "Documents",
+      "documentsHint": "Documents are found by the Windows index, with nothing more to download."
+    },
+    "where": {
+      "label": "Where",
+      "mine": "Your folders",
+      "all": "The whole PC",
+      "allHint": "Other drives too, except the Windows and program folders."
+    },
+    "space": "Space used",
+    "remove": "Delete model and index",
+    "error": {
+      "offline": "The download failed: check the connection and try again.",
+      "download": "The download failed ({detail}).",
+      "badFile": "A downloaded file is not the expected one ({detail}): it was deleted.",
+      "engine": "The model did not start ({detail}).",
+      "engineSlow": "The model does not answer: try again.",
+      "notReady": "The model is not downloaded yet."
     }
   },
   "tidy": {

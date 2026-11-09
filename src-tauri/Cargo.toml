@@ -33,6 +33,8 @@ windows = { version = "0.62", features = [
   "Data_Xml_Dom",
   "Management_Deployment",
   "Win32_Graphics_Gdi",
+  # The local index: frames of videos through Media Foundation, which ships with Windows.
+  "Win32_Media_MediaFoundation",
   # The AI help: HTTPS through the system's WinHTTP, API keys in Credential Manager.
   "Win32_Networking_WinHttp",
   "Win32_Security_Credentials",
@@ -40,10 +42,12 @@ windows = { version = "0.62", features = [
   # OneDrive "online only": the same file attribute as OneDrive's own "Free up space".
   "Win32_Storage_FileSystem",
   "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
   # Whether an app is open before its cache is emptied (process list).
   "Win32_System_Diagnostics_ToolHelp",
   "Win32_System_Registry",
   "Win32_System_Threading",
+  "Win32_System_Variant",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
   "UI_Notifications",

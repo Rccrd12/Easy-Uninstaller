@@ -227,7 +227,6 @@
     <span class="spinner"></span>
     <div>
       <p>{t("leftovers.searching")}</p>
-      <p class="muted small icon-line"><Icon name="shieldCheck" />{t("leftovers.scanNote")}</p>
     </div>
   </div>
 {:else if error}

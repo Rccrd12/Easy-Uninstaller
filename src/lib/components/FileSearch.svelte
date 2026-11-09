@@ -6,6 +6,8 @@
   import StatusIcon from "./StatusIcon.svelte";
   import { openScannedFile, quarantineFound, restoreQuarantine, searchFiles, searchUnderstand, showScannedFile } from "../api";
   import { aiConfig, aiErrorText, aiReady } from "../ai.svelte";
+  import { cancelIndexDownload, indexErrorText, indexReady, installIndex, localIndex, watchIndex } from "../localIndex.svelte";
+  import type { IconName } from "../icons";
   import { fileCount, formatBytes, formatDate, GB, MB, removedLines, restoreSummary } from "../format";
   import { getLanguage, locale, t } from "../i18n/index.svelte";
   import { displayPath, fileKind, folderOf, nameOf } from "../paths";
@@ -17,18 +19,20 @@
    * filter, shown as chips the user can remove or change; the search itself runs on this
    * PC. Nothing is picked or moved on its own: picked files go to Quarantine.
    */
-  let { sentence, onBack }: { sentence: string; onBack: () => void } = $props();
+  let { sentence, onBack, onOptions }: { sentence: string; onBack: () => void; onOptions?: () => void } = $props();
+  watchIndex();
 
   const KINDS: SearchKind[] = ["video", "image", "document", "audio", "archive", "program", "disc"];
   const PLACES: SearchPlace[] = ["desktop", "documents", "downloads", "pictures", "videos", "music"];
   const SIZES = [10 * MB, 100 * MB, 500 * MB, GB, 5 * GB];
   const UNUSED = [30, 90, 180, 365, 730, 1825];
   const RECENT = [1, 7, 30, 365];
-  const empty = (): SearchFilter => ({ kinds: [], minBytes: null, maxBytes: null, unusedDays: null, recentDays: null, places: [], words: [], sort: "size", unsure: [] });
+  const empty = (): SearchFilter => ({ kinds: [], minBytes: null, maxBytes: null, unusedDays: null, recentDays: null, places: [], words: [], sort: "size", topic: null, loose: false });
 
   let current = $state("");
   let filter = $state<SearchFilter | null>(null);
-  let byName = $state(false);
+  /** How the sentence became a filter: by the AI, as words of names, or as a topic for the local index. */
+  let mode = $state<"ai" | "name" | "topic">("ai");
   let phase = $state<"understanding" | "searching" | "done" | "error">("understanding");
   let error = $state<string | null>(null);
   let result = $state<SearchResult | null>(null);
@@ -65,7 +69,7 @@
     selected = new Set();
     let next: SearchFilter;
     if (aiReady()) {
-      byName = false;
+      mode = "ai";
       phase = "understanding";
       try {
         next = await searchUnderstand(aiConfig(), s, getLanguage());
@@ -75,8 +79,12 @@
         phase = "error";
         return;
       }
+    } else if (indexReady()) {
+      // No AI, but the local index: the whole sentence is what the files should show.
+      mode = "topic";
+      next = { ...empty(), topic: s };
     } else {
-      byName = true;
+      mode = "name";
       next = { ...empty(), words: s.split(/[\s,]+/).filter(Boolean) };
     }
     if (id !== runId) return;
@@ -119,25 +127,33 @@
 
   const placeName = (p: SearchPlace) => t(`files.review.folders.${p}`);
 
+  const KIND_ICON: Record<SearchKind, IconName> = { video: "video", image: "image", audio: "music", document: "document", archive: "archive", program: "box", disc: "drive" };
+
   /** The filter in plain words, one chip per part, each with how to take it away. */
-  function chips(f: SearchFilter): { label: string; remove: Partial<SearchFilter> }[] {
-    const out: { label: string; remove: Partial<SearchFilter> }[] = [];
-    for (const k of f.kinds) out.push({ label: t(`search.kinds.${k}`), remove: { kinds: f.kinds.filter((x) => x !== k) } });
+  function chips(f: SearchFilter): { label: string; remove: Partial<SearchFilter>; icon?: IconName }[] {
+    const out: { label: string; remove: Partial<SearchFilter>; icon?: IconName }[] = [];
+    if (f.topic) out.push({ label: t("searchTopic.chip", { topic: f.topic }), remove: { topic: null, loose: false }, icon: "sparkle" });
+    for (const k of f.kinds) out.push({ label: t(`search.kinds.${k}`), remove: { kinds: f.kinds.filter((x) => x !== k) }, icon: KIND_ICON[k] });
     if (f.minBytes !== null) out.push({ label: t("search.chips.minSize", { size: formatBytes(f.minBytes) }), remove: { minBytes: null } });
     if (f.maxBytes !== null) out.push({ label: t("search.chips.maxSize", { size: formatBytes(f.maxBytes) }), remove: { maxBytes: null } });
     if (f.unusedDays !== null) out.push({ label: t("search.chips.unused", { time: daysText(f.unusedDays) }), remove: { unusedDays: null } });
     if (f.recentDays !== null) out.push({ label: t("search.chips.recent", { time: daysText(f.recentDays) }), remove: { recentDays: null } });
     if (f.places.length) out.push({ label: t("search.chips.places", { list: f.places.map(placeName).join(", ") }), remove: { places: [] } });
     for (const w of f.words) out.push({ label: t("search.chips.word", { word: w }), remove: { words: f.words.filter((x) => x !== w) } });
-    if (f.sort !== "size") out.push({ label: t(f.sort === "oldest" ? "search.chips.sortOldest" : "search.chips.sortNewest"), remove: { sort: "size" } });
+    if (f.sort !== "size" && !f.topic) out.push({ label: t(f.sort === "oldest" ? "search.chips.sortOldest" : "search.chips.sortNewest"), remove: { sort: "size" } });
     return out;
   }
 
-  const chipIcon = (f: SearchFilter, i: number) => {
-    const kinds = f.kinds.length;
-    if (i < kinds) return ({ video: "video", image: "image", audio: "music", document: "document", archive: "archive", program: "box", disc: "drive" } as const)[f.kinds[i]];
-    return null;
-  };
+  // The model was just downloaded: the same search again, now by content.
+  let wasReady: boolean | null = null;
+  $effect(() => {
+    const ready = indexReady();
+    if (wasReady === false && ready && filter?.topic) untrack(() => search());
+    wasReady = ready;
+  });
+
+  const ix = $derived(localIndex.status);
+  const percent = (done: number, total: number) => (total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0);
 
   function toggleKind(k: SearchKind) {
     if (!filter) return;
@@ -212,12 +228,11 @@
     {@const f = filter}
     {@const list = chips(f)}
     <div class="chips">
-      <span class="muted chips-label">{t(byName ? "search.byName" : "search.understood")}</span>
+      <span class="muted chips-label">{t(mode === "name" ? "search.byName" : mode === "topic" ? "search.lookingFor" : "search.understood")}</span>
       {#if list.length === 0}<span class="chip fixed">{t("search.anyFile")}</span>{/if}
-      {#each list as chip, i (chip.label)}
-        {@const icon = chipIcon(f, i)}
+      {#each list as chip (chip.label)}
         <span class="chip">
-          {#if icon}<Icon name={icon} size={14} />{/if}{chip.label}
+          {#if chip.icon}<Icon name={chip.icon} size={14} />{/if}{chip.label}
           <button class="chip-x" aria-label={t("search.removeChip", { what: chip.label })} onclick={() => change(chip.remove)}><Icon name="dismiss" size={12} /></button>
         </span>
       {/each}
@@ -280,8 +295,32 @@
       </div>
     {/if}
 
-    {#if f.unsure.length}
-      <p class="unsure icon-line"><Icon name="info" />{t("search.unsure", { what: f.unsure.join(", ") })}</p>
+    {#if f.topic && ix && !ix.ready}
+      <div class="card topic-card">
+        <span class="topic-tile" aria-hidden="true"><Icon name="sparkle" size={20} /></span>
+        <div class="topic-text">
+          <b>{t("searchTopic.title", { topic: f.topic })}</b>
+          {#if ix.download}
+            <span class="muted small">{ix.download.verifying ? t("index.status.verifying") : t("index.status.downloading", { done: formatBytes(ix.download.doneBytes), total: formatBytes(ix.download.totalBytes) })}</span>
+            <span class="bar" class:indeterminate={ix.download.verifying}><span style:width="{ix.download.verifying ? 30 : percent(ix.download.doneBytes, ix.download.totalBytes)}%"></span></span>
+          {:else}
+            <span class="muted small">{t("searchTopic.hint", { size: formatBytes(ix.downloadBytes) })}</span>
+          {/if}
+          {#if ix.error}<span class="small bad" role="alert">{indexErrorText(ix.error)}</span>{/if}
+        </div>
+        {#if ix.download}
+          <button class="btn btn-ghost" onclick={cancelIndexDownload}>{t("index.cancel")}</button>
+        {:else}
+          {#if onOptions}<button class="btn btn-ghost" onclick={onOptions}>{t("searchTopic.options")}</button>{/if}
+          <button class="btn btn-ai" disabled={localIndex.busy} onclick={installIndex}><Icon name="download" />{t("searchTopic.download")}</button>
+        {/if}
+      </div>
+    {/if}
+    {#if result?.byTopic && ix?.indexing && ix.pending > 0}
+      <p class="topic-line icon-line"><span class="spinner small-spin" aria-hidden="true"></span>{t("searchTopic.indexing", { left: count(ix.pending) })}<button class="link" onclick={search}>{t("searchTopic.refresh")}</button></p>
+    {/if}
+    {#if result?.topicError}
+      <p class="topic-line bad" role="alert">{t("searchTopic.error", { error: indexErrorText(result.topicError) })}</p>
     {/if}
 
     {#if phase === "searching" && !result}
@@ -318,6 +357,9 @@
             </div>
           {/each}
         </div>
+        {#if result.lessAlike > 0 && !f.loose}
+          <button class="link more" onclick={() => change({ loose: true })}>{t("searchTopic.more", { count: count(result.lessAlike) })}</button>
+        {/if}
 
         <div class="card footer">
           <div class="footer-text">
@@ -382,8 +424,16 @@
   .words { user-select: text; }
 
 
-  .unsure { font-size: 13px; line-height: 1.45; margin: -2px 0 10px; color: var(--text-muted); }
-  .unsure :global(.icon) { flex: none; }
+  .topic-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 12px; border-left: 3px solid var(--ai); }
+  .topic-tile { width: 40px; height: 40px; border-radius: var(--radius); background: var(--tip-bg); color: var(--ai); display: flex; align-items: center; justify-content: center; flex: none; }
+  .topic-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; }
+  .bar { display: block; height: 6px; margin-top: 4px; border-radius: 3px; background: var(--track); overflow: hidden; max-width: 420px; }
+  .bar > span { display: block; height: 100%; border-radius: 3px; background: var(--ai); transition: width 0.2s; }
+  .bar.indeterminate > span { animation: slide 1.2s ease-in-out infinite; }
+  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+  .bad { color: var(--check-fg); font-weight: 600; }
+  .topic-line { font-size: 13px; margin: -2px 0 10px; color: var(--text-muted); }
+  .more { display: block; margin: 8px 2px 0; }
 
   .summary { display: flex; align-items: center; gap: 10px; margin: 2px 0 8px; font-size: 14px; }
   .small-spin { width: 12px; height: 12px; }

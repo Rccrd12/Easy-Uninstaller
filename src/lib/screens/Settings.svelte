@@ -2,14 +2,15 @@
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
   import Icon from "../components/Icon.svelte";
   import AiServicePicker from "../components/AiServicePicker.svelte";
-  import { AI_PARALLEL_CHOICES, aiStats, createRestorePoint, KEEP_DAYS_CHOICES, listExclusions, REMINDER_THRESHOLDS } from "../api";
+  import { AI_PARALLEL_CHOICES, aiStats, createRestorePoint, INDEX_DOWNLOAD_BYTES, KEEP_DAYS_CHOICES, listExclusions, REMINDER_THRESHOLDS } from "../api";
+  import { cancelIndexDownload, changeIndex, indexErrorText, installIndex, localIndex, removeIndex, watchIndex } from "../localIndex.svelte";
   import { forgetAnswers, serviceInfo } from "../ai.svelte";
   import { formatBytes } from "../format";
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
   import { applyTextSize, quarantine, saveQuarantine, saveSettings, settings } from "../settings.svelte";
   import { reminders, saveReminders, showSampleNotice } from "../reminders.svelte";
   import type { Screen } from "../screens";
-  import type { AiMode, AiStats, ReminderSettings, RestorePointOutcome } from "../types";
+  import type { AiMode, AiStats, IndexDepth, IndexQuality, ReminderSettings, RestorePointOutcome } from "../types";
   import { getTheme, setTheme, themes } from "../theme.svelte";
   import { check, install, update } from "../updates.svelte";
   // Only this field ends up in the bundle; the release workflow keeps it in sync with the tag.
@@ -94,6 +95,14 @@
   }
 
   const aiKind = $derived(serviceInfo(settings.ai.service)?.kind);
+
+  // ── Search by content (the local index) ──
+  watchIndex();
+  const qualities: IndexQuality[] = ["light", "better", "best"];
+  const depths: IndexDepth[] = ["quick", "partial", "full"];
+  const ix = $derived(localIndex.status);
+  const count = (n: number) => n.toLocaleString(getLanguage());
+  const percent = (done: number, total: number) => (total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0);
 
   async function makeRestorePoint() {
     restorePoint = "creating";
@@ -284,7 +293,7 @@
       <span class="muted hint">
         {[
           t((stats?.askedThisMonth ?? 0) === 1 ? "ai.settings.monthOne" : "ai.settings.monthCount", { count: stats?.askedThisMonth ?? 0 }),
-          ...(aiKind ? [t(aiKind === "cli" ? "ai.settings.costCli" : aiKind === "local" ? "ai.settings.costLocal" : "ai.settings.costApi")] : []),
+          ...(aiKind === "api" ? [t("ai.settings.costApi")] : []),
         ].join(" · ")}
       </span>
     </span>
@@ -304,6 +313,93 @@
   </div>
 </div>
 
+
+<h2 class="section">{t("index.title")} <span class="new">{t("ai.settings.new")}</span></h2>
+{#if ix}
+  {@const st = ix.settings}
+  <div class="card list ai">
+    <div class="row update" aria-live="polite">
+      <span class="grow">
+        {#if ix.download}
+          <span class="version">{ix.download.verifying ? t("index.status.verifying") : t("index.status.downloading", { done: formatBytes(ix.download.doneBytes), total: formatBytes(ix.download.totalBytes) })}</span>
+          <span class="bar" class:indeterminate={ix.download.verifying}><span style:width="{ix.download.verifying ? 30 : percent(ix.download.doneBytes, ix.download.totalBytes)}%"></span></span>
+        {:else if !ix.ready}
+          <span class="version">{t("index.status.none")}</span>
+          <span class="muted hint">{t("index.hint")} {t("index.status.noneHint", { size: formatBytes(ix.downloadBytes) })}</span>
+        {:else if ix.indexing}
+          <span class="version">{t("index.status.indexing", { done: count(ix.indexed), left: count(ix.pending) })}</span>
+          <span class="bar"><span style:width="{percent(ix.indexed, ix.indexed + ix.pending)}%"></span></span>
+          {#if ix.current}<span class="muted hint current">{t("index.status.current", { name: ix.current })}</span>{/if}
+        {:else}
+          <span class="version">{t(st.paused ? "index.status.paused" : "index.status.ready", { count: count(ix.indexed) })}</span>
+          <span class="muted hint">{t("index.hint")}</span>
+        {/if}
+        {#if ix.error}<span class="hint bad" role="alert">{indexErrorText(ix.error)}</span>{/if}
+      </span>
+      {#if ix.download}
+        <button class="btn btn-ghost" onclick={cancelIndexDownload}>{t("index.cancel")}</button>
+      {:else if !ix.ready}
+        <button class="btn btn-primary" disabled={localIndex.busy} onclick={installIndex}><Icon name="download" />{t("index.download", { size: formatBytes(ix.downloadBytes) })}</button>
+      {:else if st.paused}
+        <button class="btn btn-ghost" onclick={() => changeIndex({ paused: false })}>{t("index.resume")}</button>
+      {:else if ix.indexing}
+        <button class="btn btn-ghost" onclick={() => changeIndex({ paused: true })}>{t("index.pause")}</button>
+      {/if}
+    </div>
+    <div class="row theme">
+      <span id="index-quality">
+        {t("index.quality.label")}
+        <span class="muted hint">{t(`index.quality.hints.${st.quality}`, { size: formatBytes(INDEX_DOWNLOAD_BYTES[st.quality]) })}</span>
+      </span>
+      <div class="segmented" role="radiogroup" aria-labelledby="index-quality">
+        {#each qualities as q (q)}
+          <button role="radio" aria-checked={st.quality === q} class:on={st.quality === q} disabled={!!ix.download} onclick={() => changeIndex({ quality: q })}>{t(`index.quality.${q}`)}</button>
+        {/each}
+      </div>
+    </div>
+    <div class="row theme">
+      <span id="index-depth">
+        {t("index.depth.label")}
+        <span class="muted hint">{t(`index.depth.hints.${st.depth}`)}</span>
+      </span>
+      <div class="segmented" role="radiogroup" aria-labelledby="index-depth">
+        {#each depths as d (d)}
+          <button role="radio" aria-checked={st.depth === d} class:on={st.depth === d} onclick={() => changeIndex({ depth: d })}>{t(`index.depth.${d}`)}</button>
+        {/each}
+      </div>
+    </div>
+    <div class="row theme">
+      <span>
+        {t("index.what.label")}
+        <span class="muted hint">{t("index.what.documentsHint")}</span>
+      </span>
+      <div class="checks">
+        <label><input type="checkbox" checked={st.photos} onchange={(e) => changeIndex({ photos: e.currentTarget.checked })} />{t("index.what.photos")}</label>
+        <label><input type="checkbox" checked={st.videos} onchange={(e) => changeIndex({ videos: e.currentTarget.checked })} />{t("index.what.videos")}</label>
+        <label><input type="checkbox" checked={st.documents} onchange={(e) => changeIndex({ documents: e.currentTarget.checked })} />{t("index.what.documents")}</label>
+      </div>
+    </div>
+    <div class="row theme">
+      <span id="index-where">
+        {t("index.where.label")}
+        {#if st.wholePc}<span class="muted hint">{t("index.where.allHint")}</span>{/if}
+      </span>
+      <div class="segmented" role="radiogroup" aria-labelledby="index-where">
+        <button role="radio" aria-checked={!st.wholePc} class:on={!st.wholePc} onclick={() => changeIndex({ wholePc: false })}>{t("index.where.mine")}</button>
+        <button role="radio" aria-checked={st.wholePc} class:on={st.wholePc} onclick={() => changeIndex({ wholePc: true })}>{t("index.where.all")}</button>
+      </div>
+    </div>
+    {#if ix.diskBytes > 0}
+      <div class="row">
+        <span>
+          {t("index.space")}
+          <span class="muted hint">{formatBytes(ix.diskBytes)}</span>
+        </span>
+        <button class="btn btn-ghost" disabled={localIndex.busy} onclick={removeIndex}>{t("index.remove")}</button>
+      </div>
+    {/if}
+  </div>
+{/if}
 
 <h2 class="section">{t("settings.updates")}</h2>
 <div class="card list">
@@ -403,6 +499,11 @@
   .update .btn { flex: none; }
   .update .btn:disabled { opacity: 0.5; cursor: default; }
   .version { font-weight: 600; }
+  .checks { display: flex; gap: 16px; flex: none; font-size: 13px; }
+  .checks label { display: inline-flex; align-items: center; gap: 6px; }
+  .checks input { width: 16px; height: 16px; accent-color: var(--accent); }
+  .current { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .segmented button:disabled { opacity: 0.5; cursor: default; }
   .hint.ok { color: var(--safe-fg); font-weight: 600; }
   .hint.bad { color: var(--check-fg); font-weight: 600; }
   .hint.available { color: var(--accent); font-weight: 600; }

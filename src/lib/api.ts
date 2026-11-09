@@ -97,6 +97,8 @@ import type {
   UninstalledApp,
   UpdateInfo,
   UpdateProgress,
+  IndexSettings,
+  IndexStatus,
 } from "./types";
 
 /** Matches `KEEP_DAYS_CHOICES` in src-tauri/src/quarantine.rs. */
@@ -974,7 +976,7 @@ export async function searchUnderstand(config: AiConfig, sentence: string, lang:
 export async function searchFiles(filter: SearchFilter): Promise<SearchResult> {
   if (isTauri()) return invoke<SearchResult>("search_files", { filter });
   await sleep(500);
-  return sampleSearch(filter, sampleSearchPool.filter((f) => samplePresent(f.path)));
+  return sampleSearch(filter, sampleSearchPool.filter((f) => samplePresent(f.path)), sampleIndex.ready);
 }
 
 /** Moves picked files of the last search to Quarantine, as one entry. Only files that search found. */
@@ -987,6 +989,135 @@ export async function quarantineFound(paths: string[], found: SearchResult): Pro
   const group = { id: "found", titleKey: "files.groups.found.title" } as FileGroup;
   sampleMove(report, group, picked, picked.length, Math.floor(Date.now() / 1000));
   return report;
+}
+
+// ── The local index (src-tauri/src/semantic.rs) ─────────────────────────────
+
+/** Download sizes of each model choice, with the engine (llama.cpp, about 24 MB). */
+export const INDEX_DOWNLOAD_BYTES: Record<IndexSettings["quality"], number> = {
+  light: 175_673_856 + 554_821_120 + 23_700_000,
+  better: 309_855_520 + 554_821_120 + 23_700_000,
+  best: 557_950_240 + 980_895_232 + 23_700_000,
+};
+
+const sampleIndexListeners = new Set<(s: IndexStatus) => void>();
+// `?index=ready` starts the browser sample with the model already downloaded.
+const sampleIndexReady = typeof location !== "undefined" && new URLSearchParams(location.search).get("index") === "ready";
+const sampleIndex: IndexStatus = {
+  settings: { quality: "light", depth: "partial", photos: true, videos: true, documents: true, wholePc: false, paused: false },
+  ready: sampleIndexReady,
+  download: null,
+  error: null,
+  indexing: false,
+  indexed: sampleIndexReady ? 12_480 : 0,
+  pending: 0,
+  current: null,
+  diskBytes: sampleIndexReady ? 760 * 1024 * 1024 : 0,
+  downloadBytes: sampleIndexReady ? 0 : INDEX_DOWNLOAD_BYTES.light,
+};
+let sampleIndexTimer: ReturnType<typeof setInterval> | null = null;
+
+function sampleIndexChanged() {
+  const copy = structuredClone(sampleIndex);
+  sampleIndexListeners.forEach((cb) => cb(copy));
+}
+
+/** In the browser: the index "looks at" a few thousand files, quickly. */
+function sampleIndexRound() {
+  if (sampleIndexTimer) clearInterval(sampleIndexTimer);
+  if (!sampleIndex.ready || sampleIndex.settings.paused) return;
+  const names = ["W20240812RM.mp4", "IMG_20240812_101512.jpg", "DSC04412.JPG", "C0047.MP4"];
+  sampleIndex.indexing = true;
+  sampleIndex.pending = 3_200;
+  sampleIndexTimer = setInterval(() => {
+    const step = Math.min(sampleIndex.pending, 160);
+    sampleIndex.pending -= step;
+    sampleIndex.indexed += step;
+    sampleIndex.current = names[sampleIndex.pending % names.length];
+    if (!sampleIndex.pending) {
+      sampleIndex.indexing = false;
+      sampleIndex.current = null;
+      if (sampleIndexTimer) clearInterval(sampleIndexTimer);
+    }
+    sampleIndexChanged();
+  }, 300);
+}
+
+export async function indexStatus(): Promise<IndexStatus> {
+  if (isTauri()) return invoke<IndexStatus>("index_status");
+  return structuredClone(sampleIndex);
+}
+
+/** Hears every change of the index's status. Returns a function that stops listening. */
+export async function onIndexStatus(cb: (s: IndexStatus) => void): Promise<() => void> {
+  if (isTauri()) return listen<IndexStatus>("local-index", (e) => cb(e.payload));
+  sampleIndexListeners.add(cb);
+  return () => sampleIndexListeners.delete(cb);
+}
+
+export async function indexSetSettings(settings: IndexSettings): Promise<IndexStatus> {
+  if (isTauri()) return invoke<IndexStatus>("index_set_settings", { settings });
+  const qualityChanged = settings.quality !== sampleIndex.settings.quality;
+  sampleIndex.settings = { ...settings };
+  if (qualityChanged) {
+    sampleIndex.ready = false;
+    sampleIndex.indexed = 0;
+    sampleIndex.downloadBytes = INDEX_DOWNLOAD_BYTES[settings.quality];
+  }
+  if (settings.paused) {
+    if (sampleIndexTimer) clearInterval(sampleIndexTimer);
+    sampleIndex.indexing = false;
+  } else {
+    sampleIndexRound();
+  }
+  sampleIndexChanged();
+  return structuredClone(sampleIndex);
+}
+
+/** Downloads the engine and the chosen model (in the background), then indexes. */
+export async function indexInstall(): Promise<IndexStatus> {
+  if (isTauri()) return invoke<IndexStatus>("index_install");
+  const total = sampleIndex.downloadBytes || INDEX_DOWNLOAD_BYTES[sampleIndex.settings.quality];
+  sampleIndex.error = null;
+  sampleIndex.download = { doneBytes: 0, totalBytes: total, verifying: false };
+  if (sampleIndexTimer) clearInterval(sampleIndexTimer);
+  sampleIndexTimer = setInterval(() => {
+    const d = sampleIndex.download;
+    if (!d) return;
+    if (d.doneBytes >= total) {
+      if (!d.verifying) {
+        d.verifying = true;
+      } else {
+        sampleIndex.download = null;
+        sampleIndex.ready = true;
+        sampleIndex.downloadBytes = 0;
+        sampleIndex.diskBytes = total;
+        sampleIndexRound();
+      }
+    } else {
+      d.doneBytes = Math.min(total, d.doneBytes + total / 25);
+    }
+    sampleIndexChanged();
+  }, 250);
+  sampleIndexChanged();
+  return structuredClone(sampleIndex);
+}
+
+export async function indexCancelDownload(): Promise<void> {
+  if (isTauri()) return invoke("index_cancel_download");
+  if (sampleIndexTimer) clearInterval(sampleIndexTimer);
+  sampleIndex.download = null;
+  sampleIndexChanged();
+}
+
+/** Deletes the model, the engine and the index. */
+export async function indexRemove(): Promise<IndexStatus> {
+  if (isTauri()) return invoke<IndexStatus>("index_remove");
+  if (sampleIndexTimer) clearInterval(sampleIndexTimer);
+  Object.assign(sampleIndex, { ready: false, download: null, indexing: false, indexed: 0, pending: 0, current: null, diskBytes: 0, error: null });
+  sampleIndex.downloadBytes = INDEX_DOWNLOAD_BYTES[sampleIndex.settings.quality];
+  sampleIndexChanged();
+  return structuredClone(sampleIndex);
 }
 
 // ── Tidying Downloads (src-tauri/src/tidy.rs) ──────────────────────────────
