@@ -9,6 +9,7 @@ mod disk;
 mod elevated;
 mod explain;
 mod files;
+mod history;
 mod leftovers;
 mod quarantine;
 mod regkey;
@@ -35,6 +36,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             quarantine::init(app.handle())?;
+            history::init(app.handle())?;
             review::init(app.handle())
         })
         .invoke_handler(tauri::generate_handler![
@@ -54,6 +56,8 @@ pub fn run() {
             cleanup::remove_file_groups,
             disk::get_system_disk,
             files::scan_files,
+            history::get_history,
+            history::clear_history,
             leftovers::list_leftovers,
             leftovers::quarantine_leftovers,
             quarantine::get_quarantine_options,

@@ -8,6 +8,7 @@
   import Quarantine from "./lib/screens/Quarantine.svelte";
   import Settings from "./lib/screens/Settings.svelte";
   import Hidden from "./lib/screens/Hidden.svelte";
+  import History from "./lib/screens/History.svelte";
   import UpdateNotice from "./lib/components/UpdateNotice.svelte";
   import type { Screen } from "./lib/screens";
   import { loadQuarantine } from "./lib/settings.svelte";
@@ -30,6 +31,7 @@
     {:else if screen === "files"}<Files onNavigate={go} />
     {:else if screen === "leftovers"}<Leftovers onNavigate={go} />
     {:else if screen === "map"}<SpaceMap onNavigate={go} />
+    {:else if screen === "history"}<History onNavigate={go} />
     {:else if screen === "quarantine"}<Quarantine />
     {:else if screen === "settings"}<Settings onNavigate={go} />
     {:else if screen === "hidden"}<Hidden onNavigate={go} />

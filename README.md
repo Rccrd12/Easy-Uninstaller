@@ -35,6 +35,8 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
   it asks GitHub whether a new version exists (you can turn that off in Settings). The
   optional AI help is the only thing that ever sends anything about your PC, and only when
   you ask it to.
+- **Shows what it did.** *History* lists every cleanup, uninstall and leftover removal, with
+  the space freed in total. Files still in Quarantine count only once they are deleted for good.
 - **Updates itself.** *Settings > Check for updates*: one click, and it opens again on the
   new version, with your settings and Quarantine as they were.
 - **English and Italian.** Picked from your system language, changeable in Settings.

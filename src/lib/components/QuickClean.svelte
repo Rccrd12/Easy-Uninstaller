@@ -75,7 +75,7 @@
     phase = "cleaning";
     diskBefore = await getSystemDisk().catch(() => null);
     try {
-      report = await removeFileGroups(ids);
+      report = await removeFileGroups(ids, { quick: true });
       changed = true;
       removed = selected;
       keepFileGroups(all.filter((g) => !ids.includes(g.id)));

@@ -5,6 +5,7 @@
     "files": "File",
     "leftovers": "Avanzi",
     "map": "Mappa dello spazio",
+    "history": "Cronologia",
     "quarantine": "Quarantena",
     "settings": "Impostazioni"
   },
@@ -48,7 +49,16 @@
     "quickCleanHint": "Solo le cose sicure, in un clic.",
     "calculating": "Sto calcolando…",
     "calculatingNote": "Sto guardando i tuoi file: ci vuole un minuto o due.",
-    "appsInstalled": "{count} app · {size}"
+    "appsInstalled": "{count} app · {size}",
+    "results": "I tuoi risultati",
+    "historyLink": "Cronologia",
+    "resultsFreed": "liberati da quando usi Easy Uninstaller",
+    "resultsPending": "+ {size} in quarantena",
+    "resultsEmpty": "Qui vedrai cosa è stato fatto e quanto spazio hai liberato. Per iniziare, prova la pulizia rapida.",
+    "quarantineTitle": "Quarantena",
+    "quarantineHolds": "{count} · {size} che puoi ancora ripristinare",
+    "quarantineEmpty": "Al momento è vuota.",
+    "quarantineLink": "Apri la quarantena"
   },
   "apps": {
     "title": "App",
@@ -380,6 +390,38 @@
     "deleted": "Eliminato definitivamente. Liberati {size}.",
     "permission": "Windows chiede il permesso per ripristinarli o eliminarli.",
     "declined": "Non fatto: il permesso non è stato dato."
+  },
+  "history": {
+    "title": "Cronologia",
+    "subtitle": "Tutto quello che Easy Uninstaller ha fatto su questo PC, dal più recente.",
+    "freed": "liberati da quando usi Easy Uninstaller",
+    "since": "{count} dal {date}",
+    "actions": "{count} azioni",
+    "actionsOne": "1 azione",
+    "pending": "Altri {size} sono in quarantena: quello spazio torna libero quando la quarantena li elimina definitivamente, oppure subito con “Elimina ora”.",
+    "openQuarantine": "Apri la quarantena",
+    "kind": {
+      "quickClean": "Pulizia rapida",
+      "files": "Rimossi: {names}",
+      "filesNoName": "File rimossi",
+      "leftovers": "Avanzi puliti: {names}",
+      "leftoversNoName": "Avanzi puliti",
+      "appFolder": "Cartella rimossa: {names}",
+      "uninstall": "Disinstallato {names}"
+    },
+    "moreNames": "{names} e altri {count}",
+    "uninstallDetail": "Tolto con il suo programma di disinstallazione",
+    "today": "Oggi",
+    "yesterday": "Ieri",
+    "pendingUntil": "In quarantena fino al {date}",
+    "restored": "Rimesso a posto il {date}",
+    "partRestored": "{size} rimessi a posto il {date}",
+    "about": "circa {size}",
+    "empty": "Ancora niente. Qui troverai ogni pulizia, disinstallazione e rimozione di avanzi, con lo spazio che ha liberato.",
+    "privacy": "La cronologia resta su questo PC. Elenca cosa è stato fatto, mai il contenuto dei tuoi file.",
+    "clear": "Cancella la cronologia",
+    "clearConfirm": "Cancellare la cronologia? Il totale riparte da zero. Nessun file viene toccato.",
+    "failed": "Non riesco a leggere la cronologia: {error}"
   },
   "settings": {
     "title": "Impostazioni",

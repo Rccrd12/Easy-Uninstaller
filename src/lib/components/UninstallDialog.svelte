@@ -95,7 +95,7 @@
   async function uninstall() {
     step = { kind: "running" };
     try {
-      const outcome = await uninstallApp(app.id);
+      const outcome = await uninstallApp(app);
       if (outcome === "removed") await afterRemoved();
       else if (outcome === "stillInstalled") waitForRemoval();
       else await finishApp({ app, ok: false, reason: outcome });

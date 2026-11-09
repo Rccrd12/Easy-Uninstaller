@@ -14,6 +14,7 @@
 
 use crate::cleanup;
 use crate::files::{iso_date, FileGroup, FileItem, Kept, LastScan, ScannedFile, Seen, MAX_ITEMS};
+use crate::history;
 use crate::quarantine::{MoveReport, Quarantine};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -541,10 +542,17 @@ pub async fn quarantine_file_selection(
         };
         let quarantine = app.state::<Quarantine>();
         let mut report = MoveReport::default();
+        let mut names = Vec::new();
+        let mut result = Ok(());
         for (group_id, files) in picked.into_iter().filter(|(_, f)| !f.is_empty()) {
-            cleanup::remove(&quarantine, &group_id, &files, now_secs(), &mut report)
-                .map_err(|e| e.to_string())?;
+            names.push(cleanup::group_title(&group_id));
+            result = cleanup::remove(&quarantine, &group_id, &files, now_secs(), &mut report);
+            if result.is_err() {
+                break;
+            }
         }
+        history::record_move(&app, history::Kind::Files, names, &report);
+        result.map_err(|e| e.to_string())?;
         Ok(report)
     })
     .await

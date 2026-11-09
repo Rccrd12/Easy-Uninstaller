@@ -21,6 +21,7 @@ mod lnk;
 use crate::apps;
 use crate::elevated::{self, Job};
 use crate::files::Safety;
+use crate::history::{self, Kind};
 use crate::quarantine::{self, now_secs, Item, MoveReport, Quarantine, Target, Title};
 use crate::regkey::{Hive, RegKeyPath};
 use crate::review;
@@ -1221,33 +1222,53 @@ pub async fn quarantine_leftovers(app: AppHandle, ids: Vec<String>) -> Result<Mo
             }
         }
 
+        let mut names: Vec<Title> = Vec::new();
+        for (title, _, _) in &groups {
+            if !names.contains(title) {
+                names.push(title.clone());
+            }
+        }
         let quarantine = app.state::<Quarantine>();
         let mut report = MoveReport::default();
-        let mut elevated_groups = Vec::new();
-        for (title, admin, items) in groups {
-            if admin {
-                elevated_groups.push((title, items));
-            } else {
-                quarantine
-                    .add(title, &items, now_secs(), false, &mut report)
-                    .map_err(|e| e.to_string())?;
-            }
-        }
-        if !elevated_groups.is_empty() {
-            let count: usize = elevated_groups.iter().map(|(_, i)| i.len()).sum();
-            let job = Job::Add {
-                root: quarantine::root_of(&app),
-                groups: elevated_groups,
-            };
-            match elevated::run(&app, &job)? {
-                Some(result) => report.merge(result.moved.unwrap_or_default()),
-                None => report.declined_count += count as u64,
-            }
-        }
-        Ok(report)
+        let result = move_leftovers(&app, &quarantine, groups, &mut report);
+        // What was moved before a failure is recorded too.
+        history::record_move(&app, Kind::Leftovers, names, &report);
+        result.map(|()| report)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// Moves each group into its own quarantine entry; those that need administrator
+/// rights all go through one Windows permission prompt.
+fn move_leftovers(
+    app: &AppHandle,
+    quarantine: &Quarantine,
+    groups: Vec<(Title, bool, Vec<Item>)>,
+    report: &mut MoveReport,
+) -> Result<(), String> {
+    let mut elevated_groups = Vec::new();
+    for (title, admin, items) in groups {
+        if admin {
+            elevated_groups.push((title, items));
+        } else {
+            quarantine
+                .add(title, &items, now_secs(), false, report)
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    if !elevated_groups.is_empty() {
+        let count: usize = elevated_groups.iter().map(|(_, i)| i.len()).sum();
+        let job = Job::Add {
+            root: quarantine::root_of(app),
+            groups: elevated_groups,
+        };
+        match elevated::run(app, &job)? {
+            Some(result) => report.merge(result.moved.unwrap_or_default()),
+            None => report.declined_count += count as u64,
+        }
+    }
+    Ok(())
 }
 
 #[cfg(windows)]

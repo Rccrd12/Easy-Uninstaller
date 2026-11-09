@@ -1,1 +1,1 @@
-export type Screen = "home" | "apps" | "files" | "leftovers" | "map" | "quarantine" | "settings" | "hidden";
+export type Screen = "home" | "apps" | "files" | "leftovers" | "map" | "history" | "quarantine" | "settings" | "hidden";

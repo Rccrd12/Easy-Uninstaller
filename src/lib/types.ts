@@ -185,6 +185,45 @@ export interface MoveReport {
   declinedCount: number;
 }
 
+/** What an action in the history was. Mirrors `Kind` in src-tauri/src/history.rs. */
+export type HistoryKind = "quickClean" | "files" | "leftovers" | "appFolder" | "uninstall";
+
+/** A name in a history row: an i18n key (a file group) or plain text (an app). Mirrors `Title` in quarantine.rs. */
+export type HistoryName = { key: string } | { text: string };
+
+/** One action in the history. Mirrors `HistoryItem` in src-tauri/src/history.rs. */
+export interface HistoryItem {
+  id: string;
+  /** Unix seconds. */
+  at: number;
+  kind: HistoryKind;
+  names: HistoryName[];
+  itemCount: number;
+  /** Space given back by this action so far. */
+  freedBytes: number;
+  /** Still in Quarantine on the same drive: freed when deleted for good. */
+  pendingBytes: number;
+  /** When the last of that is deleted for good (unix seconds). */
+  pendingUntil: number | null;
+  /** Put back with Restore. */
+  restoredBytes: number;
+  restoredAt: number | null;
+  /** The size is Windows' estimate (uninstalled apps). */
+  estimated: boolean;
+}
+
+/** Everything Easy Uninstaller did. Mirrors `HistorySummary` in src-tauri/src/history.rs. */
+export interface HistorySummary {
+  /** Space given back since the first action. */
+  freedBytes: number;
+  pendingBytes: number;
+  /** When the first action was recorded (unix seconds). */
+  since: number | null;
+  actionCount: number;
+  /** Newest first. */
+  items: HistoryItem[];
+}
+
 /** Mirrors `QuarantineSettings` in src-tauri/src/quarantine.rs. */
 export interface QuarantineSettings {
   /** 3, 7 or 30. */
