@@ -1,5 +1,6 @@
 <script lang="ts">
   import { aiPreview } from "../api";
+  import Icon from "./Icon.svelte";
   import { ai, aiErrorText, aiReady, answerFor, askAbout, forgetAnswers, openSetup, serviceInfo, serviceLabel } from "../ai.svelte";
   import { fileCount, formatBytes } from "../format";
   import { getLanguage, locale, t } from "../i18n/index.svelte";
@@ -60,41 +61,41 @@
   }
 
   const monthYear = (secs: number) => new Date(secs * 1000).toLocaleDateString(locale(), { month: "long", year: "numeric" });
-  const verdictIcon = { removable: "🟡", keep: "🔴", unknown: "⚪" } as const;
+  const verdictIcon = { removable: "warning", keep: "stop", unknown: "question" } as const;
 </script>
 
 {#if answer}
   <div class="box">
     <div class="box-head">
-      <span class="label">✨ {t("ai.answer.title")}</span>
+      <span class="label"><Icon name="sparkle" size={14} />{t("ai.answer.title")}</span>
       <span class="who">{serviceLabel(answer.service, answer.model)}</span>
     </div>
     <p class="what">{answer.what}</p>
     {#if answer.madeBy}<p class="made-by muted">{t("ai.answer.madeBy", { name: answer.madeBy })}</p>{/if}
     <div class="verdict {answer.verdict}">
-      <b>{verdictIcon[answer.verdict]} {t(`ai.verdict.${answer.verdict}`)}</b>
-      {#if answer.verdict !== "unknown"}· {t(`ai.confidence.${answer.confidence}`)}{/if}
+      <div class="verdict-line"><Icon name={verdictIcon[answer.verdict]} /><b>{t(`ai.verdict.${answer.verdict}`)}</b>
+      {#if answer.verdict !== "unknown"}<span class="confidence">· {t(`ai.confidence.${answer.confidence}`)}</span>{/if}</div>
       {#if answer.reason}<div class="reason">{answer.reason}</div>{/if}
     </div>
     {#if answer.overridden}
-      <p class="override">🛡️ {t("ai.answer.overridden", { app: answer.facts.installedApp ?? "" })}</p>
+      <p class="override icon-line"><Icon name="shield" />{t("ai.answer.overridden", { app: answer.facts.installedApp ?? "" })}</p>
     {/if}
     <div class="label facts-label">{t("ai.answer.checked")}</div>
     <ul class="facts">
       {#if answer.facts.installedApp}
-        <li class="warn">⚠ {t("ai.answer.appInstalled", { app: answer.facts.installedApp })}</li>
+        <li class="warn"><Icon name="warning" />{t("ai.answer.appInstalled", { app: answer.facts.installedApp })}</li>
       {:else}
-        <li>✓ {t("ai.answer.noApp")}</li>
+        <li><Icon name="check" />{t("ai.answer.noApp")}</li>
       {/if}
-      {#if answer.facts.modified}<li>✓ {t("ai.answer.modified", { date: monthYear(answer.facts.modified) })}</li>{/if}
-      <li>✓ {t("ai.answer.notWindows")}</li>
+      {#if answer.facts.modified}<li><Icon name="check" />{t("ai.answer.modified", { date: monthYear(answer.facts.modified) })}</li>{/if}
+      <li><Icon name="check" />{t("ai.answer.notWindows")}</li>
     </ul>
   </div>
   <p class="muted foot">{t("ai.answer.mayBeWrong", { days: quarantine.keepDays })}</p>
-  <p class="muted foot">🔒 {t("ai.answer.sentOnly")} <button class="link" onclick={askAgain}>{t("ai.answer.askAgain")}</button></p>
+  <p class="muted foot icon-line"><Icon name="lock" size={14} /><span>{t("ai.answer.sentOnly")} <button class="link" onclick={askAgain}>{t("ai.answer.askAgain")}</button></span></p>
 {:else if asking}
   <div class="box">
-    <span class="label">✨ {t("ai.box.title")}</span>
+    <span class="label"><Icon name="sparkle" size={14} />{t("ai.box.title")}</span>
     {#if ai.starting !== null && settings.ai.service === "unsloth"}
       <p class="asking"><span class="spinner" aria-hidden="true"></span>{t("ai.picker.starting", { seconds: ai.starting })}</p>
       <p class="muted small">{t("ai.box.startingHint")}</p>
@@ -106,7 +107,7 @@
 {:else if preview}
   {@const s = preview.summary}
   <div class="box">
-    <span class="label">✨ {t("ai.confirm.title")}</span>
+    <span class="label"><Icon name="sparkle" size={14} />{t("ai.confirm.title")}</span>
     <p class="intro">{t("ai.confirm.intro", { service: serviceLabel(settings.ai.service, settings.ai.model) })}</p>
     <pre class="sent">{t("ai.confirm.folder")}: {s.path}
 {t("ai.confirm.size")}: {formatBytes(s.sizeBytes)}, {fileCount(s.fileCount)}{#if s.modified}
@@ -116,43 +117,47 @@
     <button class="link small" onclick={() => (showText = !showText)}>{showText ? t("ai.confirm.hideText") : t("ai.confirm.showText")}</button>
     {#if showText}<pre class="sent exact">{preview.question}</pre>{/if}
     <ul class="promises">
-      <li>🚫 {t("ai.confirm.never")}</li>
-      {#if isCli}<li>🔒 {t("ai.confirm.noTools", { service })}</li>{/if}
-      <li>💶 {t(isCli ? "ai.confirm.costCli" : isLocal ? "ai.confirm.costLocal" : "ai.confirm.costApi")}</li>
+      <li><Icon name="stop" />{t("ai.confirm.never")}</li>
+      {#if isCli}<li><Icon name="lock" />{t("ai.confirm.noTools", { service })}</li>{/if}
+      <li><Icon name="money" />{t(isCli ? "ai.confirm.costCli" : isLocal ? "ai.confirm.costLocal" : "ai.confirm.costApi")}</li>
     </ul>
     <div class="buttons">
-      <button class="btn btn-ai" onclick={ask}>✨ {t("ai.box.ask")}</button>
+      <button class="btn btn-ai" onclick={ask}><Icon name="sparkle" />{t("ai.box.ask")}</button>
       <button class="btn btn-ghost" onclick={() => (preview = null)}>{t("common.cancel")}</button>
     </div>
     <label class="dont-ask"><input type="checkbox" bind:checked={dontAsk} /> {t("ai.confirm.dontAsk")}</label>
   </div>
 {:else}
   <div class="box idle">
-    <span class="label">✨ {t("ai.box.title")}</span>
+    <span class="label"><Icon name="sparkle" size={14} />{t("ai.box.title")}</span>
     <p class="small">{t(aiReady() ? "ai.box.hint" : "ai.box.hintOff")}</p>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
-    <button class="btn btn-ai" onclick={start}>✨ {error ? t("ai.box.retry") : t("ai.box.ask")}</button>
+    <button class="btn btn-ai" onclick={start}><Icon name="sparkle" />{error ? t("ai.box.retry") : t("ai.box.ask")}</button>
     {#if aiReady()}<p class="muted small via">{t("ai.box.via", { service: serviceLabel(settings.ai.service, settings.ai.model) })}</p>{/if}
   </div>
 {/if}
 
 <style>
-  .box { margin-top: 14px; border: 1px solid var(--tip-border); background: var(--tip-bg); border-radius: var(--radius); padding: 12px 14px; }
+  .box { margin-top: 14px; border: 1px solid var(--border); border-left: 3px solid var(--ai); background: var(--bg); border-radius: var(--radius-sm); padding: 12px 14px; }
   .box-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-  .label { font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--ai-fg); }
-  .who { font-size: 11.5px; color: var(--ai-fg); text-align: right; }
+  .label { display: inline-flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--ai-fg); }
+  .who { font-size: 11.5px; color: var(--text-muted); text-align: right; }
   .what { font-size: 13px; line-height: 1.5; margin-top: 6px; user-select: text; }
   .made-by { font-size: 12px; margin-top: 2px; }
   .verdict { margin-top: 10px; padding: 8px 10px; border-radius: var(--radius-sm); font-size: 13px; }
   .verdict.removable { background: var(--check-bg); color: var(--check-fg); }
   .verdict.keep { background: var(--keep-bg); color: var(--keep-fg); }
   .verdict.unknown { background: var(--track); color: var(--text-muted); }
-  .reason { font-size: 12.5px; margin-top: 3px; }
+  .verdict-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .confidence { font-weight: 400; }
+  .reason { font-size: 12.5px; margin-top: 3px; padding-left: 22px; }
   .override { font-size: 12.5px; margin-top: 8px; }
   .facts-label { display: block; margin-top: 12px; color: var(--text-muted); }
   .facts { list-style: none; font-size: 12.5px; margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
-  .facts li { color: var(--safe-fg); }
+  .facts li { display: flex; gap: 6px; align-items: flex-start; color: var(--text); }
+  .facts li :global(.icon) { color: var(--safe-fg); margin-top: 0.15em; }
   .facts li.warn { color: var(--keep-fg); font-weight: 600; }
+  .facts li.warn :global(.icon) { color: var(--keep-fg); }
   .foot { font-size: 11.5px; margin-top: 8px; line-height: 1.4; }
   .link { border: none; background: none; color: var(--accent); padding: 0; font-size: inherit; }
   .small { font-size: 12px; }
@@ -160,8 +165,10 @@
   .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--tip-border); border-top-color: var(--ai); animation: spin 0.9s linear infinite; flex: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .intro { font-size: 12.5px; margin: 6px 0; }
-  .sent { font-family: Consolas, "Cascadia Mono", monospace; font-size: 11px; line-height: 1.5; background: var(--surface); border: 1px solid var(--tip-border); border-radius: var(--radius-sm); padding: 8px 10px; white-space: pre-wrap; word-break: break-word; user-select: text; }
+  .sent { font-family: Consolas, "Cascadia Mono", monospace; font-size: 11px; line-height: 1.5; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; white-space: pre-wrap; word-break: break-word; user-select: text; }
   .exact { margin-top: 6px; max-height: 180px; overflow-y: auto; }
+  .promises li { display: flex; gap: 7px; align-items: flex-start; }
+  .promises li :global(.icon) { color: var(--text-muted); margin-top: 0.15em; }
   .promises { list-style: none; font-size: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 4px; line-height: 1.4; }
   .buttons { display: flex; gap: 8px; margin-top: 10px; }
   .dont-ask { display: flex; gap: 6px; align-items: center; font-size: 12px; margin-top: 8px; }

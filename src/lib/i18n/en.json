@@ -24,7 +24,7 @@
     "needsAdmin": "Windows asks for permission"
   },
   "home": {
-    "greeting": "Hi there 👋",
+    "greeting": "Hi there",
     "subtitle": "Here is what you can do to free up space.",
     "canFree": "You can safely free",
     "disk": "Drive {drive}",
@@ -43,7 +43,7 @@
     "mapButton": "Open map",
     "quarantineTip": "Temporary files, caches and old Recycle Bin items are deleted right away: nobody needs them back. Everything else goes to <b>Quarantine</b> for {days} days and you can restore it with one click.",
     "used": "Used",
-    "quickClean": "✨ Quick clean",
+    "quickClean": "Quick clean",
     "seeAll": "See everything",
     "quickCleanHint": "Only what is safe, in one click.",
     "calculating": "Calculating…",
@@ -248,7 +248,7 @@
     "freeNowDrive": "deleted, or moved to the Quarantine on drive {drive}",
     "held": "In Quarantine for {days} days",
     "heldNote": "you can restore it; after that it is deleted and the space comes back",
-    "heldTip": "Keep the Quarantine on another drive to free this right away too ›",
+    "heldTip": "Keep the Quarantine on another drive to free this right away too",
     "free": "Free {size}",
     "details": "Let me see the details first",
     "cleaning": "Cleaning up…",
@@ -921,12 +921,12 @@
       "testing": "Testing…",
       "works": "It works. Answered in {seconds} seconds.",
       "notes": {
-        "cliCost": "💶 No extra cost: it uses your subscription's limits.",
-        "cliTools": "🔒 It starts in an empty folder with no tools: it cannot read, change or delete files.",
-        "apiCost": "💶 About 1 cent per question with the recommended models.",
-        "apiDirect": "🔒 The question goes from your PC to the service, with no server of ours in between.",
-        "localPrivate": "🔒 Nothing leaves this PC.",
-        "localFree": "💶 Free."
+        "cliCost": "No extra cost: it uses your subscription's limits.",
+        "cliTools": "It starts in an empty folder with no tools: it cannot read, change or delete files.",
+        "apiCost": "About 1 cent per question with the recommended models.",
+        "apiDirect": "The question goes from your PC to the service, with no server of ours in between.",
+        "localPrivate": "Nothing leaves this PC.",
+        "localFree": "Free."
       },
       "autoStarts": "Starts by itself",
       "starting": "Starting Unsloth Studio… {seconds} s",
@@ -941,19 +941,19 @@
       "leadEnd": ": you always decide, and everything goes through Quarantine.",
       "online": {
         "title": "Online",
-        "a": "👍 Better and faster answers",
-        "b": "🎟️ Uses a subscription you already have (Claude, ChatGPT, Google) through its program, or an API key",
-        "c": "📤 Folder paths and file names are sent, never what is inside"
+        "a": "Better and faster answers",
+        "b": "Uses a subscription you already have (Claude, ChatGPT, Google) through its program, or an API key",
+        "c": "Folder paths and file names are sent, never what is inside"
       },
       "local": {
         "title": "On this PC",
-        "a": "🔒 No data leaves the PC",
-        "b": "📦 Uses a program you already have: Ollama, LM Studio, Unsloth Studio…",
-        "c": "🐢 Slower, and more often wrong on rare folders"
+        "a": "No data leaves the PC",
+        "b": "Uses a program you already have: Ollama, LM Studio, Unsloth Studio…",
+        "c": "Slower, and more often wrong on rare folders"
       },
       "off": {
         "title": "No, thanks",
-        "a": "📚 The app keeps using its built-in explanations"
+        "a": "The app keeps using its built-in explanations"
       },
       "changeLater": "You can change your mind at any time in Settings.",
       "continue": "Continue",

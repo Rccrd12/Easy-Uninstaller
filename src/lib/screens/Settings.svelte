@@ -1,5 +1,6 @@
 <script lang="ts">
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
+  import Icon from "../components/Icon.svelte";
   import AiServicePicker from "../components/AiServicePicker.svelte";
   import { AI_PARALLEL_CHOICES, aiStats, createRestorePoint, KEEP_DAYS_CHOICES, listExclusions } from "../api";
   import { forgetAnswers, serviceInfo } from "../ai.svelte";
@@ -134,7 +135,7 @@
       <span class="muted hint">{t("settings.hiddenHint")}</span>
     </span>
     {#if hiddenCount}<span class="count">{hiddenCount}</span>{/if}
-    <span class="manage">{t("settings.manage")} ›</span>
+    <span class="manage">{t("settings.manage")}<Icon name="chevronRight" size={14} /></span>
   </button>
   <div class="row restore">
     <label class="restore-toggle">
@@ -174,8 +175,8 @@
     <div class="row block">
       {#if settings.ai.mode === "online"}
         <div class="segmented tabs" role="tablist">
-          <button role="tab" aria-selected={aiTab === "cli"} class:on={aiTab === "cli"} onclick={() => (aiTab = "cli")}>🎟️ {t("ai.setup.tabCli")}</button>
-          <button role="tab" aria-selected={aiTab === "api"} class:on={aiTab === "api"} onclick={() => (aiTab = "api")}>🔑 {t("ai.setup.tabApi")}</button>
+          <button role="tab" aria-selected={aiTab === "cli"} class:on={aiTab === "cli"} onclick={() => (aiTab = "cli")}><Icon name="ticket" />{t("ai.setup.tabCli")}</button>
+          <button role="tab" aria-selected={aiTab === "api"} class:on={aiTab === "api"} onclick={() => (aiTab = "api")}><Icon name="key" />{t("ai.setup.tabApi")}</button>
         </div>
       {/if}
       {#key settings.ai.mode === "local" ? "local" : aiTab}
@@ -220,7 +221,7 @@
   <div class="row block">
     <span>{t("ai.settings.never")}</span>
     <div class="never">
-      {#each ["contents", "username", "apps", "personal"] as item (item)}<span>✅ {t(`ai.settings.neverItems.${item}`)}</span>{/each}
+      {#each ["contents", "username", "apps", "personal"] as item (item)}<span class="never-item"><Icon name="checkCircle" />{t(`ai.settings.neverItems.${item}`)}</span>{/each}
     </div>
   </div>
 </div>
@@ -257,11 +258,12 @@
       {/if}
     </span>
     {#if phase.kind === "available"}
-      <button class="btn btn-primary" onclick={install}>{t("settings.updateNow")}</button>
+      <button class="btn btn-primary" onclick={install}><Icon name="download" />{t("settings.updateNow")}</button>
     {:else if phase.kind === "failed" && phase.info}
-      <button class="btn btn-primary" onclick={install}>{t("settings.updateRetry")}</button>
+      <button class="btn btn-primary" onclick={install}><Icon name="refresh" />{t("settings.updateRetry")}</button>
     {:else if phase.kind !== "downloading" && phase.kind !== "installing"}
       <button class="btn btn-ghost" disabled={phase.kind === "checking"} onclick={check}>
+        <Icon name="refresh" />
         {phase.kind === "failed" ? t("settings.updateRetry") : t("settings.updateCheck")}
       </button>
     {/if}
@@ -304,13 +306,15 @@
   .hidden-icon { display: flex; color: var(--text-muted); }
   .grow { flex: 1; min-width: 0; }
   .count { flex: none; font-size: 12px; font-weight: 600; background: var(--track); border-radius: 10px; padding: 1px 8px; }
-  .manage { flex: none; color: var(--accent); font-weight: 600; font-size: 13px; }
+  .manage { display: inline-flex; align-items: center; gap: 2px; flex: none; color: var(--accent); font-weight: 600; font-size: 13px; }
   .section { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.3px; text-transform: uppercase; margin: 22px 0 0; }
   .new { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; background: var(--ai); color: var(--on-ai); }
   .ai { border-color: var(--tip-border); }
   .block { flex-direction: column; align-items: stretch; gap: 10px; }
   .tabs { align-self: flex-start; }
   .never { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; }
+  .never-item { display: inline-flex; align-items: center; gap: 6px; }
+  .never-item :global(.icon) { color: var(--safe-fg); }
   .row .btn:disabled { opacity: 0.5; cursor: default; }
   .update { gap: 14px; }
   .update .btn { flex: none; }

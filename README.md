@@ -229,3 +229,6 @@ docs/                   screenshots, design mockups, code signing and update not
 ## License
 
 [MIT](LICENSE). You can use, change and share it freely; it comes with no warranty.
+
+The icons come from [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons)
+by Microsoft, also MIT licensed; only the ones the app uses are copied into `src/lib/icons.ts`.

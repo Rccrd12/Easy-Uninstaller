@@ -1,5 +1,6 @@
 <script lang="ts">
   import StatusIcon from "../components/StatusIcon.svelte";
+  import Icon from "../components/Icon.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
   import { deleteQuarantine, listQuarantine, restoreQuarantine, usesSampleData } from "../api";
   import { quarantine } from "../settings.svelte";
@@ -41,7 +42,7 @@
   const onlyFiles = (e: QuarantineEntry) => e.items.every((i) => i.kind === "file");
   /** "3 files", or "3 items" when the entry holds folders or registry keys. */
   const countOf = (e: QuarantineEntry) => (onlyFiles(e) ? fileCount(e.itemCount) : itemCount(e.itemCount));
-  const kindIcons = { file: "", folder: "📂 ", registry: "🔑 " } as const;
+  const kindIcons = { file: "document", folder: "folder", registry: "key" } as const;
   const failure = (err: unknown) => (String(err) === "declined" ? t("quarantine.declined") : t("quarantine.failed", { error: String(err) }));
   const nameOf = (path: string) => path.split(/[\\/]/).pop() ?? path;
   const folderOf = (path: string) => path.slice(0, Math.max(path.length - nameOf(path).length - 1, 0));
@@ -112,7 +113,7 @@
   <div class="card notice" class:error={notice.error} role="status" aria-live="polite">
     <StatusIcon kind={notice.error ? "warn" : "ok"} />
     <div class="notice-text">{#each notice.lines as line, i (i)}<p>{line}</p>{/each}</div>
-    <button class="close" aria-label={t("common.close")} onclick={() => (notice = null)}>✕</button>
+    <button class="close" aria-label={t("common.close")} onclick={() => (notice = null)}><Icon name="dismiss" /></button>
   </div>
 {/if}
 
@@ -122,7 +123,7 @@
   <div class="card message"><p>{t("quarantine.failed", { error })}</p></div>
 {:else if entries.length === 0}
   <div class="card message">
-    <span class="big-icon" aria-hidden="true">🛡️</span>
+    <span class="big-icon"><Icon name="quarantine" size={26} /></span>
     <p>{t("quarantine.empty", { days: quarantine.keepDays })}</p>
   </div>
 {:else}
@@ -142,7 +143,7 @@
         </div>
         <span class="size">{formatBytes(e.sizeBytes)}</span>
         <button class="btn btn-primary" disabled={busyId !== null} onclick={() => restore(e)} title={e.needsAdmin ? t("quarantine.permission") : undefined}>
-          {busyId === e.id && confirmId !== e.id ? t("quarantine.restoring") : `${e.needsAdmin ? "🛡️" : "↩"} ${t("common.restore")}`}
+          {#if busyId === e.id && confirmId !== e.id}{t("quarantine.restoring")}{:else}<Icon name={e.needsAdmin ? "shield" : "undo"} />{t("common.restore")}{/if}
         </button>
         <button class="btn btn-ghost" disabled={busyId !== null} onclick={() => (confirmId = confirmId === e.id ? null : e.id)}>
           {t("quarantine.deleteNow")}
@@ -161,15 +162,16 @@
       {#if e.items.length > 1}
         <button class="link" aria-expanded={openId === e.id} onclick={() => (openId = openId === e.id ? null : e.id)}>
           {openId === e.id
-            ? `▾ ${t(onlyFiles(e) ? "quarantine.hideFiles" : "quarantine.hideItems")}`
-            : `▸ ${t(onlyFiles(e) ? "quarantine.showFiles" : "quarantine.showItems")}`}
+            ? t(onlyFiles(e) ? "quarantine.hideFiles" : "quarantine.hideItems")
+            : t(onlyFiles(e) ? "quarantine.showFiles" : "quarantine.showItems")}
+          <span class="chevron" class:open={openId === e.id}><Icon name="chevronDown" size={14} /></span>
         </button>
         {#if openId === e.id}
           <ul class="items">
             {#each e.items.slice(0, SHOWN_ITEMS) as item (item.originalPath)}
               <li title={item.originalPath}>
                 <div class="item-text">
-                  <div class="item-name">{kindIcons[item.kind]}{nameOf(item.originalPath)}</div>
+                  <div class="item-name"><Icon name={kindIcons[item.kind]} size={14} />{nameOf(item.originalPath)}</div>
                   <div class="muted item-note">{folderOf(item.originalPath)}</div>
                 </div>
                 <span class="item-size">{item.kind === "registry" ? "—" : formatBytes(item.sizeBytes)}</span>
@@ -204,12 +206,15 @@
   .confirm { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--keep-bg); color: var(--keep-fg); font-size: 13px; font-weight: 600; }
   .grow { flex: 1; }
 
-  .link { border: none; background: none; color: var(--accent); font-size: 12.5px; padding: 0; margin-top: 8px; }
+  .link { border: none; background: none; color: var(--accent); font-size: 12.5px; padding: 0; margin-top: 8px; display: inline-flex; align-items: center; gap: 4px; }
+  .chevron { display: flex; transform: rotate(-90deg); transition: transform 0.12s; }
+  .chevron.open { transform: none; }
   .items { list-style: none; margin-top: 6px; }
   .items li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
   .item-text { flex: 1; min-width: 0; }
   .item-name, .item-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .item-name { font-size: 12.5px; font-weight: 600; }
+  .item-name :global(.icon) { color: var(--text-muted); margin-right: 6px; }
   .item-note { font-size: 11px; }
   .item-size { font-size: 12px; font-weight: 600; flex: none; }
   .more { font-size: 12px; margin-top: 6px; }
@@ -218,9 +223,10 @@
   .notice.error { border-left-color: var(--danger); }
   .notice-text { flex: 1; line-height: 1.4; }
   .notice-text p + p { color: var(--text-muted); margin-top: 2px; }
-  .close { border: none; background: none; color: var(--text-muted); font-size: 13px; padding: 4px; }
+  .close { border: none; background: none; color: var(--text-muted); padding: 4px; display: flex; border-radius: var(--radius-sm); }
+  .close:hover { background: var(--hover); }
 
   .message { padding: 22px 24px; margin-top: 8px; display: flex; align-items: center; gap: 14px; }
   .message p { flex: 1; }
-  .big-icon { font-size: 26px; }
+  .big-icon { width: 44px; height: 44px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; flex: none; background: var(--icon-tile-bg); color: var(--icon-tile-fg); }
 </style>

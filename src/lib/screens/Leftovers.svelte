@@ -1,5 +1,6 @@
 <script lang="ts">
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
+  import Icon from "../components/Icon.svelte";
   import StatusIcon from "../components/StatusIcon.svelte";
   import LeftoverRow from "../components/LeftoverRow.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
@@ -216,7 +217,7 @@
     <p class="muted sub">{t("leftovers.subtitle")}</p>
   </div>
   {#if !loading}
-    <button class="btn btn-ghost" onclick={load}>↻ {t("leftovers.rescan")}</button>
+    <button class="btn btn-ghost" onclick={load}><Icon name="refresh" />{t("leftovers.rescan")}</button>
   {/if}
 </div>
 {#if usesSampleData()}<SampleBanner />{/if}
@@ -226,7 +227,7 @@
     <span class="spinner"></span>
     <div>
       <p>{t("leftovers.searching")}</p>
-      <p class="muted small">🛡️ {t("leftovers.scanNote")}</p>
+      <p class="muted small icon-line"><Icon name="shieldCheck" />{t("leftovers.scanNote")}</p>
     </div>
   </div>
 {:else if error}
@@ -236,7 +237,7 @@
   </div>
 {:else if items.length === 0}
   <div class="card message">
-    <span class="big-icon" aria-hidden="true">✨</span>
+    <span class="big-icon"><Icon name="checkCircle" size={26} /></span>
     <div>
       <p>{t("leftovers.empty")}</p>
       <p class="muted small">{t("leftovers.historyNote")}</p>
@@ -274,7 +275,7 @@
   {/if}
   <div class="footer">
     <b>{t("leftovers.selected", { size: formatBytes(pickedBytes) })}</b>
-    {#if pickedAdmin}<span class="muted small">· 🛡️ {t("uninstall.adminLeftovers", { count: leftoverCount(pickedAdmin) })}</span>{/if}
+    {#if pickedAdmin}<span class="muted small">· <Icon name="shield" size={13} /> {t("uninstall.adminLeftovers", { count: leftoverCount(pickedAdmin) })}</span>{/if}
     <span class="grow"></span>
     <button class="btn btn-primary" disabled={!pickedItems.length || moving} onclick={move}>
       {moving ? t("leftovers.moving") : t("common.moveToQuarantine")}
@@ -286,7 +287,7 @@
   <button class="hidden-link" onclick={() => onNavigate("hidden")}>
     <EyeOffIcon />
     <span>{t("files.hiddenLink", { count: leftoverCount(hiddenCount) })}</span>
-    <span class="link-action">{t("files.hiddenLinkAction")} ›</span>
+    <span class="link-action">{t("files.hiddenLinkAction")}<Icon name="chevronRight" size={12} /></span>
   </button>
 {/if}
 
@@ -315,14 +316,14 @@
       {#each n.kind === "moved" ? movedLines(n.report) : n.lines as line, i (i)}<p>{line}</p>{/each}
     </div>
     {#if n.kind === "hidden"}
-      <button class="btn btn-ghost" disabled={undoing} onclick={() => unhide(n.items)}>↩ {t("leftovers.undo")}</button>
+      <button class="btn btn-ghost" disabled={undoing} onclick={() => unhide(n.items)}><Icon name="undo" />{t("leftovers.undo")}</button>
     {/if}
     {#if n.kind === "moved"}
       <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(n.report)}>
-        {undoing ? t("leftovers.undoing") : `↩ ${t("leftovers.undo")}`}
+        {#if !undoing}<Icon name="undo" />{/if}{undoing ? t("leftovers.undoing") : t("leftovers.undo")}
       </button>
     {/if}
-    <button class="close" aria-label={t("common.close")} onclick={() => (notice = null)}>✕</button>
+    <button class="close" aria-label={t("common.close")} onclick={() => (notice = null)}><Icon name="dismiss" /></button>
   </div>
 {/if}
 
@@ -343,20 +344,20 @@
   .btn:disabled { opacity: 0.5; cursor: default; }
   .message { padding: 22px 24px; margin-top: 8px; display: flex; align-items: center; gap: 14px; }
   .message > :not(.big-icon):not(.spinner) { flex: 1; }
-  .big-icon { font-size: 26px; }
+  .big-icon { display: flex; color: var(--safe-fg); }
   .spinner { flex: none; width: 18px; height: 18px; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .dots { flex: none; border: none; background: none; font-size: 18px; line-height: 1; padding: 2px 8px; margin-right: -6px; border-radius: var(--radius-sm); color: var(--text-muted); }
   .dots:hover { background: var(--hover); color: var(--text); }
   .hidden-link { display: flex; align-items: center; gap: 8px; margin-top: 6px; border: none; background: none; padding: 6px 2px; font-size: 13px; color: var(--text-muted); text-align: left; }
-  .link-action { color: var(--accent); font-weight: 600; }
+  .link-action { color: var(--accent); font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
   .hidden-link:hover .link-action { text-decoration: underline; }
   .menu { position: fixed; z-index: 20; width: 300px; padding: 6px; box-shadow: var(--shadow-pop); display: flex; flex-direction: column; }
   .menu button { border: none; background: none; text-align: left; padding: 8px 10px; border-radius: 5px; font-size: 13px; }
   .menu button:hover, .menu button:focus-visible { background: var(--hover); outline: none; }
   .menu-hide { display: flex; align-items: flex-start; gap: 8px; }
-  .menu-hide :global(.eye-off) { margin-top: 2px; }
+  .menu-hide :global(.icon) { margin-top: 2px; }
   .menu-hint { display: block; font-size: 12px; margin-top: 2px; }
   .toast-icon { display: flex; color: var(--text-muted); }
   .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
@@ -364,5 +365,6 @@
   .toast-text { flex: 1; font-size: 13px; line-height: 1.4; }
   .toast-text p + p { color: var(--text-muted); margin-top: 2px; }
   .toast .btn { flex: none; }
-  .close { border: none; background: none; color: var(--text-muted); font-size: 13px; padding: 4px; }
+  .close { border: none; background: none; color: var(--text-muted); padding: 4px; display: flex; border-radius: var(--radius-sm); }
+  .close:hover { background: var(--hover); }
 </style>

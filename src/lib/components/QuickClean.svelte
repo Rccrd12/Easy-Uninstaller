@@ -1,5 +1,7 @@
 <script lang="ts">
   import SafetyTag from "./SafetyTag.svelte";
+  import Icon from "./Icon.svelte";
+  import type { IconName } from "../icons";
   import { DELETE_NOW_GROUPS, getSystemDisk, keepFileGroups, listFileGroups, removeFileGroups, restoreQuarantine } from "../api";
   import { fileCount, formatBytes, restoreSummary } from "../format";
   import { locale, t } from "../i18n/index.svelte";
@@ -20,7 +22,7 @@
 
   type Phase = "scanning" | "ready" | "cleaning" | "done" | "error";
 
-  const ICONS: Record<string, string> = { temp: "🗑️", installers: "💿", "recycle-bin": "♻️", "crash-reports": "🧾", thumbnails: "🖼️" };
+  const ICONS: Record<string, IconName> = { temp: "delete", installers: "download", "recycle-bin": "recycle", "crash-reports": "receipt", thumbnails: "image" };
 
   let phase = $state<Phase>("scanning");
   let progress = $state<ScanProgress | null>(null);
@@ -119,9 +121,9 @@
 <div class="scrim" onclick={close}></div>
 <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="qc-title">
   <div class="top">
-    <h2 id="qc-title">✨ {t("quick.title")}</h2>
+    <h2 id="qc-title">{t("quick.title")}</h2>
     {#if phase !== "cleaning"}
-      <button class="x" aria-label={t("common.close")} onclick={close}>✕</button>
+      <button class="x" aria-label={t("common.close")} onclick={close}><Icon name="dismiss" size={18} /></button>
     {/if}
   </div>
 
@@ -143,7 +145,7 @@
     <p class="lead">{t("quick.failed", { error: error ?? "" })}</p>
     <div class="actions"><button class="btn btn-primary btn-lg" onclick={close}>{t("common.close")}</button></div>
   {:else if phase === "ready" && safe.length === 0}
-    <div class="empty"><span aria-hidden="true">✨</span><p>{t("quick.empty")}</p></div>
+    <div class="empty"><span class="empty-icon"><Icon name="checkCircle" size={26} /></span><p>{t("quick.empty")}</p></div>
     <div class="actions">
       <button class="btn btn-primary btn-lg" onclick={close}>{t("common.close")}</button>
       <button class="btn btn-ghost btn-lg" onclick={onDetails}>{t("quick.seeFiles")}</button>
@@ -155,7 +157,7 @@
         <li>
           <label>
             <input type="checkbox" checked={checked.has(group.id)} disabled={phase === "cleaning"} onchange={() => toggle(group.id)} />
-            <span class="icon" aria-hidden="true">{ICONS[group.id] ?? "📄"}</span>
+            <span class="icon"><Icon name={ICONS[group.id] ?? "document"} size={20} /></span>
             <span class="grow">
               <b>{t(group.titleKey)}</b>
               <span class="muted small block">{t(group.descriptionKey)} · {fileCount(group.itemCount)}</span>
@@ -179,7 +181,7 @@
           <div class="muted small">{t("quick.held", { days: quarantine.keepDays })}</div>
           <div class="num plain">{formatBytes(heldBytes)}</div>
           <div class="muted small">{t("quick.heldNote")}</div>
-          <button class="link small" onclick={onSettings}>{t("quick.heldTip")}</button>
+          <button class="link small" onclick={onSettings}>{t("quick.heldTip")}<Icon name="chevronRight" size={12} /></button>
         </div>
       {/if}
     </div>
@@ -196,7 +198,7 @@
     </div>
   {:else if phase === "done" && report}
     <div class="result" role="status">
-      <span class="check" aria-hidden="true">✓</span>
+      <span class="check"><Icon name="check" size={24} /></span>
       <div>
         <div class="muted small">{t("quick.doneTitle")}</div>
         <div class="num">{formatBytes(report.freedBytes)}</div>
@@ -205,22 +207,22 @@
     </div>
     <ul class="facts">
       {#if heldAfter > 0 && !undoLines}
-        <li>🛡️ {t("quick.heldDone", { size: formatBytes(heldAfter), date: until(quarantine.keepDays) })}</li>
+        <li><Icon name="quarantine" />{t("quick.heldDone", { size: formatBytes(heldAfter), date: until(quarantine.keepDays) })}</li>
       {/if}
       {#if report.skippedCount}
-        <li>⏸️ {t("files.movedSkipped", { count: fileCount(report.skippedCount) })}</li>
+        <li><Icon name="pause" />{t("files.movedSkipped", { count: fileCount(report.skippedCount) })}</li>
       {/if}
       {#if diskAfter}
-        <li>💽 {diskBefore && diskAfter.freeBytes > diskBefore.freeBytes
+        <li><Icon name="drive" />{diskBefore && diskAfter.freeBytes > diskBefore.freeBytes
             ? t("quick.disk", { drive: diskAfter.mountPoint, free: formatBytes(diskAfter.freeBytes), before: formatBytes(diskBefore.freeBytes) })
             : t("quick.diskNow", { drive: diskAfter.mountPoint, free: formatBytes(diskAfter.freeBytes) })}</li>
       {/if}
-      {#each undoLines ?? [] as line, i (i)}<li>↩️ {line}</li>{/each}
+      {#each undoLines ?? [] as line, i (i)}<li><Icon name="undo" />{line}</li>{/each}
     </ul>
     <div class="actions">
       <button class="btn btn-primary btn-lg" onclick={close}>{t("common.close")}</button>
       {#if report.entryIds.length && !undoLines}
-        <button class="btn btn-ghost btn-lg" disabled={undoing} onclick={undo}>{undoing ? t("files.undoing") : `↩ ${t("quick.undo")}`}</button>
+        <button class="btn btn-ghost btn-lg" disabled={undoing} onclick={undo}>{#if !undoing}<Icon name="undo" />{/if}{undoing ? t("files.undoing") : t("quick.undo")}</button>
       {/if}
     </div>
   {/if}
@@ -235,7 +237,8 @@
   }
   .top { display: flex; align-items: center; justify-content: space-between; }
   h2 { font-size: 20px; }
-  .x { border: none; background: none; color: var(--text-muted); font-size: 17px; padding: 4px 6px; }
+  .x { border: none; background: none; color: var(--text-muted); padding: 4px 6px; display: flex; border-radius: var(--radius-sm); }
+  .x:hover { background: var(--hover); }
   .lead { margin: 4px 0 14px; font-size: 13.5px; }
   .small { font-size: 12.5px; }
   .block { display: block; }
@@ -245,7 +248,7 @@
   .lines li { border-top: 1px solid var(--border); }
   .lines label { display: flex; align-items: center; gap: 12px; padding: 10px 0; cursor: pointer; }
   .lines input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
-  .icon { font-size: 20px; width: 26px; text-align: center; flex: none; }
+  .icon { width: 26px; display: flex; justify-content: center; flex: none; color: var(--text-muted); }
   .size { width: 72px; text-align: right; flex: none; }
 
   .split { display: flex; gap: 18px; background: var(--bg); border-radius: var(--radius); padding: 14px 18px; margin-top: 10px; }
@@ -265,11 +268,12 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .empty { display: flex; align-items: center; gap: 12px; padding: 18px 0 4px; font-size: 14px; }
-  .empty span { font-size: 26px; }
+  .empty-icon { display: flex; color: var(--safe-fg); }
 
   .result { display: flex; align-items: center; gap: 16px; background: var(--bg); border-radius: var(--radius); padding: 16px 18px; margin-top: 12px; }
-  .check { width: 44px; height: 44px; border-radius: 50%; background: var(--safe-bg); color: var(--safe-fg); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; flex: none; }
+  .check { width: 44px; height: 44px; border-radius: 50%; background: var(--safe-bg); color: var(--safe-fg); display: flex; align-items: center; justify-content: center; flex: none; }
   .result .num { font-size: 32px; }
   .facts { list-style: none; margin-top: 12px; font-size: 13px; line-height: 1.45; }
-  .facts li { padding: 5px 0; }
+  .facts li { padding: 5px 0; display: flex; gap: 8px; align-items: baseline; }
+  .facts li :global(.icon) { color: var(--text-muted); align-self: center; }
 </style>

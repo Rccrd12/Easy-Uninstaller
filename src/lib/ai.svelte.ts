@@ -1,3 +1,4 @@
+import type { IconName } from "./icons";
 // The AI help for unknown folders, shared by the Files screen, the "What is this?"
 // panel and Settings: which services exist, the answers kept on this PC, and the
 // setup window. Everything reaches Rust through api.ts.
@@ -12,7 +13,7 @@ export type AiKind = "cli" | "api" | "local";
 export interface AiServiceInfo {
   id: string;
   kind: AiKind;
-  icon: string;
+  icon: IconName;
   /** It cannot answer without a key (Unsloth Studio wants its sk-unsloth one). */
   needsKey: boolean;
   /** A key can be given but is not required. */
@@ -28,18 +29,18 @@ export interface AiServiceInfo {
 
 /** Same ids and order as src-tauri/src/ai/services.rs. Names are i18n keys `ai.services.<id>`. */
 export const AI_SERVICES: AiServiceInfo[] = [
-  { id: "claude-code", kind: "cli", icon: "🟠", needsKey: false, installPage: "install:claude-code" },
-  { id: "codex", kind: "cli", icon: "🟢", needsKey: false, installPage: "install:codex" },
-  { id: "antigravity-cli", kind: "cli", icon: "🔵", needsKey: false, installPage: "install:antigravity-cli" },
-  { id: "anthropic", kind: "api", icon: "🟠", needsKey: true, keyPage: "key:anthropic" },
-  { id: "openai", kind: "api", icon: "🟢", needsKey: true, keyPage: "key:openai" },
-  { id: "google", kind: "api", icon: "🔵", needsKey: true, keyPage: "key:google" },
-  { id: "openrouter", kind: "api", icon: "🔀", needsKey: true, keyPage: "key:openrouter" },
-  { id: "custom", kind: "api", icon: "⚙️", needsKey: false, optionalKey: true, url: "required" },
-  { id: "ollama", kind: "local", icon: "🦙", needsKey: false, url: "optional", defaultUrl: "localhost:11434", installPage: "install:ollama" },
-  { id: "lmstudio", kind: "local", icon: "🧪", needsKey: false, url: "optional", defaultUrl: "localhost:1234", installPage: "install:lmstudio" },
-  { id: "unsloth", kind: "local", icon: "🦥", needsKey: true, url: "optional", defaultUrl: "localhost:8888", installPage: "install:unsloth" },
-  { id: "local-custom", kind: "local", icon: "⚙️", needsKey: false, optionalKey: true, url: "required" },
+  { id: "claude-code", kind: "cli", icon: "console", needsKey: false, installPage: "install:claude-code" },
+  { id: "codex", kind: "cli", icon: "console", needsKey: false, installPage: "install:codex" },
+  { id: "antigravity-cli", kind: "cli", icon: "console", needsKey: false, installPage: "install:antigravity-cli" },
+  { id: "anthropic", kind: "api", icon: "cloud", needsKey: true, keyPage: "key:anthropic" },
+  { id: "openai", kind: "api", icon: "cloud", needsKey: true, keyPage: "key:openai" },
+  { id: "google", kind: "api", icon: "cloud", needsKey: true, keyPage: "key:google" },
+  { id: "openrouter", kind: "api", icon: "cloud", needsKey: true, keyPage: "key:openrouter" },
+  { id: "custom", kind: "api", icon: "settings", needsKey: false, optionalKey: true, url: "required" },
+  { id: "ollama", kind: "local", icon: "laptop", needsKey: false, url: "optional", defaultUrl: "localhost:11434", installPage: "install:ollama" },
+  { id: "lmstudio", kind: "local", icon: "laptop", needsKey: false, url: "optional", defaultUrl: "localhost:1234", installPage: "install:lmstudio" },
+  { id: "unsloth", kind: "local", icon: "laptop", needsKey: true, url: "optional", defaultUrl: "localhost:8888", installPage: "install:unsloth" },
+  { id: "local-custom", kind: "local", icon: "settings", needsKey: false, optionalKey: true, url: "required" },
 ];
 
 /** Models we suggest first, when the service offers them. */

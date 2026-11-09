@@ -1,5 +1,6 @@
 <script lang="ts">
   import SampleBanner from "../components/SampleBanner.svelte";
+  import Icon from "../components/Icon.svelte";
   import { listInstalledApps, scanSpace, usesSampleData } from "../api";
   import { formatBytes } from "../format";
   import { locale, t } from "../i18n/index.svelte";
@@ -80,7 +81,7 @@
     </p>
   </div>
   {#if !loading}
-    <button class="btn btn-ghost rescan" onclick={() => load(true)}>↻ {t("map.rescan")}</button>
+    <button class="btn btn-ghost rescan" onclick={() => load(true)}><Icon name="refresh" />{t("map.rescan")}</button>
   {/if}
 </div>
 {#if usesSampleData()}<SampleBanner />{/if}
@@ -90,7 +91,7 @@
     <div class="status-title">{t("map.measuring")}</div>
     <div class="sweep" aria-hidden="true"><i></i></div>
     <span class="muted">{progress ? t("map.checked", { count: progress.filesChecked.toLocaleString(locale()) }) : " "}</span>
-    <p class="muted note">🛡️ {t("map.readOnly")}</p>
+    <p class="muted note icon-line"><Icon name="shieldCheck" />{t("map.readOnly")}</p>
   </div>
 {:else if error}
   <div class="card status row">
@@ -140,7 +141,7 @@
         <button class="btn btn-primary" onclick={() => onNavigate(target)}>{t(target === "apps" ? "map.openApps" : "map.openFiles")}</button>
       {/if}
     {:else}
-      <span class="muted">👆 {t("map.pickBlock")}</span>
+      <span class="muted icon-line"><Icon name="cursor" />{t("map.pickBlock")}</span>
     {/if}
   </div>
 {/if}

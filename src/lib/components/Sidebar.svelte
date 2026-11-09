@@ -1,25 +1,27 @@
 <script lang="ts">
   import { t } from "../i18n/index.svelte";
   import type { Screen } from "../screens";
+  import type { IconName } from "../icons";
+  import Icon from "./Icon.svelte";
 
   let { current, onNavigate }: { current: Screen; onNavigate: (s: Screen) => void } = $props();
 
-  const main: { id: Screen; icon: string }[] = [
-    { id: "home", icon: "🏠" },
-    { id: "apps", icon: "📦" },
-    { id: "files", icon: "📁" },
-    { id: "leftovers", icon: "🧹" },
-    { id: "map", icon: "🗺️" },
+  const main: { id: Screen; icon: IconName }[] = [
+    { id: "home", icon: "home" },
+    { id: "apps", icon: "apps" },
+    { id: "files", icon: "folder" },
+    { id: "leftovers", icon: "broom" },
+    { id: "map", icon: "map" },
   ];
-  const bottom: { id: Screen; icon: string }[] = [
-    { id: "quarantine", icon: "↩️" },
-    { id: "settings", icon: "⚙️" },
+  const bottom: { id: Screen; icon: IconName }[] = [
+    { id: "quarantine", icon: "quarantine" },
+    { id: "settings", icon: "settings" },
   ];
 </script>
 
-{#snippet item(entry: { id: Screen; icon: string })}
+{#snippet item(entry: { id: Screen; icon: IconName })}
   <button class="item" class:on={current === entry.id} aria-current={current === entry.id ? "page" : undefined} onclick={() => onNavigate(entry.id)}>
-    <span class="icon" aria-hidden="true">{entry.icon}</span>{t(`nav.${entry.id}`)}
+    <span class="icon"><Icon name={entry.icon} size={20} filled={current === entry.id} /></span>{t(`nav.${entry.id}`)}
   </button>
 {/snippet}
 
@@ -38,6 +40,7 @@
   .item:hover { background: var(--hover); }
   .item.on { background: var(--surface); font-weight: 600; box-shadow: var(--shadow); }
   .item.on::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--accent); }
-  .icon { width: 20px; text-align: center; }
+  .icon { width: 20px; height: 20px; display: flex; color: var(--text); }
+  .item.on .icon { color: var(--accent); }
   .spacer { flex: 1; }
 </style>
