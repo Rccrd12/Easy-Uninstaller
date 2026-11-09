@@ -196,7 +196,8 @@ is attached to the run as an artifact. Contributors (and coding agents) should r
 
 1. Set the same version in `package.json`, `src-tauri/Cargo.toml` and
    `src-tauri/tauri.conf.json`, and merge that to `main`.
-2. Push a tag for it: `git tag v0.2.0 && git push origin v0.2.0`.
+2. Push a tag for it: `git tag v0.2.0 && git push origin v0.2.0`. Or, without git, open
+   *Actions > Release > Run workflow* on `main` and type the tag: it is created for you.
 3. The [Release workflow](.github/workflows/release.yml) builds the installer on Windows and
    creates a **draft** release with the installer, its checksum and the files the in-app
    updater reads (`latest.json` and a `.sig` signature). Review it on GitHub and press
