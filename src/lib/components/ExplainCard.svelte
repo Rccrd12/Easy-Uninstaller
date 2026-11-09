@@ -3,7 +3,9 @@
   import { knownFolder } from "../explain";
   import { formatBytes } from "../format";
   import { t } from "../i18n/index.svelte";
+  import { answerFor } from "../ai.svelte";
   import type { FileItem } from "../types";
+  import AiBox from "./AiBox.svelte";
 
   /**
    * The "What is this?" panel for one folder or file, from the list built into the app.
@@ -27,7 +29,9 @@
   let confirming = $state(false);
   /** Outside AppData (ProgramData): Windows asks for permission. */
   const needsAdmin = $derived(!/[\\/]AppData[\\/]/i.test(item.path));
-  const risk = $derived(!folder ? "unknown" : folder.verdict === "keep" ? "keep" : "normal");
+  /** The AI's answer, only for folders the built-in list does not know. */
+  const aiAnswer = $derived(folder ? undefined : answerFor(item.path));
+  const risk = $derived(!folder ? (aiAnswer?.verdict === "keep" ? "keep" : "unknown") : folder.verdict === "keep" ? "keep" : "normal");
 </script>
 
 <button class="back" onclick={onBack}>← {t("explain.back", { group: groupTitle })}</button>
@@ -52,21 +56,20 @@
 {:else}
   <div class="unknown">
     <b>{t("explain.unknownTitle", { name })}</b>
-    <p>{t("explain.unknownHint")}</p>
-    <div class="ai">
-      <p class="muted">{t("explain.aiSoon")}</p>
-      <button class="btn btn-ghost" disabled>✨ {t("explain.askAi")}</button>
-    </div>
+    {#if !aiAnswer}<p>{t("explain.unknownHint")}</p>{/if}
+    <AiBox {item} />
   </div>
 {/if}
 
-{#if onMove}
+{#if onMove && !folder?.noMove}
   <div class="grow"></div>
   {#if confirming}
     <div class="confirm {risk}" role="alertdialog" aria-label={t("explain.move.title", { name })}>
       <b>{t(`explain.move.${risk}Title`, { name })}</b>
       {#if risk === "keep" && folder}
         <p>{t("explain.move.keepText")} {t(`explain.folders.${folder.id}.ifRemoved`)}</p>
+      {:else if risk === "keep" && aiAnswer}
+        <p>{t("ai.move.keepText")} {aiAnswer.reason}</p>
       {:else if risk === "unknown"}
         <p>{t("explain.move.unknownText")}</p>
       {/if}
@@ -102,9 +105,6 @@
   .source { font-size: 11.5px; margin-top: 14px; background: var(--bg); padding: 7px 10px; border-radius: var(--radius-sm); }
   .unknown { margin-top: 4px; }
   .unknown b { font-size: 13.5px; }
-  .ai { margin-top: 14px; border: 1px dashed var(--tip-border); background: var(--tip-bg); border-radius: var(--radius-sm); padding: 10px 12px; }
-  .ai p { font-size: 12.5px; margin: 0 0 8px; }
-  .ai .btn:disabled { opacity: 0.6; cursor: default; }
   .grow { flex: 1; min-height: 16px; }
   .wide { width: 100%; padding: 10px; }
   .confirm { border-radius: var(--radius-sm); padding: 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--border-strong); }

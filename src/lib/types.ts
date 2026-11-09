@@ -262,6 +262,94 @@ export interface Exclusion {
   label: string | null;
 }
 
+// ── AI help (src-tauri/src/ai.rs) ──────────────────────────────────────────
+
+/** Where the AI runs: off, an online service, or a model server on this PC. */
+export type AiMode = "off" | "online" | "local";
+
+/** Which service and model the user picked. Mirrors `AiConfig`. */
+export interface AiConfig {
+  service: string;
+  model: string;
+  /** For "other service" and servers on this PC: their address. */
+  url: string;
+  /** Start Unsloth Studio when it is not running, and stop it after a while. */
+  autoStart: boolean;
+}
+
+export interface AiModel {
+  id: string;
+  label: string;
+}
+
+export interface AiServiceStatus {
+  id: string;
+  /** The program is installed, or the server on this PC answers. */
+  found: boolean;
+  /** How many models a server on this PC has, when it says. */
+  models: number | null;
+  /** A key is saved in Windows' Credential Manager. */
+  hasKey: boolean;
+  /** The app can start it when it is not running (Unsloth Studio, installed). */
+  canStart: boolean;
+}
+
+/** Unsloth Studio being started by the app. Mirrors `ai::unsloth::StartStatus`. */
+export interface AiStartStatus {
+  state: "starting" | "on" | "off";
+  /** How long the start has taken so far. */
+  seconds: number;
+}
+
+/** What is sent about one folder: names and numbers only. Mirrors `FolderSummary`. */
+export interface FolderSummary {
+  /** `%LOCALAPPDATA%\Name`: never the user's own folder path. */
+  path: string;
+  sizeBytes: number;
+  fileCount: number;
+  /** Newest change inside, seconds since 1970. */
+  modified: number | null;
+  subfolders: string[];
+  names: string[];
+}
+
+export interface AiPreview {
+  summary: FolderSummary;
+  /** The exact text sent. */
+  question: string;
+}
+
+export type AiVerdict = "removable" | "keep" | "unknown";
+export type AiConfidence = "low" | "medium" | "high";
+
+/** What the app checked on this PC, shown apart from the AI's answer. */
+export interface AiFacts {
+  installedApp: string | null;
+  modified: number | null;
+}
+
+export interface AiAnswer {
+  path: string;
+  what: string;
+  madeBy: string;
+  verdict: AiVerdict;
+  confidence: AiConfidence;
+  reason: string;
+  /** Two to four words, for the tag. */
+  label: string;
+  /** The AI said "removable" but an installed app matches, so it shows as "keep". */
+  overridden: boolean;
+  facts: AiFacts;
+  service: string;
+  model: string;
+  askedAt: number;
+}
+
+export interface AiStats {
+  answers: number;
+  askedThisMonth: number;
+}
+
 /** A newer version of the app. Mirrors `UpdateInfo` in src-tauri/src/updater.rs. */
 export interface UpdateInfo {
   version: string;

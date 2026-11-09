@@ -25,11 +25,15 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 - **Clear about risk.** Every group of files is labelled *Safe*, *Check* or *Personal*,
   so you know what you are removing before you remove it. Unknown folders come with a
   plain *What is this?* explanation, built in: no AI, nothing sent anywhere.
+- **AI only if you want it.** Off by default. When you turn it on, it explains folders the
+  built-in list does not know, from their names and sizes only, and its answer is advice in
+  its own purple tag: it never ticks or moves anything. See [AI help](#ai-help).
 - **Light.** Built with [Tauri 2](https://tauri.app): it uses the WebView2 engine that is
   already part of Windows, so the installer is a few MB instead of 100+ MB.
-- **Private.** It works entirely on your PC. No account, no ads, no tracking. The only
-  thing it asks the internet is, when it opens, whether a new version exists (you can turn
-  that off in Settings).
+- **Private.** It works entirely on your PC. No account, no ads, no tracking. When it opens,
+  it asks GitHub whether a new version exists (you can turn that off in Settings). The
+  optional AI help is the only thing that ever sends anything about your PC, and only when
+  you ask it to.
 - **Updates itself.** *Settings > Check for updates*: one click, and it opens again on the
   new version, with your settings and Quarantine as they were.
 - **English and Italian.** Picked from your system language, changeable in Settings.
@@ -54,6 +58,12 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 | ![Quick clean: only what is safe, in one click](docs/screenshots/quick-clean.png) | ![Quarantine duration and drive in Settings](docs/screenshots/settings-quarantine.png) |
 | **Review files one by one** | **Hidden items** |
 | ![Reviewing a group file by file, with previews](docs/screenshots/files-review.png) | ![Hidden files, folders and groups in Settings, with Show again](docs/screenshots/hidden-items.png) |
+
+| **AI help: choose the service** | **See what is sent** |
+|---|---|
+| ![AI setup: a subscription's program, an API key or a model on this PC](docs/screenshots/ai-setup.png) | ![What is sent to the AI, shown before asking](docs/screenshots/ai-confirm.png) |
+| **The AI's answer** | **Every unknown folder** |
+| ![The AI's answer, with what the app checked on this PC shown apart](docs/screenshots/ai-answer.png) | ![Asking the AI about every unknown folder at once](docs/screenshots/ai-all-folders.png) |
 
 <sub>Screenshots use sample data.</sub>
 
@@ -101,6 +111,32 @@ Safety is the first goal of this project, ahead of features and speed.
 - **Personal files are never pre-selected.** Groups labelled *Check* or *Personal* are
   only removed if you tick them yourself.
 
+## AI help
+
+Off by default; turn it on in Settings or the first time you press *Ask AI* on a folder
+the app does not know. You choose where it runs and which model answers:
+
+- **A subscription you already have**, through its own program: Claude Code, Codex or
+  Antigravity CLI. The app runs it with no tools, in an empty folder, with a time limit, and
+  never reads its login.
+- **An API key**: Claude (Anthropic), OpenAI, Google Gemini, OpenRouter or any
+  OpenAI-compatible service. The key is kept in Windows Credential Manager.
+- **A model on this PC**: Ollama, LM Studio, Unsloth Studio or another local server. When
+  Unsloth Studio is installed but not running, the app starts it with no window when a question
+  needs it and stops it 5 minutes after the last one (it never stops one you opened yourself).
+
+*Ask for all* sends 4 questions at the same time by default (1, 2, 4 or 8 in Settings).
+
+What is sent: the folder's path with your user folder replaced by `%LOCALAPPDATA%` and the
+like, its size, file count, last-modified month and the names of some subfolders and files.
+Never file contents, your username, your list of apps or anything from your personal
+folders. By default the app shows exactly what will be sent before asking. Answers are kept
+on your PC, so the same folder is not asked about twice.
+
+The built-in explanations always win, Windows folders and the app's own folders are never
+sent, and the AI's verdict never shows as *Safe*: if an installed app matches the folder,
+a "can be removed" answer is turned into "keep it".
+
 Found a problem that could put someone's files at risk? Please open an issue, or contact the
 maintainer privately for anything sensitive.
 
@@ -121,8 +157,12 @@ maintainer privately for anything sensitive.
    Recycle Bin items, error reports, thumbnail cache and big unknown folders
 10. ✅ Quick clean in one click; quarantine duration (3, 7 or 30 days) and drive in Settings
 11. ✅ Review files one by one with previews; hide files, folders, groups or leftovers
-12. ✅ In-app updates from Settings, signed and checked before installing
-13. ⬜ Signed installer and first stable release
+12. ✅ AI help for unknown folders, off by default: through a subscription's own program (Claude Code,
+    Codex, Antigravity CLI), an API key (Claude, OpenAI, Gemini, OpenRouter, any OpenAI-compatible
+    service) or a model on this PC (Ollama, LM Studio, Unsloth Studio). Only names and numbers are
+    sent; the answer is advice in its own purple tag and never moves or ticks anything
+13. ✅ In-app updates from Settings, signed and checked before installing
+14. ⬜ Signed installer and first stable release
 
 ## Development
 
@@ -181,6 +221,7 @@ src-tauri/              backend (Rust)
   src/elevated.rs       the few steps that need administrator rights
   src/review.rs         reviewing files one by one, and the items the user hid
   src/restore_point.rs  Windows restore points
+  src/ai.rs             AI help: services, prompt, answers kept on this PC (ai/ for the parts)
   src/updater.rs        in-app updates from GitHub Releases
 docs/                   screenshots, design mockups, code signing and update notes
 ```

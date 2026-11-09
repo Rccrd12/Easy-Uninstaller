@@ -1,6 +1,7 @@
 //! Easy Uninstaller backend. Each area of the app gets its own module and
 //! exposes Tauri commands that the UI calls through `src/lib/api.ts`.
 
+mod ai;
 mod app_folders;
 mod apps;
 mod cleanup;
@@ -26,6 +27,7 @@ pub fn run_elevated_job() -> Option<i32> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(ai::Answers::default())
         .manage(files::LastScan::default())
         .manage(leftovers::LastLeftovers::default())
         .manage(uninstall::Pending::default())
@@ -36,6 +38,17 @@ pub fn run() {
             review::init(app.handle())
         })
         .invoke_handler(tauri::generate_handler![
+            ai::ai_services,
+            ai::ai_models,
+            ai::ai_set_key,
+            ai::ai_remove_key,
+            ai::ai_test,
+            ai::ai_preview,
+            ai::ai_ask,
+            ai::ai_saved_answers,
+            ai::ai_stats,
+            ai::ai_forget_answers,
+            ai::ai_open_page,
             app_folders::quarantine_app_folder,
             apps::list_installed_apps,
             cleanup::remove_file_groups,
@@ -65,6 +78,11 @@ pub fn run() {
             updater::check_for_update,
             updater::install_update
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Easy Uninstaller");
+        .build(tauri::generate_context!())
+        .expect("error while building Easy Uninstaller")
+        .run(|_app, event| {
+            if let tauri::RunEvent::Exit = event {
+                ai::on_exit();
+            }
+        });
 }
