@@ -314,7 +314,6 @@
     <label class="row">
       <span>
         {t("ai.settings.confirm")}
-        <span class="muted hint">{t("ai.settings.confirmHint")}</span>
       </span>
       <input type="checkbox" bind:checked={settings.ai.confirm} onchange={saveSettings} />
     </label>

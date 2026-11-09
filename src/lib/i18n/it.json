@@ -1124,7 +1124,6 @@
         "local": "Sul PC"
       },
       "confirm": "Chiedimi conferma prima di ogni invio",
-      "confirmHint": "Ti mostra cosa esce esattamente dal PC.",
       "month": "Questo mese",
       "monthCount": "{count} domande",
       "monthOne": "1 domanda",

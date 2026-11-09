@@ -1124,7 +1124,6 @@
         "local": "On this PC"
       },
       "confirm": "Ask me before each question",
-      "confirmHint": "Shows you exactly what leaves the PC.",
       "month": "This month",
       "monthCount": "{count} questions",
       "monthOne": "1 question",
