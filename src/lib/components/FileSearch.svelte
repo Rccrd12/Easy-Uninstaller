@@ -8,6 +8,7 @@
   import { aiConfig, aiErrorText, aiReady } from "../ai.svelte";
   import { cancelIndexDownload, indexErrorText, indexReady, installIndex, localIndex, watchIndex } from "../localIndex.svelte";
   import type { IconName } from "../icons";
+  import { readSentence } from "../localQuery";
   import { fileCount, formatBytes, formatDate, GB, MB, removedLines, restoreSummary } from "../format";
   import { getLanguage, locale, t } from "../i18n/index.svelte";
   import { displayPath, fileKind, folderOf, nameOf } from "../paths";
@@ -68,7 +69,11 @@
     editing = false;
     selected = new Set();
     let next: SearchFilter;
-    if (aiReady()) {
+    if (indexReady()) {
+      // The local index needs no AI: sizes and dates are read here, the rest is the topic.
+      mode = "topic";
+      next = readSentence(s);
+    } else if (aiReady()) {
       mode = "ai";
       phase = "understanding";
       try {
@@ -79,10 +84,6 @@
         phase = "error";
         return;
       }
-    } else if (indexReady()) {
-      // No AI, but the local index: the whole sentence is what the files should show.
-      mode = "topic";
-      next = { ...empty(), topic: s };
     } else {
       mode = "name";
       next = { ...empty(), words: s.split(/[\s,]+/).filter(Boolean) };

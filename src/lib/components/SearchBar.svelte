@@ -18,9 +18,9 @@
   });
 
   watchIndex();
-  const ready = $derived(aiReady());
-  /** No AI, but the local index: a few words of what the files show. */
-  const content = $derived(!ready && indexReady());
+  /** The local index is ready: the search runs on this PC, no AI is asked. */
+  const content = $derived(indexReady());
+  const ready = $derived(!content && aiReady());
   const service = $derived(t(`ai.services.${settings.ai.service}.name`));
 
   function submit(e: SubmitEvent) {
@@ -36,9 +36,11 @@
   <button class="btn btn-primary" type="submit" disabled={busy || !text.trim()}>{t("search.button")}</button>
 </form>
 <div class="under">
-  {#if ready}
+  {#if content}
+    <span></span>
+  {:else if ready}
     <span class="muted note icon-line"><Icon name="lock" size={14} />{t("search.sentOnly", { service })}</span>
-  {:else if !content}
+  {:else}
     <span class="muted note">{t("search.aiOff")} <button type="button" class="link" onclick={() => openSetup()}>{t("search.turnOn")}</button></span>
   {/if}
   {#if onTidy}
