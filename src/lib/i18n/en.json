@@ -604,7 +604,13 @@
     "updateFailed": "Update check failed ({error}).",
     "updateInstallFailed": "Update failed ({error}).",
     "updateRetry": "Try again",
-    "updateAuto": "Check when the app starts"
+    "updateAuto": "Check when the app starts",
+    "betaBadge": "beta {number}",
+    "updateBeta": "Beta versions",
+    "updateBetaHint": "Preview versions, less stable.",
+    "updateBetaNotes": "What's new:",
+    "updateBack": "Back to the stable version {version}.",
+    "updateBackNow": "Back to stable"
   },
   "technical": {
     "registryPlain": "Setting stored in Windows",

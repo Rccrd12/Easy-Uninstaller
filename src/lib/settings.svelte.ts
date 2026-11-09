@@ -36,6 +36,8 @@ interface Settings {
   technical: boolean;
   /** The "New PC" suggestion on the Apps screen was put away with "Not now". */
   newPcDismissed: boolean;
+  /** Also offer betas: changes not released yet. */
+  betaUpdates: boolean;
   ai: AiSettings;
 }
 
@@ -47,6 +49,7 @@ const defaults: Settings = {
   largeText: false,
   technical: false,
   newPcDismissed: false,
+  betaUpdates: false,
   ai: { mode: "off", service: "", model: "", modelLabel: "", urls: {}, confirm: true, autoStart: true, parallel: 4 },
 };
 

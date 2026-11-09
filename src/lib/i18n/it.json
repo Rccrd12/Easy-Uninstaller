@@ -604,7 +604,13 @@
     "updateFailed": "Ricerca aggiornamenti non riuscita ({error}).",
     "updateInstallFailed": "Aggiornamento non riuscito ({error}).",
     "updateRetry": "Riprova",
-    "updateAuto": "Controlla all'avvio dell'app"
+    "updateAuto": "Controlla all'avvio dell'app",
+    "betaBadge": "beta {number}",
+    "updateBeta": "Versioni beta",
+    "updateBetaHint": "Versioni in anteprima, meno stabili.",
+    "updateBetaNotes": "Novità:",
+    "updateBack": "Torna alla versione stabile {version}.",
+    "updateBackNow": "Torna alla stabile"
   },
   "technical": {
     "registryPlain": "Impostazione salvata in Windows",

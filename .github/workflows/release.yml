@@ -7,7 +7,7 @@ name: Release
 # The release also carries latest.json and the installer's update signature (.sig): the
 # app's "Check for updates" reads releases/latest/download/latest.json, so installed copies
 # see a new version only once its release is published (drafts and pre-releases are
-# skipped). The signature needs the TAURI_SIGNING_PRIVATE_KEY repository secret; see
+# skipped; betas come from the Beta workflow). The signature needs the TAURI_SIGNING_PRIVATE_KEY repository secret; see
 # docs/updates.md.
 #
 #   git tag v0.2.0 && git push origin v0.2.0
