@@ -21,6 +21,7 @@
     removeExclusions,
     removeFileGroups,
     restoreQuarantine,
+    REVIEW_FIRST_GROUPS,
     usesSampleData,
   } from "../api";
   import { quarantine, settings } from "../settings.svelte";
@@ -67,6 +68,9 @@
   let menu = $state<{ group: FileGroup; x: number; y: number } | null>(null);
 
   const focused = $derived(groups.find((g) => g.id === focusedId) ?? null);
+
+  /** Groups moved only after a look at each set (similar photos): never ticked as a whole. */
+  const reviewFirst = (g: FileGroup) => REVIEW_FIRST_GROUPS.includes(g.id);
 
   /** Groups of single files can be reviewed one by one; folder groups (temp) cannot. */
   const reviewable = (g: FileGroup) => g.items.length > 0 && g.items.every((i) => i.lastUsed !== null);
@@ -391,6 +395,8 @@
                  onclick={() => focus(group.id)} onkeydown={(e) => e.key === "Enter" && focus(group.id)}>
               {#if group.reviewOnly}
                 <span class="no-check"><Icon name="search" /></span>
+              {:else if reviewFirst(group)}
+                <span class="no-check"><Icon name="image" /></span>
               {:else}
                 <input type="checkbox" checked={checked.has(group.id)} onclick={(e) => e.stopPropagation()} onchange={() => toggle(group.id)} aria-label={t(group.titleKey)} />
               {/if}
@@ -513,12 +519,18 @@
         <div class="muted more">{t("files.notListed", { count: count(notListed(focused)) })}</div>
       {/if}
       <div class="grow"></div>
-      {#if reviewable(focused)}
+      {#if reviewFirst(focused)}
+        {@const g = focused}
+        <p class="muted review-note icon-line"><Icon name="info" />{t("files.reviewFirst")}</p>
+        <button class="btn btn-primary wide" onclick={() => openReview(g)}><Icon name="image" />{t("files.review.lookAtPhotos")}</button>
+      {:else if reviewable(focused)}
         {@const g = focused}
         <button class="btn btn-ghost wide" onclick={() => openReview(g)}><Icon name="search" />{t("files.review.oneByOne")}</button>
       {/if}
       {#if focused.reviewOnly}
         <p class="muted review-note icon-line"><Icon name="info" />{t("files.reviewOnly")}</p>
+      {:else if reviewFirst(focused)}
+        <!-- Moved from the review only. -->
       {:else}
         {@const id = focused.id}
         {@const deletes = DELETE_NOW_GROUPS.includes(id)}

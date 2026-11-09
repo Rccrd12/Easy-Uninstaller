@@ -62,6 +62,34 @@ export const sampleDuplicateSets: SampleFile[][] = [
   [file("duplicates", `${U}\\Documents\\Contracts\\rental-contract.pdf`, 2.3 * MB, "2023-01-30"), file("duplicates", `${D}\\rental-contract.pdf`, 2.3 * MB, "2023-02-02")],
 ];
 
+/** Sets of photos that look almost the same, largest first (the one kept by default). */
+export const sampleSimilarSets: SampleFile[][] = [
+  [
+    file("similar-photos", `${P}\\Holidays 2024\\IMG_1041.jpg`, 6.2 * MB, "2024-08-04"),
+    file("similar-photos", `${P}\\Holidays 2024\\IMG_1042.jpg`, 5.9 * MB, "2024-08-04"),
+    file("similar-photos", `${P}\\Holidays 2024\\IMG_1043.jpg`, 5.7 * MB, "2024-08-04"),
+    file("similar-photos", `${P}\\Holidays 2024\\IMG_1044.jpg`, 5.1 * MB, "2024-08-04"),
+  ],
+  [
+    file("similar-photos", `${P}\\Dolomites\\DSC_0388.jpg`, 7.8 * MB, "2023-07-19"),
+    file("similar-photos", `${P}\\Dolomites\\DSC_0389.jpg`, 7.6 * MB, "2023-07-19"),
+    file("similar-photos", `${P}\\Dolomites\\DSC_0390.jpg`, 7.2 * MB, "2023-07-19"),
+  ],
+  [
+    file("similar-photos", `${P}\\Wedding Luca\\Wedding_Luca_042.jpg`, 9.1 * MB, "2024-06-22"),
+    file("similar-photos", `${D}\\WhatsApp Image 2024-06-23 at 18.02.jpg`, 0.4 * MB, "2024-06-23"),
+  ],
+  [
+    file("similar-photos", `${P}\\iPhone\\2025\\IMG_2210.HEIC`, 3.4 * MB, "2025-02-16"),
+    file("similar-photos", `${P}\\iPhone\\2025\\IMG_2211.HEIC`, 3.3 * MB, "2025-02-16"),
+  ],
+];
+
+/** Sample photos of one set share a picture, each a little moved, like shots taken a second apart. */
+const sampleLooks = new Map<string, { seed: string; nudge: number }>(
+  sampleSimilarSets.flatMap((set) => set.map((f, i) => [f.path, { seed: set[0].path, nudge: i }] as const)),
+);
+
 const item = (path: string, sizeBytes: number, lastUsed: string | null = null, duplicateOf: string | null = null): FileItem => ({
   path,
   sizeBytes,
@@ -141,6 +169,10 @@ export function buildSampleGroups(present: (path: string) => boolean): FileGroup
     const left = set.filter((f) => present(f.path));
     return left.slice(1).map((f) => item(f.path, f.sizeBytes, f.lastUsed, left[0].path));
   });
+  const similar: FileItem[] = sampleSimilarSets.flatMap((set) => {
+    const left = set.filter((f) => present(f.path));
+    return left.length > 1 ? left.slice(1).map((f) => item(f.path, f.sizeBytes, f.lastUsed)) : [];
+  });
   const extra = (id: string): FileGroup => {
     const [, key, safety, count, items] = sampleExtraGroups.find((g) => g[0] === id)!;
     const left = items.filter((i) => present(i.path));
@@ -154,6 +186,7 @@ export function buildSampleGroups(present: (path: string) => boolean): FileGroup
     group("installers", "installers", "safe", files("installers").length, files("installers")),
     group("old-downloads", "oldDownloads", "check", files("old-downloads").length, files("old-downloads")),
     group("duplicates", "duplicates", "check", copies.length, copies),
+    group("similar-photos", "similarPhotos", "check", similar.length, similar),
     group("large-files", "largeFiles", "check", files("large-files").length, files("large-files")),
     extra("unknown-folders"),
   ].filter((g) => g.itemCount > 0);
@@ -165,14 +198,18 @@ export function buildSampleGroups(present: (path: string) => boolean): FileGroup
  */
 export function samplePreview(path: string): string | null {
   if (!/\.(jpe?g|png|heic|mp4|mov|mkv)$/i.test(path)) return null;
-  const name = path.split("\\").pop() ?? path;
+  const look = sampleLooks.get(path);
+  const name = look?.seed ?? path.split("\\").pop() ?? path;
+  const nudge = look?.nudge ?? 0;
   let h = 0;
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
   const sky = `hsl(${h},70%,72%)`;
   const sky2 = `hsl(${(h + 40) % 360},75%,88%)`;
   const hill = `hsl(${(h + 120) % 360},40%,42%)`;
   const hill2 = `hsl(${(h + 150) % 360},45%,55%)`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky}"/><stop offset="1" stop-color="${sky2}"/></linearGradient></defs><rect width="120" height="120" fill="url(#s)"/><circle cx="${30 + (h % 60)}" cy="34" r="12" fill="#fff6c8"/><path d="M0 84 Q30 60 62 80 T120 72 V120 H0Z" fill="${hill2}"/><path d="M0 100 Q40 80 80 98 T120 92 V120 H0Z" fill="${hill}"/></svg>`;
+  // Shots of one moment: the camera moves a little and the person in it steps along.
+  const person = look ? `<g fill="#2b2b33"><circle cx="${56 + nudge * 5}" cy="70" r="6"/><rect x="${50 + nudge * 5}" y="77" width="12" height="24" rx="5"/></g>` : "";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky}"/><stop offset="1" stop-color="${sky2}"/></linearGradient></defs><rect width="120" height="120" fill="url(#s)"/><g transform="translate(${-2 * nudge} ${nudge})"><circle cx="${30 + (h % 60)}" cy="34" r="12" fill="#fff6c8"/><path d="M-10 84 Q30 60 62 80 T130 72 V130 H-10Z" fill="${hill2}"/><path d="M-10 100 Q40 80 80 98 T130 92 V130 H-10Z" fill="${hill}"/>${person}</g></svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 

@@ -60,7 +60,7 @@ export interface FileGroup {
   reviewOnly: boolean;
 }
 
-export type ScanStep = "caches" | "downloads" | "personal" | "duplicates" | "appFolders";
+export type ScanStep = "caches" | "downloads" | "personal" | "duplicates" | "photos" | "appFolders";
 
 export interface ScanProgress {
   step: ScanStep;
@@ -233,12 +233,15 @@ export interface ReviewFile {
 /** Every file of one group, for reviewing them one by one. Mirrors `GroupReview`. */
 export interface GroupReview {
   groupId: string;
-  /** Files that can be moved: for duplicates, the extra copies. */
+  /** Files that can be moved: for sets, every file but the one each set keeps. */
   totalCount: number;
   totalBytes: number;
-  /** Largest first, at most 2,000. Empty for duplicates. */
+  /** Largest first, at most 2,000. Empty for duplicates and similar photos. */
   files: ReviewFile[];
-  /** Duplicates only: sets of identical files, each oldest first, most space first. */
+  /**
+   * Duplicates and similar photos only: the sets, most space first, each with the file
+   * kept by default first (the oldest copy, or the largest photo).
+   */
   duplicateSets: ReviewFile[][];
 }
 

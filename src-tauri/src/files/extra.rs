@@ -379,7 +379,10 @@ mod tests {
             ..Default::default()
         };
         let mut steps = Vec::new();
-        let result = scan(&loc, &[], SystemTime::now(), &mut |p| steps.push(p.step));
+        let mut similar = |_: &[Seen], _: &mut dyn FnMut()| Vec::new();
+        let result = scan(&loc, &[], SystemTime::now(), &mut similar, &mut |p| {
+            steps.push(p.step)
+        });
         let find = |id: &str| -> &FileGroup { result.groups.iter().find(|g| g.id == id).unwrap() };
 
         let bin = find("recycle-bin");

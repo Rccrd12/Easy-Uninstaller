@@ -113,7 +113,9 @@ Safety is the first goal of this project, ahead of features and speed.
   Windows restore point (it asks for permission, since Windows requires administrator
   rights for this). It is off by default; turn it on in Settings.
 - **You choose file by file.** Any group can be reviewed one file at a time, with
-  previews; every duplicate set always keeps one copy. Files, folders, whole groups or
+  previews; every duplicate set always keeps one copy. *Similar photos* (bursts, retakes,
+  resized copies) are never removed as a group: you look at each set, and one photo of
+  every set always stays. Files, folders, whole groups or
   leftovers you want to keep can be hidden, and shown again from Settings: hiding never
   moves or deletes anything.
 - **Personal files are never pre-selected.** Groups labelled *Check* or *Personal* are
@@ -223,6 +225,7 @@ src-tauri/              backend (Rust)
   src/apps.rs           installed apps: registry (Win32/MSI) and Microsoft Store, with icons
   src/files.rs          file scan: temp, installers, old downloads, duplicates, large files
   src/files/extra.rs    Recycle Bin, error reports, thumbnails, big app folders
+  src/files/photos.rs   similar photos, compared through File Explorer's own previews
   src/explain.rs        "What is this?": matches paths against known_folders.json
   src/space.rs          space map: what takes up the system drive
   src/uninstall.rs      runs uninstallers (quietly when possible) and Store app removal
