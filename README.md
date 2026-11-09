@@ -81,11 +81,11 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
    Windows 10, never on Windows 11), the installer downloads it for you.
 
 > [!IMPORTANT]
-> The installer is **not code-signed yet**, so Windows SmartScreen may say *"Windows
-> protected your PC"*. Click **More info**, then **Run anyway**. Signing is planned before
-> the first stable release. Each release lists the SHA-256 checksum of the installer, so you
-> can check that the file you downloaded is the one built here. See the
-> [code signing policy](#code-signing-policy).
+> The installer is **not code-signed**, so Windows SmartScreen may say *"Windows
+> protected your PC"*. Click **More info**, then **Run anyway**. Each release lists the
+> SHA-256 checksum of the installer, so you can check that the file you downloaded is the
+> one built here. Updates installed from the app are checked against the project's own
+> update signature before they run.
 
 After that, the app keeps itself up to date: it checks for a new version each time it
 opens, and *Settings > Updates > Update now* installs it in a few seconds.
@@ -164,26 +164,6 @@ hidden items and AI answers stay on your PC. The app goes online only in these c
   described in [AI help](#ai-help); that service's own privacy policy applies.
 - **The installer** downloads the Microsoft WebView2 runtime if Windows does not have it.
 
-## Code signing policy
-
-Windows builds are signed with free code signing provided by
-[SignPath.io](https://about.signpath.io/), certificate by
-[SignPath Foundation](https://signpath.org/). Until that is in place, releases are not
-signed (0.2.0 is not), and each release lists the SHA-256 checksum of its installer.
-
-Only what GitHub Actions builds from this repository is signed, by the
-[Release workflow](.github/workflows/release.yml), and every release is approved by hand
-before it is signed.
-
-| Role | Members |
-|---|---|
-| Committers and reviewers | [Rccrd12](https://github.com/Rccrd12) |
-| Approvers | [Rccrd12](https://github.com/Rccrd12) (repository owner) |
-
-Every change reaches the `main` branch through a pull request merged by a committer,
-including changes drafted with AI coding tools and contributions from other people, which
-a reviewer checks first. See also [Privacy](#privacy).
-
 ## Roadmap
 
 1. ✅ App skeleton: sidebar, screens, sample data, Windows CI build
@@ -208,7 +188,7 @@ a reviewer checks first. See also [Privacy](#privacy).
 13. ✅ A more formal look: monochrome line icons instead of emoji
 14. ✅ In-app updates from Settings, signed and checked before installing
 15. ✅ First public release, 0.2.0
-16. ⬜ Code-signed installer (SignPath) and a stable 1.0
+16. ⬜ A stable 1.0
 
 ## Development
 
