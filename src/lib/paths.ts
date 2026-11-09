@@ -1,5 +1,6 @@
 // Small helpers to show Windows paths the way people know them.
 import { t } from "./i18n/index.svelte";
+import { settings } from "./settings.svelte";
 
 /** "C:\\Users\\you\\Pictures\\a.jpg" -> "a.jpg". */
 export const nameOf = (path: string) => path.split(/[\\/]/).pop() ?? path;
@@ -25,6 +26,18 @@ export function displayPath(path: string): string {
   if (!m) return path;
   const [first, ...rest] = path.slice(m[0].length).split("\\");
   return [localize(first), ...rest].join("\\");
+}
+
+/** A registry key such as "HKCU\\Software\\App", rather than a file path. */
+export const isRegistryKey = (path: string) => /^HK(EY_|LM|CU|CR|U\b)/i.test(path);
+
+/**
+ * Where something is, as the "Show technical details" setting asks: the full path or
+ * registry key when it is on; otherwise the short path, and plain words for a registry key.
+ */
+export function shownPath(path: string): string {
+  if (settings.technical) return path;
+  return isRegistryKey(path) ? t("technical.registryPlain") : displayPath(path);
 }
 
 /** The top folder of the user profile a file is in ("Pictures"), or "" when outside it. */

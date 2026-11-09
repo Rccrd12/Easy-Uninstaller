@@ -26,7 +26,7 @@ export async function check(): Promise<void> {
   if (busy === "checking" || busy === "downloading" || busy === "installing") return;
   update.phase = { kind: "checking" };
   try {
-    const info = await checkForUpdate();
+    const info = await checkForUpdate(settings.betaUpdates);
     update.phase = info ? { kind: "available", info } : { kind: "upToDate" };
   } catch (e) {
     update.phase = failed(e, null);
@@ -58,9 +58,30 @@ export async function checkOnStart(): Promise<void> {
   if (!settings.checkUpdates || update.phase.kind !== "idle") return;
   update.phase = { kind: "checking" };
   try {
-    const info = await checkForUpdate();
-    update.phase = info ? { kind: "available", info } : { kind: "idle" };
+    const info = await checkForUpdate(settings.betaUpdates);
+    // Going back to the release is offered in Settings only, not as a notice.
+    update.phase = info && !info.back ? { kind: "available", info } : { kind: "idle" };
   } catch {
     update.phase = { kind: "idle" };
   }
+}
+
+/** Beta versions was turned on or off: look again, unless an update is being installed. */
+export function betaChanged(): void {
+  const busy = update.phase.kind;
+  if (busy === "downloading" || busy === "installing") return;
+  update.phase = { kind: "idle" };
+  void check();
+}
+
+/** "0.3.1-beta.12" reads "0.3.1 beta 12"; a release stays as it is. */
+export function versionLabel(version: string): string {
+  const { base, beta } = splitVersion(version);
+  return beta ? `${base} beta ${beta}` : version;
+}
+
+/** "0.3.1-beta.12" is the base "0.3.1" and beta "12"; a release has no beta part. */
+export function splitVersion(version: string): { base: string; beta: string | null } {
+  const m = /^(\d+\.\d+\.\d+)-beta\.(\d+)$/.exec(version);
+  return m ? { base: m[1], beta: m[2] } : { base: version, beta: null };
 }

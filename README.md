@@ -22,21 +22,34 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 - **Simple.** The home screen offers four choices: *Apps*, *Files*, *Leftovers* and
   *Space map*, plus a one-click *Quick clean* that only removes what is safe. No jargon,
   no settings you have to understand first.
+- **Faster startup.** *Apps > At startup* lists the programs that open with Windows, how
+  heavy each one is and which ones are better off. Turning one off never uninstalls it.
 - **Safe.** Nothing is deleted right away. See [How your files are protected](#how-your-files-are-protected).
 - **Clear about risk.** Every group of files is labelled *Safe*, *Check* or *Personal*,
   so you know what you are removing before you remove it. Unknown folders come with a
   plain *What is this?* explanation, built in: no AI, nothing sent anywhere.
+- **Good for a new PC.** *Apps* offers a guided cleanup of the apps that came with
+  Windows or the PC, the ones usually not needed already ticked, each with a one-line
+  reason. Every app you uninstall stays listed under *Apps > Uninstalled*, with a link to
+  get it back from the Microsoft Store, Steam or its maker's website.
 - **AI only if you want it.** Off by default. When you turn it on, it explains folders the
   built-in list does not know, from their names and sizes only, and its answer is advice in
-  its own purple tag: it never ticks or moves anything. See [AI help](#ai-help).
+  its own purple tag: it never ticks or moves anything. It can also turn a sentence into a
+  file search, and propose folders to tidy up Downloads. See [AI help](#ai-help).
 - **Light.** Built with [Tauri 2](https://tauri.app): it uses the WebView2 engine that is
   already part of Windows, so the installer is a few MB instead of 100+ MB.
 - **Private.** It works entirely on your PC. No account, no ads, no tracking. When it opens,
   it asks GitHub whether a new version exists (you can turn that off in Settings). The
   optional AI help is the only thing that ever sends anything about your PC, and only when
   you ask it to.
+- **Shows what it did.** *History* lists every cleanup, uninstall and leftover removal, with
+  the space freed in total. Files still in Quarantine count only once they are deleted for good.
 - **Updates itself.** *Settings > Check for updates*: one click, and it opens again on the
   new version, with your settings and Quarantine as they were.
+- **Reminders, if you want them.** *Settings > Reminders*: a Windows notice when the system
+  disk is almost full, or a monthly reminder to clean up. Off by default. Nothing keeps
+  running: a small scheduled task checks once a day in under a second, and uninstalling
+  the app removes it.
 - **English and Italian.** Picked from your system language, changeable in Settings.
 - **Light and dark.** Follows the Windows mode by default, changeable in Settings.
 
@@ -65,6 +78,8 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 | ![AI setup: a subscription's program, an API key or a model on this PC](docs/screenshots/ai-setup.png) | ![What is sent to the AI, shown before asking](docs/screenshots/ai-confirm.png) |
 | **The AI's answer** | **Every unknown folder** |
 | ![The AI's answer, with what the app checked on this PC shown apart](docs/screenshots/ai-answer.png) | ![Asking the AI about every unknown folder at once](docs/screenshots/ai-all-folders.png) |
+| **Search by writing a sentence** | **Tidy up Downloads** |
+| ![A sentence turned into filters, the search run on this PC](docs/screenshots/ai-search.png) | ![Folders proposed for the files in Downloads, each file can be unticked](docs/screenshots/ai-tidy.png) |
 
 | **Updates from Settings** |
 |---|
@@ -81,10 +96,11 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
    Windows 10, never on Windows 11), the installer downloads it for you.
 
 > [!IMPORTANT]
-> The installer is **not code-signed yet**, so Windows SmartScreen may say *"Windows
-> protected your PC"*. Click **More info**, then **Run anyway**. Signing is planned before
-> the first stable release. Each release lists the SHA-256 checksum of the installer, so you
-> can check that the file you downloaded is the one built here.
+> The installer is **not code-signed**, so Windows SmartScreen may say *"Windows
+> protected your PC"*. Click **More info**, then **Run anyway**. Each release lists the
+> SHA-256 checksum of the installer, so you can check that the file you downloaded is the
+> one built here. Updates installed from the app are checked against the project's own
+> update signature before they run.
 
 After that, the app keeps itself up to date: it checks for a new version each time it
 opens, and *Settings > Updates > Update now* installs it in a few seconds.
@@ -113,9 +129,17 @@ Safety is the first goal of this project, ahead of features and speed.
   Windows restore point (it asks for permission, since Windows requires administrator
   rights for this). It is off by default; turn it on in Settings.
 - **You choose file by file.** Any group can be reviewed one file at a time, with
-  previews; every duplicate set always keeps one copy. Files, folders, whole groups or
+  previews; every duplicate set always keeps one copy. *Similar photos* (bursts, retakes,
+  resized copies) are never removed as a group: you look at each set, and one photo of
+  every set always stays. Files, folders, whole groups or
   leftovers you want to keep can be hidden, and shown again from Settings: hiding never
   moves or deletes anything.
+- **Space without deleting.** *Files > Free up space without deleting anything* never removes
+  a file. Files already saved on OneDrive can become "online only", the same as OneDrive's
+  own *Free up space*: OneDrive keeps them in the cloud and downloads them when opened. Big
+  videos, archives and disk images can move to another drive, into a folder named
+  *Moved from C*; each one can be moved back from the app. Files inside OneDrive, apps
+  and games are never moved.
 - **Personal files are never pre-selected.** Groups labelled *Check* or *Personal* are
   only removed if you tick them yourself.
 
@@ -141,12 +165,56 @@ Never file contents, your username, your list of apps or anything from your pers
 folders. By default the app shows exactly what will be sent before asking. Answers are kept
 on your PC, so the same folder is not asked about twice.
 
+**Search by writing a sentence** (Files screen): "videos over 500 MB I haven't opened in a
+year". Only the sentence is sent; the AI turns it into filters (kind, size, dates, folders,
+words in the name), shown as chips you can remove or change, and the search runs on your PC,
+so your file names never leave it. With the AI off, the box searches by name. Files you pick
+go to Quarantine.
+
+**Search by content** (Settings > Search by content): photos and videos found by what they
+show ("holidays at the sea"), even when they are called W20251201RM.mp4. The app downloads
+EmbeddingGemma 2 and llama.cpp once (about 750 MB, or 1.5 GB for the most precise model,
+each file checked by SHA-256), then indexes your photos and video frames in the background,
+at low priority, with pause. With a graphics card the model runs on it (llama.cpp's Vulkan
+build, about 20 times faster); otherwise on the processor's fast cores (only the P-cores on
+hybrid Intel processors). You choose the model size, how many frames of each video
+(the preview, 8 frames, or scene by scene: a frame every second, kept only when the picture changed), what to index and where (your folders or
+the whole PC). Documents are found by their text through the index Windows already keeps.
+Instead of the download you can use your own embedding model: a GGUF file already on the PC
+(found in the LM Studio, llama.cpp and Hugging Face folders) or a llama.cpp server running on
+it; *Try* checks that it reads both words and pictures before it is used.
+The search box opens once files are indexed. Sizes, dates and kinds in the sentence are read
+on this PC and the rest is what the files should show; the online AI is asked only when part
+of a sentence cannot be read that way.
+
+**Tidy up Downloads** (Files screen): the AI looks at the names of the files lying loose in
+Downloads (names, sizes and months only, shown before sending) and proposes a few folders in
+Downloads, Documents, Pictures, Videos or Music. Without the AI, files can be grouped by
+type. Nothing moves until you press *Tidy up*; every file can be unticked, a file of the same
+name is never replaced, and *Put everything back* undoes the whole tidy. Setup files of
+programs already installed are offered for Quarantine, unticked.
+
 The built-in explanations always win, Windows folders and the app's own folders are never
 sent, and the AI's verdict never shows as *Safe*: if an installed app matches the folder,
 a "can be removed" answer is turned into "keep it".
 
 Found a problem that could put someone's files at risk? Please open an issue, or contact the
 maintainer privately for anything sensitive.
+
+## Privacy
+
+Easy Uninstaller has no telemetry, no accounts and no ads. Your settings, the quarantine,
+hidden items and AI answers stay on your PC. The app goes online only in these cases:
+
+- **Update check.** Each time it opens (unless you turn it off in *Settings > Updates*),
+  the app downloads a small file, `latest.json`, from this project's GitHub Releases to see
+  whether a newer version exists. Nothing about you or your PC is sent with it; GitHub sees
+  the request like any other download, under the
+  [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
+  A new version is downloaded only when you press *Update now*.
+- **AI help**, only if you turn it on, and only to the service you choose. What is sent is
+  described in [AI help](#ai-help); that service's own privacy policy applies.
+- **The installer** downloads the Microsoft WebView2 runtime if Windows does not have it.
 
 ## Roadmap
 
@@ -172,7 +240,13 @@ maintainer privately for anything sensitive.
 13. ✅ A more formal look: monochrome line icons instead of emoji
 14. ✅ In-app updates from Settings, signed and checked before installing
 15. ✅ First public release, 0.2.0
-16. ⬜ Code-signed installer (SignPath) and a stable 1.0
+16. ✅ AI help, phases 2 and 3: search your files by writing a sentence (only the sentence is
+    sent, the search runs on this PC), and tidy up Downloads into proposed folders, with undo
+17. ✅ Search by content: a local index of photos and videos (EmbeddingGemma 2 on llama.cpp)
+18. ✅ Release 0.3.0: app caches, history and a new Home, uninstalled apps and new-PC setup,
+    reminders, similar photos, OneDrive "online only" and moving files to another drive,
+    larger text, beta updates, a simpler app-like wording, and the local index on the graphics card
+19. ⬜ A stable 1.0
 
 ## Development
 
@@ -223,10 +297,13 @@ src-tauri/              backend (Rust)
   src/apps.rs           installed apps: registry (Win32/MSI) and Microsoft Store, with icons
   src/files.rs          file scan: temp, installers, old downloads, duplicates, large files
   src/files/extra.rs    Recycle Bin, error reports, thumbnails, big app folders
+  src/files/photos.rs   similar photos, compared through File Explorer's own previews
   src/explain.rs        "What is this?": matches paths against known_folders.json
   src/space.rs          space map: what takes up the system drive
+  src/startup.rs        programs that start with Windows: list them, turn them off or on
   src/uninstall.rs      runs uninstallers (quietly when possible) and Store app removal
   src/leftovers.rs      finds what an app left behind: folders, registry keys, shortcuts
+  src/offload.rs        space without deleting: OneDrive "online only", moving to another drive
   src/cleanup.rs        removes scanned files: some groups deleted, the rest to quarantine
   src/quarantine.rs     moves items to quarantine, restores and expires them
   src/elevated.rs       the few steps that need administrator rights

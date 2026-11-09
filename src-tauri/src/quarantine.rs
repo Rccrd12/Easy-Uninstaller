@@ -774,7 +774,7 @@ fn free_name(path: &Path, folder: bool) -> PathBuf {
 /// Across drives the file is copied, then the original removed; if the original
 /// cannot be removed the copy is dropped, so a file never ends up in two places.
 /// Returns true when the file changed drive (so its old drive got the space back).
-fn move_file(from: &Path, to: &Path) -> io::Result<bool> {
+pub(crate) fn move_file(from: &Path, to: &Path) -> io::Result<bool> {
     if fs::symlink_metadata(to).is_ok() {
         return Err(io::Error::new(
             io::ErrorKind::AlreadyExists,
@@ -903,28 +903,49 @@ pub async fn list_quarantine(app: AppHandle) -> Result<Vec<QuarantineEntry>, Str
 pub async fn restore_quarantine(app: AppHandle, ids: Vec<String>) -> Result<RestoreReport, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let quarantine = app.state::<Quarantine>();
-        let mut report = RestoreReport::default();
-        let (admin, own): (Vec<String>, Vec<String>) =
-            ids.into_iter().partition(|id| quarantine.needs_admin(id));
-        for id in own {
-            quarantine
-                .restore(&id, &mut report)
-                .map_err(|e| e.to_string())?;
-        }
-        if !admin.is_empty() {
-            let job = Job::Restore {
-                root: quarantine.root.clone(),
-                ids: admin,
-            };
-            match elevated::run(&app, &job)? {
-                Some(result) => report.merge(result.restore.unwrap_or_default()),
-                None => return Err(elevated::DECLINED.into()),
-            }
-        }
-        Ok(report)
+        let ids_now =
+            |q: &Quarantine| -> Vec<String> { q.list().into_iter().map(|e| e.id).collect() };
+        let before = ids_now(&quarantine);
+        let result = restore_entries(&app, &quarantine, &ids);
+        // Entries gone now were put back whole: the history stops counting them as freed.
+        let after = ids_now(&quarantine);
+        let back: Vec<String> = ids
+            .into_iter()
+            .filter(|id| before.contains(id) && !after.contains(id))
+            .collect();
+        crate::history::record_restored(&app, &back);
+        result
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+fn restore_entries(
+    app: &AppHandle,
+    quarantine: &Quarantine,
+    ids: &[String],
+) -> Result<RestoreReport, String> {
+    let mut report = RestoreReport::default();
+    let (admin, own): (Vec<String>, Vec<String>) = ids
+        .iter()
+        .cloned()
+        .partition(|id| quarantine.needs_admin(id));
+    for id in own {
+        quarantine
+            .restore(&id, &mut report)
+            .map_err(|e| e.to_string())?;
+    }
+    if !admin.is_empty() {
+        let job = Job::Restore {
+            root: quarantine.root.clone(),
+            ids: admin,
+        };
+        match elevated::run(app, &job)? {
+            Some(result) => report.merge(result.restore.unwrap_or_default()),
+            None => return Err(elevated::DECLINED.into()),
+        }
+    }
+    Ok(report)
 }
 
 #[tauri::command]

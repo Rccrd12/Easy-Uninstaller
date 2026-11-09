@@ -6,6 +6,7 @@
   import { quarantine } from "../settings.svelte";
   import { fileCount, formatBytes, itemCount, relativeTime, restoreSummary } from "../format";
   import { locale, t } from "../i18n/index.svelte";
+  import { shownPath } from "../paths";
   import type { QuarantineEntry } from "../types";
 
   /** How many files an opened entry lists. */
@@ -134,7 +135,7 @@
         <div class="info">
           <div class="title">{titleOf(e)}</div>
           <div class="muted meta" title={from}>
-            {countOf(e)}{#if from}{" · "}{t("quarantine.from", { path: from })}{/if}
+            {countOf(e)}{#if from}{" · "}{t("quarantine.from", { path: shownPath(from) })}{/if}
           </div>
           <div class="meta">
             <span class="muted">{t("quarantine.removedOn", { when: relativeTime(e.removedAt) })}{" · "}</span>
@@ -142,7 +143,7 @@
           </div>
         </div>
         <span class="size">{formatBytes(e.sizeBytes)}</span>
-        <button class="btn btn-primary" disabled={busyId !== null} onclick={() => restore(e)} title={e.needsAdmin ? t("quarantine.permission") : undefined}>
+        <button class="btn btn-primary" disabled={busyId !== null} onclick={() => restore(e)}>
           {#if busyId === e.id && confirmId !== e.id}{t("quarantine.restoring")}{:else}<Icon name={e.needsAdmin ? "shield" : "undo"} />{t("common.restore")}{/if}
         </button>
         <button class="btn btn-ghost" disabled={busyId !== null} onclick={() => (confirmId = confirmId === e.id ? null : e.id)}>
@@ -172,7 +173,7 @@
               <li title={item.originalPath}>
                 <div class="item-text">
                   <div class="item-name"><Icon name={kindIcons[item.kind]} size={14} />{nameOf(item.originalPath)}</div>
-                  <div class="muted item-note">{folderOf(item.originalPath)}</div>
+                  <div class="muted item-note">{shownPath(folderOf(item.originalPath))}</div>
                 </div>
                 <span class="item-size">{item.kind === "registry" ? "—" : formatBytes(item.sizeBytes)}</span>
               </li>

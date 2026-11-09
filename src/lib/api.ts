@@ -3,6 +3,7 @@
 // (npm run dev) they fall back to sample data so the UI can be designed fast.
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GB } from "./format";
 import {
@@ -12,16 +13,32 @@ import {
   sampleAiServices,
   sampleFolderSummary,
   sampleApps,
+  sampleAppCaches,
   sampleAppLeftovers,
   sampleDrives,
   sampleDuplicateSets,
   sampleFiles,
+  sampleHistory,
+  sampleSimilarSets,
   sampleLeftovers,
+  sampleMoveFiles,
+  sampleOnlineBytes,
+  sampleOnlineCount,
+  sampleOnlineFiles,
   samplePreview,
   sampleQuarantine,
   sampleQuarantineSettings,
+  sampleLooseDownloads,
+  sampleSearch,
+  sampleSearchPool,
   sampleSpaceUsage,
+  sampleStartup,
+  sampleUninstalledApps,
+  sampleTidyLines,
+  sampleTidyPlan,
+  sampleUnderstand,
   type SampleFile,
+  type SampleRecord,
 } from "./mock";
 import type {
   AiAnswer,
@@ -31,28 +48,59 @@ import type {
   AiServiceStatus,
   AiStartStatus,
   AiStats,
+  AppCache,
+  ClearCacheOutcome,
   DiskInfo,
+  DriveMoveReport,
   Exclusion,
   FileGroup,
   FileItem,
   FileSelection,
   GroupReview,
   HiddenKind,
+  HistoryItem,
+  HistoryKind,
+  HistoryName,
+  HistorySummary,
   InstalledApp,
   LeftoverItem,
+  MoveBackReport,
+  MovedFile,
+  MoveProgress,
   MoveReport,
+  OffloadFile,
+  OffloadScan,
+  OnlineReport,
   QuarantineEntry,
   QuarantineOptions,
   QuarantineSettings,
+  ReminderSettings,
+  ReminderTexts,
   RestorePointOutcome,
   RestoreReport,
   ReviewFile,
   ScanProgress,
+  SearchFilter,
+  SearchResult,
   SpaceProgress,
   SpaceUsage,
+  StartupApp,
+  StartupChange,
+  StartupReport,
+  TidyChoice,
+  TidyOverview,
+  TidyPlan,
+  TidyPreview,
+  TidyReport,
+  TidyUndoReport,
   UninstallOutcome,
+  UninstalledApp,
   UpdateInfo,
   UpdateProgress,
+  IndexCheck,
+  IndexSettings,
+  IndexStatus,
+  OwnModel,
 } from "./types";
 
 /** Matches `KEEP_DAYS_CHOICES` in src-tauri/src/quarantine.rs. */
@@ -61,7 +109,15 @@ export const KEEP_DAYS_CHOICES = [3, 7, 30] as const;
  * File groups deleted right away instead of going to Quarantine: Windows and apps
  * recreate them. Matches `DELETE_NOW_GROUPS` in src-tauri/src/cleanup.rs.
  */
-export const DELETE_NOW_GROUPS: readonly string[] = ["temp", "recycle-bin", "crash-reports", "thumbnails"];
+export const DELETE_NOW_GROUPS: readonly string[] = ["temp", "recycle-bin", "crash-reports", "thumbnails", "app-cache"];
+/**
+ * File groups moved only from their review, set by set, never ticked as a whole: photos
+ * that look alike are still different photos. Matches `movable` in src-tauri/src/review.rs.
+ */
+export const REVIEW_FIRST_GROUPS: readonly string[] = ["similar-photos"];
+/** Groups made of sets (one file of each always stays), with their sample sets. */
+const sampleSets = (groupId: string): SampleFile[][] | null =>
+  groupId === "duplicates" ? sampleDuplicateSets : groupId === "similar-photos" ? sampleSimilarSets : null;
 const DAY = 24 * 60 * 60;
 
 /**
@@ -74,6 +130,23 @@ export async function setWindowTheme(theme: "system" | "light" | "dark"): Promis
     .setTheme(theme === "system" ? null : theme)
     .catch(() => {
       // Cosmetic only: the page colors already follow the choice.
+    });
+}
+
+/**
+ * Zooms the whole page, like Ctrl + in a browser: 1 is the normal size.
+ * The webview zoom keeps layout, menus and the window size consistent;
+ * the browser fallback uses CSS zoom, which is close enough to design with.
+ */
+export async function setPageZoom(factor: number): Promise<void> {
+  if (!isTauri()) {
+    document.documentElement.style.zoom = factor === 1 ? "" : String(factor);
+    return;
+  }
+  await getCurrentWebview()
+    .setZoom(factor)
+    .catch(() => {
+      // The text stays at its normal size.
     });
 }
 
@@ -107,6 +180,86 @@ export function listInstalledApps(refresh = false): Promise<InstalledApp[]> {
     appsCache = pending;
   }
   return appsCache;
+}
+
+// Programs that start with Windows. Real: src-tauri/src/startup.rs.
+
+/** The sample list, switched on and off in the browser fallback. */
+let sampleStartupState: StartupApp[] | null = null;
+
+/** Programs that start with Windows: on first, biggest impact first. */
+export async function listStartupApps(): Promise<StartupApp[]> {
+  if (isTauri()) return invoke<StartupApp[]>("list_startup_apps");
+  await new Promise((r) => setTimeout(r, 300));
+  sampleStartupState ??= sampleStartup.map((a) => ({ ...a }));
+  return sampleStartupState.map((a) => ({ ...a }));
+}
+
+/**
+ * Turns programs on or off at startup, like Task Manager: nothing is uninstalled or removed.
+ * Programs for all users need the Windows permission prompt (one for all of them).
+ */
+export async function setStartupApps(changes: StartupChange[]): Promise<StartupReport> {
+  if (isTauri()) return invoke<StartupReport>("set_startup_apps", { changes });
+  await new Promise((r) => setTimeout(r, 400));
+  const report: StartupReport = { changed: [], failed: [], declined: [] };
+  for (const c of changes) {
+    const app = sampleStartupState?.find((a) => a.id === c.id);
+    if (!app || app.advice === "system") report.failed.push(c.id);
+    else {
+      app.enabled = c.enabled;
+      report.changed.push(c.id);
+    }
+  }
+  return report;
+}
+
+let cachesScan: Promise<AppCache[]> | null = null;
+
+/**
+ * The caches of well-known apps (Teams, Spotify, Discord, browsers...) on this PC.
+ * Real: src-tauri/src/app_cache.rs (read only). Kept until `refresh` is true.
+ */
+export function listAppCaches(refresh = false): Promise<AppCache[]> {
+  if (!isTauri()) return sleep(600).then(() => sampleAppCaches.map((c) => ({ ...c })));
+  if (refresh || !cachesScan) {
+    const pending = invoke<AppCache[]>("list_app_caches");
+    pending.catch(() => {
+      if (cachesScan === pending) cachesScan = null;
+    });
+    cachesScan = pending;
+  }
+  return cachesScan;
+}
+
+/**
+ * Empties an app's cache without uninstalling it. Nothing happens while the app is
+ * open (`running` is true): the user closes it and tries again. The files are deleted
+ * right away (group "app-cache" in `DELETE_NOW_GROUPS`): the app recreates them.
+ */
+export async function clearAppCache(id: string): Promise<ClearCacheOutcome> {
+  if (isTauri()) {
+    const out = await invoke<ClearCacheOutcome>("clear_app_cache", { id });
+    cachesScan = null;
+    return out;
+  }
+  await sleep(1200);
+  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const cache = sampleAppCaches.find((c) => c.id === id);
+  if (!cache) throw new Error(`unknown cache: ${id}`);
+  if (cache.running) {
+    cache.running = false; // As if the user closed it before trying again.
+    return { running: true, report, cache: null };
+  }
+  report.deletedCount = cache.fileCount;
+  report.deletedBytes = report.freedBytes = cache.cacheBytes;
+  sampleFreeBytes += cache.cacheBytes;
+  for (const app of sampleApps) {
+    if (app.cacheId === id && app.source === "store") app.sizeBytes = Math.max(0, app.sizeBytes - cache.cacheBytes);
+  }
+  cache.cacheBytes = 0;
+  cache.fileCount = 0;
+  return { running: false, report, cache: { ...cache } };
 }
 
 // One file scan at a time: Home and Files share it, and the result is kept
@@ -146,7 +299,7 @@ function scanFilesNative(notify: (p: ScanProgress) => void): Promise<FileGroup[]
 
 /** Browser fallback: plays the scan steps quickly so the progress view can be designed. */
 async function sampleScan(notify: (p: ScanProgress) => void): Promise<FileGroup[]> {
-  const steps = ["caches", "downloads", "personal", "duplicates", "appFolders"] as const;
+  const steps = ["caches", "downloads", "personal", "duplicates", "photos", "appFolders"] as const;
   for (const [i, step] of steps.entries()) {
     for (let n = 0; n < 4; n++) {
       notify({ step, stepIndex: i + 1, stepCount: steps.length, filesChecked: n * 1250 });
@@ -167,10 +320,12 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Runs the app's own uninstaller (or removes a Store app) and waits for it.
  * Rejects with "notInstalled", "noUninstaller", "itself", or another error text.
  */
-export async function uninstallApp(id: string): Promise<UninstallOutcome> {
-  if (isTauri()) return invoke<UninstallOutcome>("uninstall_app", { id });
+export async function uninstallApp(app: Pick<InstalledApp, "id" | "name" | "sizeBytes">): Promise<UninstallOutcome> {
+  // Name and size are only for the history: Rust finds the app by its id.
+  if (isTauri()) return invoke<UninstallOutcome>("uninstall_app", { id: app.id, name: app.name, sizeBytes: app.sizeBytes });
   await sleep(1800);
-  sampleRemoved.add(id);
+  sampleRemoved.add(app.id);
+  sampleRecord("uninstall", [{ text: app.name }], { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 }, app.sizeBytes);
   return "removed";
 }
 
@@ -178,6 +333,39 @@ export async function uninstallApp(id: string): Promise<UninstallOutcome> {
 export async function isAppInstalled(id: string): Promise<boolean> {
   if (isTauri()) return invoke<boolean>("is_app_installed", { id });
   return !sampleRemoved.has(id);
+}
+
+// ---------------------------------------------------------------------------
+// Apps uninstalled here, to reinstall them. Real: src-tauri/src/reinstall.rs.
+
+let sampleUninstalled: UninstalledApp[] | null = null;
+const sampleUninstalledList = () => (sampleUninstalled ??= sampleUninstalledApps(Math.floor(Date.now() / 1000)));
+
+/** The apps uninstalled with Easy Uninstaller, most recent first. */
+export async function listUninstalledApps(): Promise<UninstalledApp[]> {
+  if (isTauri()) return invoke<UninstalledApp[]>("list_uninstalled_apps");
+  return [...sampleUninstalledList()];
+}
+
+/** Adds an app to that list once it is gone. Best effort: the uninstall itself already worked. */
+export async function rememberUninstalled(app: InstalledApp): Promise<void> {
+  const removed = { id: app.id, name: app.name, publisher: app.publisher, source: app.source, sizeBytes: app.sizeBytes, iconColor: app.iconColor, icon: app.icon };
+  if (isTauri()) return invoke("remember_uninstalled", { removed });
+  const list = sampleUninstalledList().filter((e) => e.id !== app.id && e.name.toLowerCase() !== app.name.toLowerCase());
+  const way = app.source === "store" ? "store" : "search";
+  sampleUninstalled = [{ ...removed, uninstalledAt: Math.floor(Date.now() / 1000), way, site: "", link: "" }, ...list];
+}
+
+/** Takes apps off the list; nothing is installed or removed. */
+export async function forgetUninstalled(ids: string[]): Promise<void> {
+  if (isTauri()) return invoke("forget_uninstalled", { ids });
+  sampleUninstalled = sampleUninstalledList().filter((e) => !ids.includes(e.id));
+}
+
+/** Opens the way back to an app: its Store page, Steam, its website or a web search. */
+export async function reinstallApp(id: string): Promise<void> {
+  if (isTauri()) return invoke("reinstall_app", { id });
+  await sleep(300);
 }
 
 /** What an app just uninstalled left behind. Only after it is gone from the app list. */
@@ -229,6 +417,7 @@ export async function quarantineLeftovers(ids: string[], found: LeftoverItem[]):
     report.movedCount += items.length;
     report.movedBytes += size;
   }
+  sampleRecord("leftovers", [...byApp.keys()].map((app) => (app ? { text: app } : { key: "leftovers.title" })), report);
   return report;
 }
 
@@ -280,12 +469,14 @@ export async function listQuarantine(): Promise<QuarantineEntry[]> {
  * Only group ids are sent: Rust removes exactly the files its own scan found.
  * Real: src-tauri/src/cleanup.rs.
  */
-export async function removeFileGroups(groupIds: string[]): Promise<MoveReport> {
-  if (isTauri()) return invoke<MoveReport>("remove_file_groups", { groupIds });
+export async function removeFileGroups(groupIds: string[], opts: { quick?: boolean } = {}): Promise<MoveReport> {
+  // `quick` only says how the history names it.
+  if (isTauri()) return invoke<MoveReport>("remove_file_groups", { groupIds, quick: opts.quick ?? false });
   await new Promise((r) => setTimeout(r, 900));
   const now = Math.floor(Date.now() / 1000);
   const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
-  for (const g of sampleGroups().filter((x) => groupIds.includes(x.id) && !x.reviewOnly)) {
+  const picked = sampleGroups().filter((x) => groupIds.includes(x.id) && !x.reviewOnly);
+  for (const g of picked) {
     if (DELETE_NOW_GROUPS.includes(g.id)) {
       report.deletedCount += g.itemCount;
       report.deletedBytes += g.sizeBytes;
@@ -296,6 +487,7 @@ export async function removeFileGroups(groupIds: string[]): Promise<MoveReport> 
     sampleMove(report, g, g.items.map((i) => ({ path: i.path, sizeBytes: i.sizeBytes })), g.itemCount, now);
   }
   sampleFreeBytes += report.freedBytes;
+  sampleRecord(opts.quick ? "quickClean" : "files", picked.map((g) => ({ key: g.titleKey })), report);
   return report;
 }
 
@@ -336,20 +528,22 @@ function sampleMove(report: MoveReport, g: FileGroup, files: { path: string; siz
 /**
  * Removes the files the user picked, like `removeFileGroups`: one quarantine entry per
  * group, or deleted right away for `DELETE_NOW_GROUPS`. Rust only touches files its own
- * scan found, and always leaves one copy of every duplicate set. Real: src-tauri/src/review.rs.
+ * scan found, and always leaves one file of every set (duplicates, similar photos). Real: src-tauri/src/review.rs.
  */
 export async function quarantineFileSelection(selections: FileSelection[]): Promise<MoveReport> {
   if (isTauri()) return invoke<MoveReport>("quarantine_file_selection", { selections });
   const now = Math.floor(Date.now() / 1000);
   const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
   const groups = sampleGroups();
+  const names: HistoryName[] = [];
   for (const sel of selections) {
     const g = groups.find((x) => x.id === sel.groupId);
     if (!g) continue;
     const wanted = new Set(sel.paths);
     let picked: SampleFile[];
-    if (g.id === "duplicates") {
-      picked = sampleDuplicateSets.flatMap((set) => {
+    const sets = sampleSets(g.id);
+    if (sets) {
+      picked = sets.flatMap((set) => {
         const left = set.filter((f) => !sampleGone.has(f.path));
         const chosen = left.filter((f) => wanted.has(f.path) && !sampleHides(f.path));
         return chosen.length && chosen.length >= left.length ? chosen.slice(1) : chosen;
@@ -358,6 +552,7 @@ export async function quarantineFileSelection(selections: FileSelection[]): Prom
       picked = sampleFiles.filter((f) => f.group === g.id && wanted.has(f.path) && samplePresent(f.path));
     }
     if (!picked.length) continue;
+    names.push({ key: g.titleKey });
     if (DELETE_NOW_GROUPS.includes(g.id)) {
       const size = picked.reduce((s, f) => s + f.sizeBytes, 0);
       report.deletedCount += picked.length;
@@ -369,6 +564,7 @@ export async function quarantineFileSelection(selections: FileSelection[]): Prom
     sampleMove(report, g, picked, picked.length, now);
   }
   sampleFreeBytes += report.freedBytes;
+  sampleRecord("files", names, report);
   return report;
 }
 
@@ -390,15 +586,17 @@ export async function reviewFileGroup(groupId: string): Promise<GroupReview | nu
     modified: f.modified,
     canOpen: !/\.(exe|msi)$/i.test(f.path),
   });
-  if (groupId === "duplicates") {
-    const sets = sampleDuplicateSets
+  const all = sampleSets(groupId);
+  if (all) {
+    const wasted = (set: SampleFile[]) => set.slice(1).reduce((s, f) => s + f.sizeBytes, 0);
+    const sets = all
       .map((set) => set.filter((f) => samplePresent(f.path)))
       .filter((set) => set.length > 1)
-      .sort((a, b) => b[0].sizeBytes * (b.length - 1) - a[0].sizeBytes * (a.length - 1));
+      .sort((a, b) => wasted(b) - wasted(a));
     return {
       groupId,
       totalCount: sets.reduce((s, set) => s + set.length - 1, 0),
-      totalBytes: sets.reduce((s, set) => s + set[0].sizeBytes * (set.length - 1), 0),
+      totalBytes: sets.reduce((s, set) => s + wasted(set), 0),
       files: [],
       duplicateSets: sets.map((set) => set.map(review)),
     };
@@ -503,16 +701,23 @@ export async function quarantineAppFolder(item: FileItem): Promise<MoveReport> {
     needsAdmin: !/\\AppData\\/i.test(item.path),
   });
   sampleGone.add(item.path);
-  return { entryIds: [id], movedCount: 1, movedBytes: item.sizeBytes, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const report: MoveReport = { entryIds: [id], movedCount: 1, movedBytes: item.sizeBytes, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  sampleRecord("appFolder", [{ text: name }], report);
+  return report;
 }
 
 /** Puts the files of these entries back where they were. */
 export async function restoreQuarantine(ids: string[]): Promise<RestoreReport> {
   if (isTauri()) return invoke<RestoreReport>("restore_quarantine", { ids });
   const report: RestoreReport = { restoredCount: 0, renamedCount: 0, failedCount: 0 };
+  const now = Math.floor(Date.now() / 1000);
   for (const id of ids) {
     const i = sampleQuarantine.findIndex((e) => e.id === id);
     if (i < 0) continue;
+    for (const r of sampleHistory.filter((r) => r.entries.some((e) => e.id === id))) {
+      r.restored.push(id);
+      r.restoredAt = now;
+    }
     const [entry] = sampleQuarantine.splice(i, 1);
     entry.items.forEach((item) => sampleGone.delete(item.originalPath));
     report.restoredCount += entry.itemCount;
@@ -529,6 +734,115 @@ export async function deleteQuarantine(id: string): Promise<void> {
   if (isTauri()) return invoke("delete_quarantine", { id });
   const i = sampleQuarantine.findIndex((e) => e.id === id);
   if (i >= 0) sampleQuarantine.splice(i, 1);
+}
+
+// ── Reminders (src-tauri/src/reminders.rs) ─────────────────────────────────
+
+/** Free space limits offered for the "almost full" notice. Matches `THRESHOLD_CHOICES` in reminders.rs. */
+export const REMINDER_THRESHOLDS = [5, 10, 15, 20] as const;
+
+const sampleReminders: ReminderSettings = { lowSpace: false, threshold: 10, monthly: false };
+
+export async function getReminders(): Promise<ReminderSettings> {
+  if (isTauri()) return invoke<ReminderSettings>("get_reminders");
+  return { ...sampleReminders };
+}
+
+/**
+ * Saves the reminder choices: Windows gets (or loses) a small scheduled task that checks
+ * once a day. On failure nothing changes and the error is thrown.
+ */
+export async function setReminders(settings: ReminderSettings, texts: ReminderTexts): Promise<void> {
+  if (isTauri()) return invoke("set_reminders", { settings, texts });
+  await sleep(300);
+  Object.assign(sampleReminders, settings);
+}
+
+/** Each time the app opens and when the language changes: the monthly reminder counts from here. */
+export async function remindersOpened(texts: ReminderTexts): Promise<void> {
+  if (isTauri()) return invoke("reminders_opened", { texts });
+}
+
+/** Shows a sample Windows notification right away. */
+export async function previewReminder(title: string, body: string): Promise<void> {
+  if (isTauri()) return invoke("preview_reminder", { title, body });
+  await sleep(300);
+}
+
+// ---------------------------------------------------------------------------
+// History. Real: src-tauri/src/history.rs.
+
+/**
+ * Everything Easy Uninstaller did, newest first, with the space it gave back. Files in
+ * Quarantine on the same drive count as freed only once they are deleted for good.
+ */
+export async function getHistory(): Promise<HistorySummary> {
+  if (isTauri()) return invoke<HistorySummary>("get_history");
+  const items = sampleHistory.map(sampleHistoryItem).reverse();
+  return {
+    freedBytes: items.reduce((s, i) => s + i.freedBytes, 0),
+    pendingBytes: items.reduce((s, i) => s + i.pendingBytes, 0),
+    since: sampleHistory[0]?.at ?? null,
+    actionCount: items.length,
+    items,
+  };
+}
+
+/** Forgets every action: the total starts again from zero. No file is touched. */
+export async function clearHistory(): Promise<void> {
+  if (isTauri()) return invoke("clear_history");
+  sampleHistory.length = 0;
+}
+
+/** Browser fallback: the same rules as `Record::item` in history.rs. */
+function sampleHistoryItem(r: SampleRecord): HistoryItem {
+  let inQuarantine = 0;
+  let restored = 0;
+  let ended = 0;
+  let until: number | null = null;
+  for (const e of r.entries) {
+    const live = sampleQuarantine.find((q) => q.id === e.id);
+    if (live) {
+      inQuarantine += Math.min(e.bytes, live.sizeBytes);
+      until = Math.max(until ?? 0, live.expiresAt);
+    } else if (r.restored.includes(e.id)) restored += e.bytes;
+    else ended += e.bytes;
+  }
+  const crossed = Math.min(r.crossedBytes, inQuarantine);
+  const pending = inQuarantine - crossed;
+  return {
+    id: r.id,
+    at: r.at,
+    kind: r.kind,
+    names: r.names,
+    itemCount: r.itemCount,
+    freedBytes: r.deletedBytes + r.estimatedBytes + ended + crossed,
+    pendingBytes: pending,
+    pendingUntil: pending > 0 ? until : null,
+    restoredBytes: restored,
+    restoredAt: r.restoredAt,
+    estimated: r.estimatedBytes > 0,
+  };
+}
+
+/** Browser fallback: records an action like history.rs does. */
+function sampleRecord(kind: HistoryKind, names: HistoryName[], report: MoveReport, estimatedBytes = 0) {
+  const itemCount = report.movedCount + report.deletedCount + (estimatedBytes ? 1 : 0);
+  if (!itemCount) return;
+  const at = Math.floor(Date.now() / 1000);
+  sampleHistory.push({
+    id: `${at}-${sampleHistory.length}`,
+    at,
+    kind,
+    names,
+    itemCount,
+    deletedBytes: report.deletedBytes,
+    crossedBytes: Math.max(report.freedBytes - report.deletedBytes, 0),
+    entries: report.entryIds.map((id) => ({ id, bytes: sampleQuarantine.find((q) => q.id === id)?.sizeBytes ?? 0 })),
+    estimatedBytes,
+    restored: [],
+    restoredAt: null,
+  });
 }
 
 /** Real: src-tauri/src/restore_point.rs. Windows asks the user for permission. */
@@ -649,20 +963,334 @@ export async function aiOpenPage(page: string): Promise<void> {
   if (isTauri()) return invoke("ai_open_page", { page });
 }
 
+// ── Finding files by a sentence (src-tauri/src/search.rs) ─────────────────
+// Only the sentence goes to the AI; the search runs on this PC.
+
+/** Asks the AI to turn a sentence into a search filter. Errors are i18n keys ("search.error.*", "ai.error.*"). */
+export async function searchUnderstand(config: AiConfig, sentence: string, lang: string): Promise<SearchFilter> {
+  if (isTauri()) return invoke<SearchFilter>("search_understand", { config, sentence, lang });
+  await sampleEnsure(config);
+  await sleep(1400);
+  return sampleUnderstand(sentence);
+}
+
+/** Runs the search on this PC (read only). Rust keeps the files found for a later move. */
+export async function searchFiles(filter: SearchFilter): Promise<SearchResult> {
+  if (isTauri()) return invoke<SearchResult>("search_files", { filter });
+  await sleep(500);
+  return sampleSearch(filter, sampleSearchPool.filter((f) => samplePresent(f.path)), sampleIndex.ready);
+}
+
+/** Moves picked files of the last search to Quarantine, as one entry. Only files that search found. */
+export async function quarantineFound(paths: string[], found: SearchResult): Promise<MoveReport> {
+  if (isTauri()) return invoke<MoveReport>("quarantine_found", { paths });
+  await sleep(600);
+  const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const picked = found.files.filter((f) => paths.includes(f.path) && samplePresent(f.path));
+  if (!picked.length) return report;
+  const group = { id: "found", titleKey: "files.groups.found.title" } as FileGroup;
+  sampleMove(report, group, picked, picked.length, Math.floor(Date.now() / 1000));
+  return report;
+}
+
+// ── The local index (src-tauri/src/semantic.rs) ─────────────────────────────
+
+/** Download sizes of each model choice, with the engine (llama.cpp, about 24 MB). */
+export const INDEX_DOWNLOAD_BYTES: Record<IndexSettings["quality"], number> = {
+  light: 175_673_856 + 554_821_120 + 24_886_130,
+  better: 309_855_520 + 554_821_120 + 24_886_130,
+  best: 557_950_240 + 980_895_232 + 24_886_130,
+};
+
+const sampleIndexListeners = new Set<(s: IndexStatus) => void>();
+// `?index=ready` starts the browser sample with the model already downloaded.
+const sampleIndexReady = typeof location !== "undefined" && new URLSearchParams(location.search).get("index") === "ready";
+/** The engine (llama.cpp) alone: what the person's own model files need. */
+const ENGINE_BYTES = 24_886_130;
+let sampleEngine = sampleIndexReady;
+const sampleIndex: IndexStatus = {
+  settings: {
+    source: "download",
+    quality: "light",
+    ownModel: "",
+    ownVision: "",
+    serverUrl: "",
+    depth: "partial",
+    photos: true,
+    videos: true,
+    documents: true,
+    wholePc: false,
+    paused: false,
+  },
+  ready: sampleIndexReady,
+  download: null,
+  error: null,
+  indexing: false,
+  indexed: sampleIndexReady ? 12_480 : 0,
+  pending: 0,
+  current: null,
+  diskBytes: sampleIndexReady ? 760 * 1024 * 1024 : 0,
+  downloadBytes: sampleIndexReady ? 0 : INDEX_DOWNLOAD_BYTES.light,
+};
+let sampleIndexTimer: ReturnType<typeof setInterval> | null = null;
+
+function sampleIndexChanged() {
+  const copy = structuredClone(sampleIndex);
+  sampleIndexListeners.forEach((cb) => cb(copy));
+}
+
+/** In the browser: the index "looks at" a few thousand files, quickly. */
+function sampleIndexRound() {
+  if (sampleIndexTimer) clearInterval(sampleIndexTimer);
+  if (!sampleIndex.ready || sampleIndex.settings.paused) return;
+  const names = ["W20240812RM.mp4", "IMG_20240812_101512.jpg", "DSC04412.JPG", "C0047.MP4"];
+  sampleIndex.indexing = true;
+  sampleIndex.pending = 3_200;
+  sampleIndexTimer = setInterval(() => {
+    const step = Math.min(sampleIndex.pending, 160);
+    sampleIndex.pending -= step;
+    sampleIndex.indexed += step;
+    sampleIndex.current = names[sampleIndex.pending % names.length];
+    if (!sampleIndex.pending) {
+      sampleIndex.indexing = false;
+      sampleIndex.current = null;
+      if (sampleIndexTimer) clearInterval(sampleIndexTimer);
+    }
+    sampleIndexChanged();
+  }, 300);
+}
+
+export async function indexStatus(): Promise<IndexStatus> {
+  if (isTauri()) return invoke<IndexStatus>("index_status");
+  return structuredClone(sampleIndex);
+}
+
+/** Hears every change of the index's status. Returns a function that stops listening. */
+export async function onIndexStatus(cb: (s: IndexStatus) => void): Promise<() => void> {
+  if (isTauri()) return listen<IndexStatus>("local-index", (e) => cb(e.payload));
+  sampleIndexListeners.add(cb);
+  return () => sampleIndexListeners.delete(cb);
+}
+
+export async function indexSetSettings(settings: IndexSettings): Promise<IndexStatus> {
+  if (isTauri()) return invoke<IndexStatus>("index_set_settings", { settings });
+  const was = sampleIndex.settings;
+  const modelChanged =
+    settings.source !== was.source ||
+    (settings.source === "download" && settings.quality !== was.quality) ||
+    (settings.source === "files" && settings.ownModel !== was.ownModel) ||
+    (settings.source === "server" && settings.serverUrl !== was.serverUrl);
+  sampleIndex.settings = { ...settings };
+  if (modelChanged) {
+    sampleIndex.indexed = 0;
+    if (settings.source === "download") {
+      sampleIndex.ready = false;
+      sampleIndex.downloadBytes = INDEX_DOWNLOAD_BYTES[settings.quality];
+    } else {
+      sampleIndex.ready = settings.source === "server" || sampleEngine;
+      sampleIndex.downloadBytes = sampleIndex.ready ? 0 : ENGINE_BYTES;
+    }
+  }
+  if (settings.paused) {
+    if (sampleIndexTimer) clearInterval(sampleIndexTimer);
+    sampleIndex.indexing = false;
+  } else {
+    sampleIndexRound();
+  }
+  sampleIndexChanged();
+  return structuredClone(sampleIndex);
+}
+
+/** Downloads the engine and the chosen model (in the background), then indexes. */
+export async function indexInstall(): Promise<IndexStatus> {
+  if (isTauri()) return invoke<IndexStatus>("index_install");
+  const total = sampleIndex.downloadBytes || INDEX_DOWNLOAD_BYTES[sampleIndex.settings.quality];
+  sampleIndex.error = null;
+  sampleIndex.download = { doneBytes: 0, totalBytes: total, verifying: false };
+  if (sampleIndexTimer) clearInterval(sampleIndexTimer);
+  sampleIndexTimer = setInterval(() => {
+    const d = sampleIndex.download;
+    if (!d) return;
+    if (d.doneBytes >= total) {
+      if (!d.verifying) {
+        d.verifying = true;
+      } else {
+        sampleIndex.download = null;
+        sampleIndex.ready = true;
+        sampleEngine = true;
+        sampleIndex.downloadBytes = 0;
+        sampleIndex.diskBytes = total;
+        sampleIndexRound();
+      }
+    } else {
+      d.doneBytes = Math.min(total, d.doneBytes + total / 25);
+    }
+    sampleIndexChanged();
+  }, 250);
+  sampleIndexChanged();
+  return structuredClone(sampleIndex);
+}
+
+export async function indexCancelDownload(): Promise<void> {
+  if (isTauri()) return invoke("index_cancel_download");
+  if (sampleIndexTimer) clearInterval(sampleIndexTimer);
+  sampleIndex.download = null;
+  sampleIndexChanged();
+}
+
+/** Deletes the model, the engine and the index. */
+export async function indexRemove(): Promise<IndexStatus> {
+  if (isTauri()) return invoke<IndexStatus>("index_remove");
+  if (sampleIndexTimer) clearInterval(sampleIndexTimer);
+  sampleEngine = false;
+  const source = sampleIndex.settings.source;
+  Object.assign(sampleIndex, { ready: source === "server", download: null, indexing: false, indexed: 0, pending: 0, current: null, diskBytes: 0, error: null });
+  sampleIndex.downloadBytes = source === "download" ? INDEX_DOWNLOAD_BYTES[sampleIndex.settings.quality] : source === "files" ? ENGINE_BYTES : 0;
+  sampleIndexChanged();
+  return structuredClone(sampleIndex);
+}
+
+/** After a problem: indexing starts again. */
+export async function indexRetry(): Promise<IndexStatus> {
+  if (isTauri()) return invoke<IndexStatus>("index_retry");
+  sampleIndex.error = null;
+  sampleIndexRound();
+  sampleIndexChanged();
+  return structuredClone(sampleIndex);
+}
+
+/** Tries a model before it is used: a few words, then a small picture. */
+export async function indexCheck(settings: IndexSettings): Promise<IndexCheck> {
+  if (isTauri()) return invoke<IndexCheck>("index_check", { settings });
+  await sleep(1200);
+  const fail = (error: string, text = false): IndexCheck => ({ text, pictures: false, dim: text ? 768 : 0, error });
+  if (settings.source === "server") {
+    return /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/.test(settings.serverUrl.trim()) ? { text: true, pictures: true, dim: 768, error: null } : fail("index.error.notFound");
+  }
+  if (settings.source === "files") {
+    if (!/\.gguf$/i.test(settings.ownModel.trim())) return fail("index.error.notFound");
+    if (!sampleEngine) return fail("index.error.needEngine");
+    if (!settings.ownVision.trim()) return fail("index.error.noVision", true);
+  }
+  return { text: true, pictures: true, dim: 768, error: null };
+}
+
+/** Embedding models other apps already downloaded (LM Studio, llama.cpp, Hugging Face). */
+export async function indexFindModels(): Promise<OwnModel[]> {
+  if (isTauri()) return invoke<OwnModel[]>("index_find_models");
+  await sleep(500);
+  const lm = "C:\\Users\\you\\.lmstudio\\models";
+  return [
+    { model: `${lm}\\unsloth\\embeddinggemma-2-GGUF\\embeddinggemma-2-Q8_0.gguf`, vision: `${lm}\\unsloth\\embeddinggemma-2-GGUF\\mmproj-embeddinggemma-2-Q8_0.gguf`, bytes: 309_855_520 },
+    { model: `${lm}\\nomic-ai\\nomic-embed-text-v1.5-GGUF\\nomic-embed-text-v1.5.Q4_K_M.gguf`, vision: null, bytes: 84_106_624 },
+  ];
+}
+
+// ── Tidying Downloads (src-tauri/src/tidy.rs) ──────────────────────────────
+
+/** Sample tidies, newest last, so undo can be tried in the browser. */
+const sampleTidyRuns: { id: string; at: number; moves: SampleFile[]; folderCount: number }[] = [];
+const sampleTidied = new Set<string>();
+const sampleLoose = () => sampleLooseDownloads.filter((f) => samplePresent(f.path) && !sampleTidied.has(f.path));
+
+/** How many loose files Downloads has, and the last tidy that can be undone. */
+export async function tidyOverview(): Promise<TidyOverview> {
+  if (isTauri()) return invoke<TidyOverview>("tidy_overview");
+  await sleep(300);
+  const loose = sampleLoose();
+  const last = sampleTidyRuns.at(-1);
+  return {
+    downloads: `C:\\Users\\you\\Downloads`,
+    fileCount: loose.length,
+    sizeBytes: loose.reduce((s, f) => s + f.sizeBytes, 0),
+    lastRun: last ? { id: last.id, at: last.at, movedCount: last.moves.length, folderCount: last.folderCount } : null,
+  };
+}
+
+/** What would be sent to the AI: one line per file (name, size, month). */
+export async function tidyPreview(lang: string): Promise<TidyPreview> {
+  if (isTauri()) return invoke<TidyPreview>("tidy_preview", { lang });
+  await sleep(200);
+  const lines = sampleTidyLines(sampleLoose());
+  return { lines, question: lines.join("\n"), notSentCount: 0 };
+}
+
+/** Asks the AI to propose folders. Nothing moves until `tidyApply`. */
+export async function tidyAsk(config: AiConfig, lang: string): Promise<TidyPlan> {
+  if (isTauri()) return invoke<TidyPlan>("tidy_ask", { config, lang });
+  await sampleEnsure(config);
+  await sleep(2200);
+  return sampleTidyPlan(sampleLoose(), lang, true);
+}
+
+/** One folder per kind of file, without the AI. */
+export async function tidyByType(lang: string): Promise<TidyPlan> {
+  if (isTauri()) return invoke<TidyPlan>("tidy_by_type", { lang });
+  await sleep(400);
+  return sampleTidyPlan(sampleLoose(), lang, false);
+}
+
+/**
+ * Moves the files the user kept ticked into the proposed folders, and the picked
+ * setup files to Quarantine. Rust takes only files of its last proposal, unchanged since.
+ */
+export async function tidyApply(choices: TidyChoice[], installers: string[], plan: TidyPlan): Promise<TidyReport> {
+  if (isTauri()) return invoke<TidyReport>("tidy_apply", { choices, installers });
+  await sleep(900);
+  const quarantine: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const paths = new Set(choices.flatMap((c) => c.paths));
+  const moves = sampleLooseDownloads.filter((f) => paths.has(f.path));
+  moves.forEach((f) => sampleTidied.add(f.path));
+  const folderCount = choices.filter((c) => c.paths.length).length;
+  const id = String(Date.now());
+  if (moves.length) sampleTidyRuns.push({ id, at: Math.floor(Date.now() / 1000), moves, folderCount });
+  const picked = plan.installers.filter((f) => installers.includes(f.path));
+  if (picked.length) sampleMove(quarantine, { id: "installers", titleKey: "files.groups.installers.title" } as FileGroup, picked, picked.length, Math.floor(Date.now() / 1000));
+  return { movedCount: moves.length, movedBytes: moves.reduce((s, f) => s + f.sizeBytes, 0), skippedCount: 0, folderCount, runId: moves.length ? id : null, quarantine };
+}
+
+/** Puts the files of a tidy back in Downloads; the folders it made go away when empty. */
+export async function tidyUndo(runId: string): Promise<TidyUndoReport> {
+  if (isTauri()) return invoke<TidyUndoReport>("tidy_undo", { runId });
+  await sleep(500);
+  const i = sampleTidyRuns.findIndex((r) => r.id === runId);
+  if (i < 0) throw "tidy.error.noRun";
+  const [run] = sampleTidyRuns.splice(i, 1);
+  run.moves.forEach((f) => sampleTidied.delete(f.path));
+  return { restoredCount: run.moves.length, failedCount: 0 };
+}
+
 // ---------------------------------------------------------------------------
 // Updates. Real: src-tauri/src/updater.rs (GitHub Releases, signed installers).
 
 /**
- * Asks whether a newer version exists; null when this one is the latest.
+ * Asks whether a newer version exists; null when this one is the latest. With `beta`,
+ * the beta channel (changes not released yet) is asked too.
  * Rejects with "offline" when the internet cannot be reached, or another error text.
- * In the browser, add ?update=none to the address to see the "up to date" state.
+ * In the browser, add ?update=none to the address to see the "up to date" state,
+ * or ?update=back to see a beta going back to the release.
  */
-export async function checkForUpdate(): Promise<UpdateInfo | null> {
-  if (isTauri()) return invoke<UpdateInfo | null>("check_for_update");
+export async function checkForUpdate(beta: boolean): Promise<UpdateInfo | null> {
+  if (isTauri()) return invoke<UpdateInfo | null>("check_for_update", { beta });
   await sleep(900);
-  if (new URLSearchParams(location.search).get("update") === "none") return null;
-  return { version: "0.3.0", currentVersion: "0.2.0" };
+  const sample = new URLSearchParams(location.search).get("update");
+  if (sample === "none") return null;
+  if (sample === "back") return { version: "0.3.0", currentVersion: "0.3.1-beta.12", beta: false, back: true, notes: [] };
+  if (!beta) return { version: "0.3.0", currentVersion: "0.2.0", beta: false, back: false, notes: [] };
+  return {
+    version: "0.3.1-beta.12",
+    currentVersion: "0.2.0",
+    beta: true,
+    back: false,
+    notes: sampleBetaNotes,
+  };
 }
+
+const sampleBetaNotes = [
+  "Manage the programs that start with Windows",
+  "Clear an app's cache without uninstalling it",
+  "Find similar photos and review them set by set",
+];
 
 /**
  * Downloads and installs the update found by the last check. In the app this never
@@ -681,4 +1309,129 @@ export async function installUpdate(notify: (p: UpdateProgress) => void): Promis
   }
   // The browser cannot restart into a new version; keep showing "installing".
   return new Promise(() => {});
+}
+
+// ---------------------------------------------------------------------------
+// Free up space without deleting. Real: src-tauri/src/offload.rs.
+
+/** Browser fallback: the pretend OneDrive and drives, changed by the functions below. */
+const sampleOffload = {
+  online: [...sampleOnlineFiles],
+  onlineCount: sampleOnlineCount,
+  onlineBytes: sampleOnlineBytes,
+  freeingCount: 0,
+  freeingBytes: 0,
+  lastFreed: null as { count: number; bytes: number; files: OffloadFile[] } | null,
+  movable: [...sampleMoveFiles],
+  moved: [] as MovedFile[],
+};
+
+function sampleOffloadScan(): OffloadScan {
+  const s = sampleOffload;
+  return {
+    oneDrive: {
+      folders: ["C:\\Users\\you\\OneDrive"],
+      fileCount: s.onlineCount,
+      sizeBytes: s.onlineBytes,
+      files: s.online,
+      freeingCount: s.freeingCount,
+      freeingBytes: s.freeingBytes,
+    },
+    moveFiles: {
+      systemDrive: "C:",
+      drives: sampleDrives.map((d) => ({ ...d, freeBytes: d.freeBytes - s.moved.reduce((n, m) => n + m.sizeBytes, 0) })),
+      fileCount: s.movable.length,
+      sizeBytes: s.movable.reduce((n, f) => n + f.sizeBytes, 0),
+      files: s.movable,
+      moved: [...s.moved].sort((a, b) => b.movedAt - a.movedAt),
+    },
+  };
+}
+
+/** Looks for OneDrive files to keep only online and big files to move. Read only. */
+export async function scanOffload(): Promise<OffloadScan> {
+  if (isTauri()) return invoke<OffloadScan>("scan_offload");
+  await sleep(700);
+  return sampleOffloadScan();
+}
+
+/** The cards as they are now, without scanning again. */
+export async function currentOffload(): Promise<OffloadScan> {
+  if (isTauri()) return invoke<OffloadScan>("current_offload");
+  return sampleOffloadScan();
+}
+
+/** OneDrive's "Free up space" on every scanned file except `except` (paths). */
+export async function makeOnlineOnly(except: string[]): Promise<OnlineReport> {
+  if (isTauri()) return invoke<OnlineReport>("make_online_only", { except });
+  await sleep(900);
+  const s = sampleOffload;
+  const kept = s.online.filter((f) => except.includes(f.path));
+  const keptBytes = kept.reduce((n, f) => n + f.sizeBytes, 0);
+  const report = { doneCount: s.onlineCount - kept.length, doneBytes: s.onlineBytes - keptBytes, skippedCount: 0 };
+  s.lastFreed = { count: report.doneCount, bytes: report.doneBytes, files: s.online.filter((f) => !except.includes(f.path)) };
+  s.freeingCount += report.doneCount;
+  s.freeingBytes += report.doneBytes;
+  s.online = kept;
+  s.onlineCount = kept.length;
+  s.onlineBytes = keptBytes;
+  return report;
+}
+
+/** Undoes the last `makeOnlineOnly`: OneDrive keeps the files on this PC again. */
+export async function keepOnThisPc(): Promise<OnlineReport> {
+  if (isTauri()) return invoke<OnlineReport>("keep_on_this_pc");
+  await sleep(600);
+  const s = sampleOffload;
+  const last = s.lastFreed;
+  if (!last) return { doneCount: 0, doneBytes: 0, skippedCount: 0 };
+  s.freeingCount -= last.count;
+  s.freeingBytes -= last.bytes;
+  s.online = [...s.online, ...last.files].sort((a, b) => b.sizeBytes - a.sizeBytes);
+  s.onlineCount += last.count;
+  s.onlineBytes += last.bytes;
+  s.lastFreed = null;
+  return { doneCount: last.count, doneBytes: last.bytes, skippedCount: 0 };
+}
+
+/** Moves every scanned file except `except` to `drive` ("D:"), into a folder named `folderName`. */
+export async function moveToDrive(except: string[], drive: string, folderName: string, notify: (p: MoveProgress) => void): Promise<DriveMoveReport> {
+  if (isTauri()) {
+    const onProgress = new Channel<MoveProgress>();
+    onProgress.onmessage = notify;
+    return invoke<DriveMoveReport>("move_to_drive", { except, drive, folderName, onProgress });
+  }
+  const s = sampleOffload;
+  const files = s.movable.filter((f) => !except.includes(f.path));
+  const total = files.reduce((n, f) => n + f.sizeBytes, 0);
+  const folder = `${drive}\\${folderName}`;
+  const now = Math.floor(Date.now() / 1000);
+  let done = 0;
+  const ids: string[] = [];
+  for (const [i, f] of files.entries()) {
+    await sleep(500);
+    done += f.sizeBytes;
+    const id = `${now}-${i}`;
+    ids.push(id);
+    s.moved.push({ id, originalPath: f.path, path: f.path.replace(/^C:\\Users\\you/, folder), sizeBytes: f.sizeBytes, movedAt: now, base: folder });
+    notify({ doneBytes: done, totalBytes: total, doneCount: i + 1, totalCount: files.length });
+  }
+  s.movable = s.movable.filter((f) => except.includes(f.path));
+  return { ids, movedCount: files.length, movedBytes: total, skippedCount: 0, noRoomCount: 0, folder };
+}
+
+/** Moves files back from the other drive to where they were. */
+export async function moveBackFiles(ids: string[]): Promise<MoveBackReport> {
+  if (isTauri()) return invoke<MoveBackReport>("move_back_files", { ids });
+  await sleep(600);
+  const s = sampleOffload;
+  const back = s.moved.filter((m) => ids.includes(m.id));
+  s.moved = s.moved.filter((m) => !ids.includes(m.id));
+  s.movable = [...s.movable, ...back.map((m) => ({ path: m.originalPath, sizeBytes: m.sizeBytes, lastUsed: "2024-01-01" }))].sort((a, b) => b.sizeBytes - a.sizeBytes);
+  return { restoredCount: back.length, restoredBytes: back.reduce((n, m) => n + m.sizeBytes, 0), renamedCount: 0, failedCount: 0 };
+}
+
+/** Opens the folder of a moved file in Explorer, with the file selected. */
+export async function showMovedFile(id: string): Promise<void> {
+  if (isTauri()) return invoke("show_moved_file", { id });
 }

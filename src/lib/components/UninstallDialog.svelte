@@ -7,6 +7,7 @@
     findAppLeftovers,
     isAppInstalled,
     quarantineLeftovers,
+    rememberUninstalled,
     restoreQuarantine,
     uninstallApp,
   } from "../api";
@@ -95,7 +96,7 @@
   async function uninstall() {
     step = { kind: "running" };
     try {
-      const outcome = await uninstallApp(app.id);
+      const outcome = await uninstallApp(app);
       if (outcome === "removed") await afterRemoved();
       else if (outcome === "stillInstalled") waitForRemoval();
       else await finishApp({ app, ok: false, reason: outcome });
@@ -124,6 +125,8 @@
   }
 
   async function afterRemoved() {
+    // Listed in Apps › Uninstalled, to reinstall it later. Best effort.
+    await rememberUninstalled(app).catch(() => {});
     if (app.source !== "store") {
       step = { kind: "searching" };
       try {
@@ -250,11 +253,7 @@
         </div>
         {#if totalSize}<p class="muted total">{t("uninstall.totalSize", { size: formatBytes(totalSize) })}</p>{/if}
       {/if}
-      {#if settings.restorePoint && !allStore}
-        <p class="note good"><Icon name="shieldCheck" />{t("uninstall.restorePointNote")}</p>
-      {/if}
       {#if anyStore}<p class="note">{allStore ? t("uninstall.storeNote") : t("uninstall.storeAlso")}</p>{/if}
-      {#if anyForEveryone}<p class="note"><Icon name="shield" />{t("uninstall.adminNote")}</p>{/if}
       <div class="grow"></div>
       <div class="buttons">
         <button class="btn btn-ghost" onclick={close}>{t("common.cancel")}</button>
@@ -284,13 +283,9 @@
         </h2>
       </div>
       <div class="bar" aria-hidden="true"><i></i></div>
-      <p class="muted">
-        {step.kind === "running"
-          ? t("uninstall.runningNote", { name: app.name })
-          : step.kind === "waiting"
-            ? t("uninstall.waitingNote", { name: app.name })
-            : t("uninstall.searchingNote")}
-      </p>
+      {#if step.kind !== "searching"}
+        <p class="muted">{step.kind === "running" ? t("uninstall.runningNote", { name: app.name }) : t("uninstall.waitingNote", { name: app.name })}</p>
+      {/if}
       {#if step.kind === "waiting"}
         <div class="grow"></div>
         <div class="buttons"><button class="btn btn-ghost" onclick={stopWaiting}>{t("uninstall.stopWaiting")}</button></div>
@@ -298,7 +293,6 @@
     {:else if step.kind === "cleaning"}
       <h2 id="uninstall-title">{t("uninstall.cleaning", { count: leftoverCount(toClean.length) })}</h2>
       <div class="bar" aria-hidden="true"><i></i></div>
-      <p class="muted">{t("uninstall.quarantineNote", { days: quarantine.keepDays })}</p>
     {:else if step.kind === "done"}
       <div class="done">
         <div class="check"><StatusIcon kind={removedApps.length ? "ok" : "warn"} size={56} /></div>
@@ -381,7 +375,6 @@
   .current { display: flex; align-items: center; gap: 14px; margin: 8px 0 6px; }
   .current h2 { margin: 0; }
   .note { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; line-height: 1.45; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--bg); margin-bottom: 10px; }
-  .note.good { background: var(--safe-bg); color: var(--safe-fg); }
   .note.warn { background: var(--check-bg); color: var(--check-fg); }
   .warn-text { color: var(--check-fg); display: flex; gap: 6px; align-items: flex-start; }
   .note :global(.icon), .warn-text :global(.icon) { margin-top: 0.15em; }

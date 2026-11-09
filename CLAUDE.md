@@ -17,9 +17,20 @@ space. Goals in order: **safe**, **simple for non-technical users**, **lightweig
 - **Never delete user data directly.** Anything removed goes through the quarantine module.
   Scanners are read only. Destructive features land only after quarantine exists.
   The one exception (the owner's decision): file groups listed in `DELETE_NOW_GROUPS`
-  (`cleanup.rs`, mirrored in `api.ts`), i.e. temporary files, caches, thumbnails, crash reports and old Recycle Bin items,
+  (`cleanup.rs`, mirrored in `api.ts`), i.e. temporary files, caches (including the app caches of `app_cache.rs`), thumbnails, crash reports and old Recycle Bin items,
   are deleted right away by `cleanup.rs`, and only the exact files the scan found, unchanged since.
   Every removal of scanned files goes through `cleanup::remove`.
+- Moving files is not removing them: "Tidy up Downloads" (`tidy.rs`) moves loose files into
+  folders inside the user's own folders, never replaces a file, and records every move so
+  the whole tidy can be undone.
+- The AI never acts alone: it explains (`ai.rs`), turns a sentence into a search filter
+  (`search.rs`) or proposes folders (`tidy.rs`). Only names and numbers are sent, never
+  file contents, and nothing is ticked, moved or removed until the user presses a button.
+- The local index (`semantic.rs`) is read only. What it downloads (model, llama.cpp) is pinned
+  by URL and SHA-256 in `semantic/models.rs` and never run before the check; everything it
+  keeps lives in its own `LocalIndex` folder, which "Delete model and index" removes whole.
+  The user's own model (`Source::Files`/`Source::Server`) is only read or asked, never moved
+  or removed, and a server must be on a loopback address: pictures never leave the PC.
 - Windows-only code goes behind `#[cfg(windows)]` with a stub for other platforms, so the crate
   still builds and tests on Linux/macOS.
 - Lightness matters: think twice before adding a dependency (frontend or Rust); prefer

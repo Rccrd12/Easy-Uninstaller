@@ -5,6 +5,11 @@
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
   import Icon from "../components/Icon.svelte";
   import FileReview from "../components/FileReview.svelte";
+  import OffloadCards from "../components/OffloadCards.svelte";
+  import OffloadPanel from "../components/OffloadPanel.svelte";
+  import FileSearch from "../components/FileSearch.svelte";
+  import SearchBar from "../components/SearchBar.svelte";
+  import TidyDownloads from "../components/TidyDownloads.svelte";
   import StatusIcon from "../components/StatusIcon.svelte";
   import SafetyTag from "../components/SafetyTag.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
@@ -21,13 +26,15 @@
     removeExclusions,
     removeFileGroups,
     restoreQuarantine,
+    REVIEW_FIRST_GROUPS,
     usesSampleData,
   } from "../api";
   import { quarantine, settings } from "../settings.svelte";
+  import { loadOffload } from "../offload.svelte";
   import { ai, aiErrorText, aiReady, answerFor, askAll, forgetAnswers, loadSavedAnswers, openSetup, serviceLabel, stopAskAll } from "../ai.svelte";
   import { fileCount, formatBytes, removedLines, restoreSummary } from "../format";
   import { locale, t } from "../i18n/index.svelte";
-  import { displayPath, folderOf, nameOf } from "../paths";
+  import { displayPath, folderOf, nameOf, shownPath } from "../paths";
   import type { Screen } from "../screens";
   import type { Exclusion, FileGroup, FileItem, FileSelection, MoveReport, ScanProgress } from "../types";
 
@@ -63,10 +70,19 @@
   let version = $state(0);
   /** How many files, folders and groups are hidden (leftovers have their own screen). */
   let hiddenCount = $state(0);
+  /** The sentence of the search being shown ("Search your files"), or null. */
+  let searching = $state<string | null>(null);
+  /** "Tidy up Downloads" is open. */
+  let tidying = $state(false);
   /** The ⋯ menu of a group card. */
   let menu = $state<{ group: FileGroup; x: number; y: number } | null>(null);
 
   const focused = $derived(groups.find((g) => g.id === focusedId) ?? null);
+  /** The "without deleting" cards (OneDrive, another drive) are not file groups. */
+  const isOffload = (id: string | null) => id === "offload-onedrive" || id === "offload-move";
+
+  /** Groups moved only after a look at each set (similar photos): never ticked as a whole. */
+  const reviewFirst = (g: FileGroup) => REVIEW_FIRST_GROUPS.includes(g.id);
 
   /** Groups of single files can be reviewed one by one; folder groups (temp) cannot. */
   const reviewable = (g: FileGroup) => g.items.length > 0 && g.items.every((i) => i.lastUsed !== null);
@@ -80,12 +96,13 @@
     scanning = true;
     error = null;
     progress = null;
+    loadOffload(rescan);
     listFileGroups({ rescan, onProgress: (p) => (progress = p) })
       .then((g) => {
         groups = g;
         // Pre-select only what is safe; anything else needs the user's eyes.
         checked = new Set(g.filter((x) => x.safety === "safe" && !x.reviewOnly).map((x) => x.id));
-        if (!g.some((x) => x.id === focusedId)) focusedId = null;
+        if (!isOffload(focusedId) && !g.some((x) => x.id === focusedId)) focusedId = null;
         loadSavedAnswers(g.filter((x) => x.reviewOnly).flatMap((x) => unknownItems(x).map((i) => i.path)));
       })
       .catch((e) => (error = String(e)))
@@ -177,6 +194,11 @@
     } finally {
       version++;
     }
+  }
+
+  /** Back from a search or a tidy: files may have moved, so the groups are read again. */
+  function backFromTool() {
+    if (!scanning && !error) refresh().catch(() => {});
   }
 
   /** The name a hidden item goes by in a sentence. */
@@ -303,7 +325,7 @@
     keepFileGroups(next);
     if (reviewing) reviewing = next.find((g) => g.id === reviewing?.id) ?? reviewing;
     checked = new Set([...checked].filter((id) => next.some((g) => g.id === id)));
-    if (!next.some((g) => g.id === focusedId)) focusedId = null;
+    if (!isOffload(focusedId) && !next.some((g) => g.id === focusedId)) focusedId = null;
     if (!focusedId) explained = null;
   }
 
@@ -318,10 +340,11 @@
   const dateOf = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(locale(), { year: "numeric", month: "short", day: "numeric" });
 
   function itemNote(item: FileItem): string {
-    if (item.duplicateOf) return t("files.copyOf", { path: shortPath(item.duplicateOf) });
-    if (item.originalPath) return t("files.wasIn", { path: folderOf(item.originalPath) });
-    // "C:\\Users\\you\\AppData\\Local" says less than "AppData\\Local" in a narrow panel.
-    const folder = folderOf(item.path).replace(/^.*?[\\/](AppData[\\/])/i, "$1");
+    if (item.duplicateOf) return t("files.copyOf", { path: settings.technical ? item.duplicateOf : shortPath(item.duplicateOf) });
+    if (item.originalPath) return t("files.wasIn", { path: shownPath(folderOf(item.originalPath)) });
+    // "C:\\Users\\you\\AppData\\Local" says less than "AppData\\Local" in a narrow panel,
+    // unless the technical details are on.
+    const folder = settings.technical ? folderOf(item.path) : folderOf(item.path).replace(/^.*?[\\/](AppData[\\/])/i, "$1");
     // What the AI said it is, beside where it is: the tag only says whether it can go.
     const label = item.explainId === null ? answerFor(item.path)?.label : undefined;
     if (label) return `${label} · ${folder}`;
@@ -345,19 +368,23 @@
 {#if reviewing}
   {@const g = reviewing}
   <FileReview group={g} {version} busy={moving || undoing} onBack={() => (reviewing = null)} onMove={moveSelection} onHide={hide} />
+{:else if searching !== null}
+  <FileSearch sentence={searching} onBack={() => { searching = null; backFromTool(); }} onOptions={() => onNavigate("settings")} />
+{:else if tidying}
+  <TidyDownloads onBack={() => { tidying = false; backFromTool(); }} />
 {:else}
 <div class="layout">
   <div class="col">
     <div class="head">
       <div>
         <h1>{t("files.title")}</h1>
-        <p class="muted sub">{t("files.subtitle")}</p>
       </div>
       {#if !scanning}
         <button class="btn btn-ghost" onclick={() => load(true)}><Icon name="refresh" />{t("files.rescan")}</button>
       {/if}
     </div>
     {#if usesSampleData()}<SampleBanner />{/if}
+    <SearchBar onSearch={(s) => { notice = null; searching = s; }} onTidy={() => { notice = null; tidying = true; }} onOptions={() => onNavigate("settings")} />
 
     {#if scanning}
       <div class="card scan" role="status" aria-live="polite">
@@ -373,7 +400,6 @@
             <span class="muted">{t("files.checked", { count: count(progress.filesChecked) })}</span>
           </div>
         {/if}
-        <p class="muted note icon-line"><Icon name="shieldCheck" />{t("files.scanNote")}</p>
       </div>
     {:else if error}
       <div class="card message">
@@ -382,8 +408,10 @@
       </div>
     {:else if groups.length === 0}
       <div class="card message"><span class="big-icon"><Icon name="checkCircle" size={26} /></span><p>{t("files.empty")}</p></div>
+      <OffloadCards {focusedId} onFocus={focus} />
     {:else}
-      {#each sections as section (section.title)}
+      {#each sections as section, i (section.title)}
+        {#if i === 1}<OffloadCards {focusedId} onFocus={focus} />{/if}
         {#if section.items.length}
           <h2>{t(section.title)}</h2>
           {#each section.items as group (group.id)}
@@ -391,6 +419,8 @@
                  onclick={() => focus(group.id)} onkeydown={(e) => e.key === "Enter" && focus(group.id)}>
               {#if group.reviewOnly}
                 <span class="no-check"><Icon name="search" /></span>
+              {:else if reviewFirst(group)}
+                <span class="no-check"><Icon name="image" /></span>
               {:else}
                 <input type="checkbox" checked={checked.has(group.id)} onclick={(e) => e.stopPropagation()} onchange={() => toggle(group.id)} aria-label={t(group.titleKey)} />
               {/if}
@@ -417,9 +447,6 @@
           {moving ? t("files.moving") : actionLabel(selectionDeletes, selectionMoves, selectedBytes)}
         </button>
       </div>
-      {#if selectionDeletes}
-        <p class="muted how">{t("files.howRemoved", { days: quarantine.keepDays })}</p>
-      {/if}
     {/if}
 
     {#if !scanning && hiddenCount > 0}
@@ -513,20 +540,29 @@
         <div class="muted more">{t("files.notListed", { count: count(notListed(focused)) })}</div>
       {/if}
       <div class="grow"></div>
-      {#if reviewable(focused)}
+      {#if reviewFirst(focused)}
+        {@const g = focused}
+        <p class="muted review-note icon-line"><Icon name="info" />{t("files.reviewFirst")}</p>
+        <button class="btn btn-primary wide" onclick={() => openReview(g)}><Icon name="image" />{t("files.review.lookAtPhotos")}</button>
+      {:else if reviewable(focused)}
         {@const g = focused}
         <button class="btn btn-ghost wide" onclick={() => openReview(g)}><Icon name="search" />{t("files.review.oneByOne")}</button>
       {/if}
       {#if focused.reviewOnly}
-        <p class="muted review-note icon-line"><Icon name="info" />{t("files.reviewOnly")}</p>
+        <!-- Folders are moved one at a time, from their explanation. -->
+      {:else if reviewFirst(focused)}
+        <!-- Moved from the review only. -->
       {:else}
         {@const id = focused.id}
         {@const deletes = DELETE_NOW_GROUPS.includes(id)}
-        {#if deletes}<p class="muted how">{t("files.deletedRightAway")}</p>{/if}
         <button class="btn btn-primary wide" disabled={moving} onclick={() => remove([id])}>
           {moving ? t("files.moving") : actionLabel(deletes, !deletes, focused.sizeBytes)}
         </button>
       {/if}
+    {:else if isOffload(focusedId)}
+      {#key focusedId}
+        <OffloadPanel kind={focusedId === "offload-onedrive" ? "onedrive" : "move"} />
+      {/key}
     {:else}
       <p class="muted">{t("files.pickGroup")}</p>
     {/if}
@@ -567,7 +603,7 @@
     {/if}
     <button role="menuitem" class="menu-hide" onclick={() => act((g) => hide([hiddenItem("group", g.id, g.titleKey)]))}>
       <EyeOffIcon />
-      <span>{t("files.hideGroup")}<span class="muted menu-hint">{t("files.hideGroupHint")}</span></span>
+      <span>{t("files.hideGroup")}</span>
     </button>
   </div>
 {/if}
@@ -579,7 +615,6 @@
   .col { flex: 1; min-width: 0; }
   .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .head .btn { flex: none; margin-top: 4px; }
-  .sub { margin: 3px 0 10px; }
   h2 { font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.3px; text-transform: uppercase; margin: 14px 0 6px; }
   .group { display: flex; align-items: center; gap: 12px; padding: 11px 14px; margin-bottom: 7px; border-width: 2px; border-color: transparent; cursor: pointer; }
   .group.focused { border-color: var(--accent); }
@@ -592,8 +627,6 @@
   .footer { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
   .btn:disabled { opacity: 0.5; cursor: default; }
   .grow { flex: 1; }
-  .how { font-size: 12px; margin-top: 8px; text-align: right; }
-  .side .how { text-align: left; margin-top: 12px; }
 
   .scan { padding: 22px 24px; margin-top: 8px; }
   .scan-title { font-size: 17px; font-weight: 600; }
@@ -604,7 +637,6 @@
   .steps i.current::after { content: ""; position: absolute; inset: 0; width: 40%; border-radius: 5px; background: var(--accent); animation: sweep 1.2s ease-in-out infinite; }
   @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
   .scan-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; flex-wrap: wrap; }
-  .note { font-size: 12.5px; margin-top: 14px; }
   .message { padding: 22px 24px; margin-top: 8px; display: flex; align-items: center; gap: 14px; }
   .message p { flex: 1; }
   .big-icon { display: flex; color: var(--safe-fg); }
@@ -664,7 +696,6 @@
   .menu hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
   .menu-hide { display: flex; align-items: flex-start; gap: 8px; }
   .menu-hide :global(.icon) { margin-top: 2px; }
-  .menu-hint { display: block; font-size: 12px; margin-top: 2px; }
   .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
   .toast.error { border-left-color: var(--danger); }
   /* Above the review's sticky footer, so its buttons stay reachable. */

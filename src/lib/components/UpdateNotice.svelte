@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
   import { t } from "../i18n/index.svelte";
-  import { install, update } from "../updates.svelte";
+  import { install, update, versionLabel } from "../updates.svelte";
 
   /** Shows Settings, where the download progress is. */
   let { onOpenSettings }: { onOpenSettings: () => void } = $props();
@@ -16,7 +16,7 @@
 {#if update.phase.kind === "available" && !update.noticeDismissed}
   <div class="notice card" role="status">
     <strong class="title"><Icon name="download" size={18} />{t("updateNotice.title")}</strong>
-    <p class="muted">{t("updateNotice.text", { version: update.phase.info.version })}</p>
+    <p class="muted">{t("updateNotice.text", { version: versionLabel(update.phase.info.version) })}</p>
     <div class="actions">
       <button class="btn btn-ghost" onclick={() => (update.noticeDismissed = true)}>{t("updateNotice.later")}</button>
       <button class="btn btn-primary" onclick={start}>{t("updateNotice.update")}</button>

@@ -8,12 +8,18 @@
 //! files that are gone or changed since the scan (moved, edited, restored under
 //! a new name) and excluded ones, so every screen agrees after a move or an undo.
 //!
-//! Duplicates: the scan keeps each set of identical files, oldest first. The user
-//! can choose which copy to keep, but at least one copy of every set always stays
-//! where it is: a request to move all of them leaves the oldest in place.
+//! Duplicates and similar photos: the scan keeps each set of identical files
+//! (oldest first) and of photos that look alike (largest first). The user can
+//! choose which to keep, but at least one file of every set always stays where it
+//! is: a request to move all of them leaves the first one in place.
+//!
+//! Similar photos are never moved as a whole group, only after a look at each set:
+//! photos that look alike are still different photos. Mirrored by
+//! `REVIEW_FIRST_GROUPS` in `src/lib/api.ts`.
 
 use crate::cleanup;
 use crate::files::{iso_date, FileGroup, FileItem, Kept, LastScan, ScannedFile, Seen, MAX_ITEMS};
+use crate::history;
 use crate::quarantine::{MoveReport, Quarantine};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -25,6 +31,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 
 const DUPLICATES: &str = "duplicates";
+const SIMILAR: &str = "similar-photos";
 /// How many files of a group the review lists (largest first); the rest are counted.
 const MAX_REVIEW_FILES: usize = 2000;
 /// How many duplicate sets the review lists (most space first).
@@ -58,13 +65,14 @@ pub struct ReviewFile {
 #[serde(rename_all = "camelCase")]
 pub struct GroupReview {
     pub group_id: String,
-    /// Files that can be moved: for duplicates, the extra copies.
+    /// Files that can be moved: for sets, every file but the one each set keeps.
     pub total_count: u64,
     pub total_bytes: u64,
-    /// Largest first, at most [`MAX_REVIEW_FILES`]. Empty for duplicates.
+    /// Largest first, at most [`MAX_REVIEW_FILES`]. Empty for duplicates and similar photos.
     pub files: Vec<ReviewFile>,
-    /// Duplicates only: sets of identical files, each oldest first (the copy
-    /// kept by default), most space first, at most [`MAX_REVIEW_SETS`].
+    /// Duplicates and similar photos only: the sets, each with the file kept by
+    /// default first (the oldest copy, or the largest photo), most space first, at
+    /// most [`MAX_REVIEW_SETS`].
     pub duplicate_sets: Vec<Vec<ReviewFile>>,
 }
 
@@ -154,11 +162,19 @@ fn current(file: &ScannedFile) -> Option<Seen> {
     same.then(|| Seen::from_meta(file.path.clone(), &meta))
 }
 
-/// Duplicate sets as they are now: only files still there and not excluded,
-/// only sets that still have two copies or more. Oldest first, as scanned.
-fn current_sets(kept: &Kept) -> Vec<Vec<Seen>> {
-    kept.duplicate_sets
-        .iter()
+/// The sets of a group made of sets (duplicates, similar photos).
+fn sets_of<'a>(kept: &'a Kept, group_id: &str) -> Option<&'a [Vec<ScannedFile>]> {
+    match group_id {
+        DUPLICATES => Some(&kept.duplicate_sets),
+        SIMILAR => Some(&kept.similar_sets),
+        _ => None,
+    }
+}
+
+/// Sets as they are now: only files still there and not excluded, only sets
+/// that still have two files or more. In the order scanned.
+fn current_sets(kept: &Kept, sets: &[Vec<ScannedFile>]) -> Vec<Vec<Seen>> {
+    sets.iter()
         .map(|set| {
             set.iter()
                 .filter(|f| !is_excluded(kept, &f.path))
@@ -174,12 +190,9 @@ pub fn current_groups(kept: &Kept) -> Vec<FileGroup> {
     kept.groups
         .iter()
         .filter(|g| !kept.hidden_groups.contains(&g.id))
-        .filter_map(|g| {
-            if g.id == DUPLICATES {
-                duplicates_group(kept, g)
-            } else {
-                files_group(kept, g)
-            }
+        .filter_map(|g| match sets_of(kept, &g.id) {
+            Some(sets) => sets_group(kept, g, sets),
+            None => files_group(kept, g),
         })
         .collect()
 }
@@ -245,12 +258,14 @@ fn files_group(kept: &Kept, g: &FileGroup) -> Option<FileGroup> {
     })
 }
 
-fn duplicates_group(kept: &Kept, g: &FileGroup) -> Option<FileGroup> {
-    let mut items: Vec<FileItem> = current_sets(kept)
+fn sets_group(kept: &Kept, g: &FileGroup, sets: &[Vec<ScannedFile>]) -> Option<FileGroup> {
+    // Only identical copies are "a copy of" the file kept.
+    let copies = g.id == DUPLICATES;
+    let mut items: Vec<FileItem> = current_sets(kept, sets)
         .iter()
         .flat_map(|set| {
-            let original = &set[0].path;
-            set[1..].iter().map(move |copy| copy.item(Some(original)))
+            let original = copies.then_some(set[0].path.as_path());
+            set[1..].iter().map(move |copy| copy.item(original))
         })
         .collect();
     if items.is_empty() {
@@ -278,8 +293,11 @@ pub fn movable(kept: &Kept, group_id: &str) -> Option<Vec<ScannedFile>> {
         return None;
     }
     let files = kept.files.get(group_id)?;
+    if group_id == SIMILAR {
+        return None;
+    }
     if group_id == DUPLICATES {
-        let copies = current_sets(kept)
+        let copies = current_sets(kept, &kept.duplicate_sets)
             .iter()
             .flat_map(|set| set[1..].iter().map(Seen::scanned))
             .collect();
@@ -295,8 +313,8 @@ pub fn movable(kept: &Kept, group_id: &str) -> Option<Vec<ScannedFile>> {
 }
 
 /// The scanned files of a group among `paths`. Paths the scan did not find in
-/// that group, and excluded ones, are ignored. For duplicates, any copy can be
-/// picked, but one copy of every set always stays (the oldest of those picked).
+/// that group, and excluded ones, are ignored. For sets, any file can be picked,
+/// but one file of every set always stays (the first of those picked).
 pub fn pick(kept: &Kept, group_id: &str, paths: &[String]) -> Vec<ScannedFile> {
     if kept.hidden_groups.iter().any(|g| g == group_id) {
         return Vec::new();
@@ -304,9 +322,9 @@ pub fn pick(kept: &Kept, group_id: &str, paths: &[String]) -> Vec<ScannedFile> {
     let wanted: HashSet<&Path> = paths.iter().map(Path::new).collect();
     let chosen =
         |f: &&ScannedFile| wanted.contains(f.path.as_path()) && !is_excluded(kept, &f.path);
-    if group_id == DUPLICATES {
+    if let Some(sets) = sets_of(kept, group_id) {
         let mut out = Vec::new();
-        for set in &kept.duplicate_sets {
+        for set in sets {
             let present: Vec<&ScannedFile> = set.iter().filter(|f| current(f).is_some()).collect();
             let mut picked: Vec<&ScannedFile> = present.iter().copied().filter(chosen).collect();
             if !picked.is_empty() && picked.len() >= present.len() {
@@ -335,9 +353,9 @@ fn review_file(seen: &Seen) -> ReviewFile {
 /// Every file of a group, for the review. `None` for a group the scan did not find.
 pub fn review(kept: &Kept, group_id: &str) -> Option<GroupReview> {
     let files = kept.files.get(group_id)?;
-    if group_id == DUPLICATES {
-        let mut sets = current_sets(kept);
-        let wasted = |set: &Vec<Seen>| set[0].size * (set.len() as u64 - 1);
+    if let Some(sets) = sets_of(kept, group_id) {
+        let mut sets = current_sets(kept, sets);
+        let wasted = |set: &Vec<Seen>| set[1..].iter().map(|f| f.size).sum::<u64>();
         sets.sort_by(|a, b| wasted(b).cmp(&wasted(a)).then(a[0].path.cmp(&b[0].path)));
         let total_count = sets.iter().map(|s| s.len() as u64 - 1).sum();
         let total_bytes = sets.iter().map(wasted).sum();
@@ -371,10 +389,16 @@ pub fn review(kept: &Kept, group_id: &str) -> Option<GroupReview> {
     })
 }
 
-/// True when the scan found this file (in any group or duplicate set).
+/// True when the scan found this file (in any group or set).
 fn is_known(kept: &Kept, path: &Path) -> bool {
     kept.files.values().flatten().any(|f| f.path == path)
         || kept.duplicate_sets.iter().flatten().any(|f| f.path == path)
+        || kept.similar_sets.iter().flatten().any(|f| f.path == path)
+}
+
+/// Found by a search or listed in a Downloads tidy proposal: also shown, opened and previewed.
+fn found_elsewhere(app: &AppHandle, path: &Path) -> bool {
+    crate::search::knows(app, path) || crate::tidy::knows(app, path)
 }
 
 fn can_open(path: &Path) -> bool {
@@ -541,10 +565,17 @@ pub async fn quarantine_file_selection(
         };
         let quarantine = app.state::<Quarantine>();
         let mut report = MoveReport::default();
+        let mut names = Vec::new();
+        let mut result = Ok(());
         for (group_id, files) in picked.into_iter().filter(|(_, f)| !f.is_empty()) {
-            cleanup::remove(&quarantine, &group_id, &files, now_secs(), &mut report)
-                .map_err(|e| e.to_string())?;
+            names.push(cleanup::group_title(&group_id));
+            result = cleanup::remove(&quarantine, &group_id, &files, now_secs(), &mut report);
+            if result.is_err() {
+                break;
+            }
         }
+        history::record_move(&app, history::Kind::Files, names, &report);
+        result.map_err(|e| e.to_string())?;
         Ok(report)
     })
     .await
@@ -594,7 +625,7 @@ pub async fn file_thumbnail(
     size: u32,
 ) -> Result<Option<String>, String> {
     let path = PathBuf::from(path);
-    let known = {
+    let known = found_elsewhere(&app, &path) || {
         let check = path.clone();
         with_kept(app, move |kept| is_known(kept, &check)).await?
     };
@@ -611,7 +642,9 @@ pub async fn file_thumbnail(
 pub async fn open_scanned_file(app: AppHandle, path: String) -> Result<(), String> {
     let path = PathBuf::from(path);
     let check = path.clone();
-    if !with_kept(app, move |kept| is_known(kept, &check)).await? || !can_open(&path) {
+    let known =
+        found_elsewhere(&app, &path) || with_kept(app, move |kept| is_known(kept, &check)).await?;
+    if !known || !can_open(&path) {
         return Err("this file cannot be opened from here".into());
     }
     platform::open(&path).map_err(|e| e.to_string())
@@ -622,14 +655,19 @@ pub async fn open_scanned_file(app: AppHandle, path: String) -> Result<(), Strin
 pub async fn show_scanned_file(app: AppHandle, path: String) -> Result<(), String> {
     let path = PathBuf::from(path);
     let check = path.clone();
-    if !with_kept(app, move |kept| is_known(kept, &check)).await? {
+    if !found_elsewhere(&app, &path) && !with_kept(app, move |kept| is_known(kept, &check)).await? {
         return Err("this file was not found by the scan".into());
     }
     platform::reveal(&path).map_err(|e| e.to_string())
 }
 
+/// Windows's own preview of a file (a photo, a video's frame) as PNG bytes, for the local index.
+pub(crate) fn thumbnail_png(path: &Path, size: u32) -> Option<Vec<u8>> {
+    platform::thumbnail_png(path, size)
+}
+
 #[cfg(windows)]
-mod platform {
+pub(crate) mod platform {
     use std::io;
     use std::os::windows::process::CommandExt;
     use std::path::Path;
@@ -644,6 +682,10 @@ mod platform {
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
     pub fn thumbnail(path: &Path, size: u32) -> Option<String> {
+        thumbnail_png(path, size).map(|png| crate::apps::icon::png_data_url(&png))
+    }
+
+    pub fn thumbnail_png(path: &Path, size: u32) -> Option<Vec<u8>> {
         // SAFETY: COM is set up for this thread and undone below when we did set it up.
         let init = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
         let result = (|| {
@@ -655,9 +697,9 @@ mod platform {
                 let bitmap = factory
                     .GetImage(SIZE { cx: side, cy: side }, SIIGBF_THUMBNAILONLY)
                     .ok()?;
-                let url = crate::apps::icon::from_bitmap(bitmap);
+                let png = crate::apps::icon::png_from_bitmap(bitmap);
                 let _ = DeleteObject(bitmap.into());
-                url
+                png
             }
         })();
         if init.is_ok() {
@@ -698,11 +740,15 @@ mod platform {
 
 /// Easy Uninstaller targets Windows; elsewhere there are no previews and nothing opens.
 #[cfg(not(windows))]
-mod platform {
+pub(crate) mod platform {
     use std::io;
     use std::path::Path;
 
     pub fn thumbnail(_path: &Path, _size: u32) -> Option<String> {
+        None
+    }
+
+    pub fn thumbnail_png(_path: &Path, _size: u32) -> Option<Vec<u8>> {
         None
     }
 
@@ -828,6 +874,7 @@ mod tests {
             ],
             files,
             duplicate_sets: vec![dups.clone()],
+            similar_sets: Vec::new(),
             excluded: Vec::new(),
             hidden_groups: Vec::new(),
         };
@@ -911,6 +958,45 @@ mod tests {
             movable(&f.kept, "large-files").unwrap(),
             f.large[..1].to_vec()
         );
+    }
+
+    #[test]
+    fn similar_photos_are_moved_only_from_the_review_and_one_always_stays() {
+        let mut f = fixture("similar");
+        let photos = vec![
+            f.s.file("Pictures/IMG_1041.jpg", "largest"),
+            f.s.file("Pictures/IMG_1042.jpg", "mid"),
+            f.s.file("Pictures/IMG_1043.jpg", "s"),
+        ];
+        f.kept.similar_sets = vec![photos.clone()];
+        f.kept
+            .files
+            .insert(SIMILAR.to_string(), photos[1..].to_vec());
+        f.kept.groups.push(group(SIMILAR, vec![]));
+
+        assert!(
+            movable(&f.kept, SIMILAR).is_none(),
+            "never as a whole group"
+        );
+        let g = current_groups(&f.kept)
+            .into_iter()
+            .find(|g| g.id == SIMILAR)
+            .unwrap();
+        assert_eq!((g.item_count, g.size_bytes), (2, 4));
+        assert!(g.items.iter().all(|i| i.duplicate_of.is_none()));
+
+        let r = review(&f.kept, SIMILAR).unwrap();
+        assert_eq!((r.total_count, r.total_bytes), (2, 4));
+        assert_eq!(
+            r.duplicate_sets[0][0].path,
+            photos[0].path.to_str().unwrap()
+        );
+
+        // Keeping two of three: only the one picked goes.
+        assert_eq!(pick(&f.kept, SIMILAR, &paths(&photos[2..])), photos[2..]);
+        // Asking for all of them still leaves the first.
+        assert_eq!(pick(&f.kept, SIMILAR, &paths(&photos)), photos[1..]);
+        assert!(is_known(&f.kept, &photos[0].path));
     }
 
     #[test]

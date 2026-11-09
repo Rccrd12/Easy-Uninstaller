@@ -5,7 +5,7 @@
   import { addExclusions, listExclusions, removeExclusions } from "../api";
   import { relativeTime } from "../format";
   import { locale, t } from "../i18n/index.svelte";
-  import { displayPath, folderOf, nameOf } from "../paths";
+  import { folderOf, nameOf, shownPath } from "../paths";
   import type { Screen } from "../screens";
   import type { Exclusion, HiddenKind } from "../types";
 
@@ -49,9 +49,9 @@
 
   function whereOf(e: Exclusion): string {
     if (e.kind === "group") return t("hidden.groupNote");
-    if (e.kind === "folder") return `${displayPath(e.path)} · ${t("hidden.folderNote")}`;
-    if (e.kind === "leftover") return displayPath(e.path);
-    return displayPath(folderOf(e.path));
+    if (e.kind === "folder") return `${shownPath(e.path)} · ${t("hidden.folderNote")}`;
+    if (e.kind === "leftover") return shownPath(e.path);
+    return shownPath(folderOf(e.path));
   }
 
   async function showAgain(items: Exclusion[]) {
@@ -88,7 +88,6 @@
 
 <button class="back" onclick={() => onNavigate("settings")}><Icon name="chevronLeft" size={14} />{t("settings.title")}</button>
 <h1>{t("hidden.title")}</h1>
-<p class="muted sub">{t("hidden.subtitle")}</p>
 
 {#if loading}
   <div class="card message" role="status">…</div>
@@ -127,7 +126,6 @@
   </div>
 
   <div class="footer">
-    <span class="muted small">{t("hidden.note")}</span>
     <span class="grow"></span>
     <button class="btn btn-ghost" disabled={busy} onclick={() => showAgain(visible)}>{t("hidden.showAll")}</button>
   </div>
@@ -148,7 +146,6 @@
 <style>
   .back { border: none; background: none; color: var(--text-muted); font-size: 13px; padding: 2px 0; margin-bottom: 4px; display: inline-flex; align-items: center; gap: 4px; }
   .back:hover { color: var(--accent); }
-  .sub { margin: 3px 0 14px; max-width: 640px; }
   .message { padding: 22px 24px; display: flex; align-items: center; gap: 14px; }
   .big-icon { display: flex; color: var(--text-muted); }
   .segmented { display: inline-flex; background: var(--track); border-radius: 8px; padding: 3px; margin-bottom: 12px; flex-wrap: wrap; }

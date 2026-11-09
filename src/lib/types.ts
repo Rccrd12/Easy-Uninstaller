@@ -15,17 +15,83 @@ export interface InstalledApp {
   publisher: string;
   sizeBytes: number;
   source: AppSource;
+  /** As the app reports it ("12.3.1"); empty when unknown. Shown with the technical details. */
+  version: string;
+  /** The install folder, when known. Shown with the technical details. */
+  location: string | null;
   /** ISO date, or null when Windows does not record it. */
   installedOn: string | null;
   /** Human readable, approximate. null when unknown: Windows has no reliable "last used" value. */
   lastUsed: string | null;
   /** True only when we know the app was never opened. */
   neverUsed: boolean;
+  /** Came with Windows or the PC (src-tauri/src/apps/preinstalled.rs). */
   preinstalled: boolean;
+  /** Preinstalled and usually not needed. */
   bloatware: boolean;
+  /** What the "New PC" cleanup says about it; null when it is not suggested. */
+  newPc: NewPcAdvice | null;
   /** Background of the letter tile shown when there is no icon. */
   iconColor: string;
   /** PNG data URL, or null to show the letter tile. */
+  icon: string | null;
+  /** Id of its cache (see `AppCache`) when we know where the app keeps it, else null. */
+  cacheId: string | null;
+}
+
+/** The cache of a well-known app, measured on this PC. Mirrors `AppCache` in src-tauri/src/app_cache.rs. */
+export interface AppCache {
+  /** Matches `InstalledApp.cacheId`. */
+  id: string;
+  /** What emptying the cache frees. */
+  cacheBytes: number;
+  fileCount: number;
+  /** The app's own data without the cache: chats, settings, profiles. */
+  dataBytes: number;
+  /** The app is open: the cache can be emptied only once it is closed. */
+  running: boolean;
+}
+
+/** Mirrors `ClearCacheOutcome` in src-tauri/src/app_cache.rs. */
+export interface ClearCacheOutcome {
+  /** True when nothing was done because the app is open. */
+  running: boolean;
+  report: MoveReport;
+  /** The cache measured again afterwards. */
+  cache: AppCache | null;
+}
+
+/** "remove": selected by default in the New PC cleanup; "choose": shown, not selected. */
+export type NewPcAdviceKind = "remove" | "choose";
+/** Why an app is suggested: the UI shows `newPc.reasons.<reason>`. */
+export type NewPcReason =
+  | "game" | "trial" | "promo" | "rarely" | "retired" | "xbox"
+  | "phone" | "social" | "streaming" | "office" | "video" | "tool";
+
+/** Mirrors `NewPcAdvice` in src-tauri/src/apps/preinstalled.rs. */
+export interface NewPcAdvice {
+  advice: NewPcAdviceKind;
+  reason: NewPcReason;
+}
+
+/** How an uninstalled app can be installed again. */
+export type ReinstallWay = "store" | "steam" | "website" | "search";
+
+/** An app uninstalled with Easy Uninstaller. Mirrors `UninstalledApp` in src-tauri/src/reinstall.rs. */
+export interface UninstalledApp {
+  /** The id it had when installed. */
+  id: string;
+  name: string;
+  publisher: string;
+  source: AppSource;
+  sizeBytes: number;
+  /** Seconds since 1970. */
+  uninstalledAt: number;
+  way: ReinstallWay;
+  /** For "website": the address shown on the button, like "videolan.org". */
+  site: string;
+  link: string;
+  iconColor: string;
   icon: string | null;
 }
 
@@ -60,7 +126,7 @@ export interface FileGroup {
   reviewOnly: boolean;
 }
 
-export type ScanStep = "caches" | "downloads" | "personal" | "duplicates" | "appFolders";
+export type ScanStep = "caches" | "downloads" | "personal" | "duplicates" | "photos" | "appFolders";
 
 export interface ScanProgress {
   step: ScanStep;
@@ -185,12 +251,71 @@ export interface MoveReport {
   declinedCount: number;
 }
 
+/** What an action in the history was. Mirrors `Kind` in src-tauri/src/history.rs. */
+export type HistoryKind = "quickClean" | "files" | "leftovers" | "appFolder" | "uninstall";
+
+/** A name in a history row: an i18n key (a file group) or plain text (an app). Mirrors `Title` in quarantine.rs. */
+export type HistoryName = { key: string } | { text: string };
+
+/** One action in the history. Mirrors `HistoryItem` in src-tauri/src/history.rs. */
+export interface HistoryItem {
+  id: string;
+  /** Unix seconds. */
+  at: number;
+  kind: HistoryKind;
+  names: HistoryName[];
+  itemCount: number;
+  /** Space given back by this action so far. */
+  freedBytes: number;
+  /** Still in Quarantine on the same drive: freed when deleted for good. */
+  pendingBytes: number;
+  /** When the last of that is deleted for good (unix seconds). */
+  pendingUntil: number | null;
+  /** Put back with Restore. */
+  restoredBytes: number;
+  restoredAt: number | null;
+  /** The size is Windows' estimate (uninstalled apps). */
+  estimated: boolean;
+}
+
+/** Everything Easy Uninstaller did. Mirrors `HistorySummary` in src-tauri/src/history.rs. */
+export interface HistorySummary {
+  /** Space given back since the first action. */
+  freedBytes: number;
+  pendingBytes: number;
+  /** When the first action was recorded (unix seconds). */
+  since: number | null;
+  actionCount: number;
+  /** Newest first. */
+  items: HistoryItem[];
+}
+
 /** Mirrors `QuarantineSettings` in src-tauri/src/quarantine.rs. */
 export interface QuarantineSettings {
   /** 3, 7 or 30. */
   keepDays: number;
   /** "D:", or null for the app's own folder on the system drive. */
   drive: string | null;
+}
+
+/** Mirrors `ReminderSettings` in src-tauri/src/reminders.rs. */
+export interface ReminderSettings {
+  /** A Windows notification when less than `threshold` percent of the system drive is free. */
+  lowSpace: boolean;
+  /** One of `REMINDER_THRESHOLDS` in api.ts. */
+  threshold: number;
+  /** A Windows notification when the app has not been opened for 30 days. */
+  monthly: boolean;
+}
+
+/** Mirrors `ReminderTexts` in src-tauri/src/reminders.rs: the notifications in the user's language. */
+export interface ReminderTexts {
+  lowSpaceTitle: string;
+  lowSpaceBody: string;
+  monthlyTitle: string;
+  monthlyBody: string;
+  /** The decimal separator for sizes. */
+  decimal: string;
 }
 
 /** Another fixed drive. Mirrors `DriveInfo` in src-tauri/src/disk.rs. */
@@ -233,12 +358,15 @@ export interface ReviewFile {
 /** Every file of one group, for reviewing them one by one. Mirrors `GroupReview`. */
 export interface GroupReview {
   groupId: string;
-  /** Files that can be moved: for duplicates, the extra copies. */
+  /** Files that can be moved: for sets, every file but the one each set keeps. */
   totalCount: number;
   totalBytes: number;
-  /** Largest first, at most 2,000. Empty for duplicates. */
+  /** Largest first, at most 2,000. Empty for duplicates and similar photos. */
   files: ReviewFile[];
-  /** Duplicates only: sets of identical files, each oldest first, most space first. */
+  /**
+   * Duplicates and similar photos only: the sets, most space first, each with the file
+   * kept by default first (the oldest copy, or the largest photo).
+   */
   duplicateSets: ReviewFile[][];
 }
 
@@ -350,10 +478,16 @@ export interface AiStats {
   askedThisMonth: number;
 }
 
-/** A newer version of the app. Mirrors `UpdateInfo` in src-tauri/src/updater.rs. */
+/** The version to install. Mirrors `UpdateInfo` in src-tauri/src/updater.rs. */
 export interface UpdateInfo {
   version: string;
   currentVersion: string;
+  /** A beta (Settings > Beta versions): changes not released yet. */
+  beta: boolean;
+  /** Older than the beta running: going back to the release. */
+  back: boolean;
+  /** What a beta holds, one change per line. */
+  notes: string[];
 }
 
 /** Sent while an update downloads. Mirrors `UpdateProgress` in src-tauri/src/updater.rs. */
@@ -361,4 +495,340 @@ export interface UpdateProgress {
   downloadedBytes: number;
   /** null when the size is not known. */
   totalBytes: number | null;
+}
+
+/** How much a startup program slows down the start of Windows. */
+export type StartupImpact = "high" | "medium" | "low";
+/** What the app suggests for a startup program. "system": part of Windows, not offered. */
+export type StartupAdvice = "turnOff" | "keep" | "system" | "none";
+
+/** A program that starts with Windows. Mirrors `StartupApp` in src-tauri/src/startup.rs. */
+export interface StartupApp {
+  /** Where it lives and its name, e.g. "hkcu-run:Spotify". */
+  id: string;
+  name: string;
+  publisher: string;
+  /** i18n key under `startup.notes`, or null to show the file name. */
+  note: string | null;
+  /** The program's file name, e.g. "Spotify.exe". Empty for Store apps. */
+  fileName: string;
+  command: string;
+  enabled: boolean;
+  impact: StartupImpact;
+  advice: StartupAdvice;
+  /** Starts for every user: Windows asks for permission to change it. */
+  allUsers: boolean;
+  iconColor: string;
+  icon: string | null;
+}
+
+export interface StartupChange {
+  id: string;
+  enabled: boolean;
+}
+
+/** Mirrors `StartupReport` in src-tauri/src/startup.rs. */
+export interface StartupReport {
+  changed: string[];
+  failed: string[];
+  /** Left as they were: the user said no to the Windows permission prompt. */
+  declined: string[];
+}
+
+// ── Free up space without deleting (src-tauri/src/offload.rs) ──────────────
+
+/** A file offered to be made online only or moved. Mirrors `OffloadFile`. */
+export interface OffloadFile {
+  path: string;
+  sizeBytes: number;
+  /** "YYYY-MM-DD": the later of last opened and last changed. */
+  lastUsed: string;
+}
+
+/** Mirrors `OneDriveInfo`. */
+export interface OneDriveInfo {
+  /** OneDrive folders on this PC; empty when OneDrive is not set up. */
+  folders: string[];
+  /** Files on the PC and on OneDrive that can be made online only. */
+  fileCount: number;
+  sizeBytes: number;
+  /** Largest first, at most 200. */
+  files: OffloadFile[];
+  /** Marked online only, but OneDrive has not removed the copy on the PC yet. */
+  freeingCount: number;
+  freeingBytes: number;
+}
+
+/** A file moved to another drive. Mirrors `MovedFile`. */
+export interface MovedFile {
+  id: string;
+  /** Where it was. */
+  originalPath: string;
+  /** Where it is now. */
+  path: string;
+  sizeBytes: number;
+  /** Unix seconds. */
+  movedAt: number;
+  base: string;
+}
+
+/** Mirrors `MoveInfo`. */
+export interface MoveInfo {
+  /** The drive files are moved from, "C:". */
+  systemDrive: string;
+  /** The drives files can go to, most free space first; empty when there is none. */
+  drives: DriveInfo[];
+  fileCount: number;
+  sizeBytes: number;
+  /** Largest first, at most 200. */
+  files: OffloadFile[];
+  /** Moved before and still there, newest first. */
+  moved: MovedFile[];
+}
+
+/** Mirrors `OffloadScan`. */
+export interface OffloadScan {
+  oneDrive: OneDriveInfo;
+  moveFiles: MoveInfo;
+}
+
+/** What "Free up space" or its undo did. Mirrors `OnlineReport`. */
+export interface OnlineReport {
+  doneCount: number;
+  doneBytes: number;
+  skippedCount: number;
+}
+
+/** Mirrors `offload::MoveReport`. */
+export interface DriveMoveReport {
+  /** The moves, to undo them. */
+  ids: string[];
+  movedCount: number;
+  movedBytes: number;
+  /** In use, changed since the scan, or gone. */
+  skippedCount: number;
+  /** Left in place because the other drive is nearly full. */
+  noRoomCount: number;
+  /** The folder on the other drive. */
+  folder: string;
+}
+
+/** Mirrors `MoveBackReport`. */
+export interface MoveBackReport {
+  restoredCount: number;
+  restoredBytes: number;
+  renamedCount: number;
+  failedCount: number;
+}
+
+/** Sent after each file while files are moved. Mirrors `MoveProgress`. */
+export interface MoveProgress {
+  doneBytes: number;
+  totalBytes: number;
+  doneCount: number;
+  totalCount: number;
+}
+
+// ── Finding files by a sentence (src-tauri/src/search.rs) ──────────────────
+
+export type SearchKind = "image" | "video" | "audio" | "document" | "archive" | "program" | "disc";
+export type SearchPlace = "desktop" | "documents" | "downloads" | "pictures" | "videos" | "music";
+export type SearchSort = "size" | "oldest" | "newest";
+
+/** What to look for. The AI fills it from a sentence; the search runs on this PC. */
+export interface SearchFilter {
+  /** Any of these kinds; empty for any file. */
+  kinds: SearchKind[];
+  minBytes: number | null;
+  maxBytes: number | null;
+  /** Not opened or changed for at least this many days. */
+  unusedDays: number | null;
+  /** Changed in the last this many days. */
+  recentDays: number | null;
+  /** Empty for all the user's folders. */
+  places: SearchPlace[];
+  /** Words that must all be in the file or folder names. */
+  words: string[];
+  sort: SearchSort;
+  /** What the files show or are about ("holidays at the sea"): looked for in the local index. */
+  topic: string | null;
+  /** With a topic: also the files only a little like it. */
+  loose: boolean;
+}
+
+export interface FoundFile {
+  path: string;
+  sizeBytes: number;
+  /** YYYY-MM-DD: the later of last opened and last changed. */
+  lastUsed: string;
+}
+
+export interface SearchResult {
+  /** The filter as Rust used it. */
+  filter: SearchFilter;
+  /** The first 200 in the chosen order. */
+  files: FoundFile[];
+  totalCount: number;
+  totalBytes: number;
+  /** Over 5000 matches: only the first ones can be moved. */
+  tooMany: boolean;
+  /** The search stopped early (a very large profile). */
+  partial: boolean;
+  /** The topic was looked for in the local index: files in order of likeness. */
+  byTopic: boolean;
+  /** Photos and videos the index has not looked at yet. */
+  notIndexed: number;
+  /** Files left out for being only a little like the topic. */
+  lessAlike: number;
+  /** Why the topic could not be looked for (an `index.error.*` key). */
+  topicError: string | null;
+}
+
+// ── The local index (src-tauri/src/semantic.rs) ─────────────────────────────
+
+/** Light: 4-bit model. Better: 8-bit. Best: 16-bit, three times the size. */
+export type IndexQuality = "light" | "better" | "best";
+/** Quick: the video's preview. Partial: 8 frames. Full: a frame every second, kept when the scene changes. */
+export type IndexDepth = "quick" | "partial" | "full";
+
+/** Download: EmbeddingGemma 2, fetched by the app. Files: GGUF files already on this PC. Server: a llama.cpp server on this PC. */
+export type IndexSource = "download" | "files" | "server";
+
+export interface IndexSettings {
+  source: IndexSource;
+  quality: IndexQuality;
+  /** Files: the model and its picture part (`mmproj…gguf`). */
+  ownModel: string;
+  ownVision: string;
+  /** Server: its address, on this PC only. */
+  serverUrl: string;
+  depth: IndexDepth;
+  photos: boolean;
+  videos: boolean;
+  /** Through Windows Search, which already reads them. */
+  documents: boolean;
+  /** Every fixed drive, not only the user's folders. */
+  wholePc: boolean;
+  paused: boolean;
+}
+
+export interface IndexDownload {
+  doneBytes: number;
+  totalBytes: number;
+  /** Checking the files before they are used. */
+  verifying: boolean;
+}
+
+export interface IndexStatus {
+  settings: IndexSettings;
+  /** The chosen model and the engine are on this PC. */
+  ready: boolean;
+  download: IndexDownload | null;
+  /** An `index.error.*` key, maybe with `:detail`. */
+  error: string | null;
+  indexing: boolean;
+  /** Photos and videos in the index. */
+  indexed: number;
+  /** Still to look at in this round. */
+  pending: number;
+  /** The file being looked at. */
+  current: string | null;
+  diskBytes: number;
+  /** Still to download for the chosen model. */
+  downloadBytes: number;
+}
+
+/** What "Try" found out about a model. */
+export interface IndexCheck {
+  text: boolean;
+  pictures: boolean;
+  dim: number;
+  /** An `index.error.*` key, maybe with `:detail`. */
+  error: string | null;
+}
+
+/** An embedding model another app downloaded (LM Studio, llama.cpp, Hugging Face). */
+export interface OwnModel {
+  model: string;
+  /** The `mmproj` file beside it: without it pictures cannot be read. */
+  vision: string | null;
+  bytes: number;
+}
+
+// ── Tidying Downloads (src-tauri/src/tidy.rs) ──────────────────────────────
+
+export type TidyDest = "downloads" | "documents" | "pictures" | "videos" | "music";
+
+export interface TidyFile {
+  path: string;
+  sizeBytes: number;
+  /** YYYY-MM-DD. */
+  modified: string;
+}
+
+export interface TidyFolder {
+  id: string;
+  name: string;
+  dest: TidyDest;
+  /** What is inside, in a few words (from the AI); "" for folders by type. */
+  why: string;
+  /** The folder's full path. */
+  target: string;
+  /** Already there: the files are added to it. */
+  exists: boolean;
+  files: TidyFile[];
+  sizeBytes: number;
+}
+
+export interface TidyPlan {
+  folders: TidyFolder[];
+  /** Setup files of programs already installed: offered for the quarantine. */
+  installers: TidyFile[];
+  /** Loose files no folder took: they stay where they are. */
+  leftCount: number;
+  /** Files not sent this time (over 300). */
+  notSentCount: number;
+  byAi: boolean;
+}
+
+export interface TidyRunInfo {
+  id: string;
+  /** Unix seconds. */
+  at: number;
+  movedCount: number;
+  folderCount: number;
+}
+
+export interface TidyOverview {
+  downloads: string | null;
+  fileCount: number;
+  sizeBytes: number;
+  /** The last tidy, which can still be undone. */
+  lastRun: TidyRunInfo | null;
+}
+
+/** What would be sent to the AI. */
+export interface TidyPreview {
+  lines: string[];
+  question: string;
+  notSentCount: number;
+}
+
+export interface TidyChoice {
+  folderId: string;
+  paths: string[];
+}
+
+export interface TidyReport {
+  movedCount: number;
+  movedBytes: number;
+  skippedCount: number;
+  folderCount: number;
+  runId: string | null;
+  quarantine: MoveReport;
+}
+
+export interface TidyUndoReport {
+  restoredCount: number;
+  failedCount: number;
 }

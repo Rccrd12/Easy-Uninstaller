@@ -23,6 +23,8 @@ pub struct RawEntry {
     pub windows_installer: Option<u32>,
     pub parent_key_name: Option<String>,
     pub release_type: Option<String>,
+    /// The maker's website (`URLInfoAbout`, else `HelpLink` or `URLUpdateInfo`).
+    pub website: Option<String>,
 }
 
 /// A program worth showing to the user.
@@ -264,6 +266,10 @@ pub mod platform {
             windows_installer: number("WindowsInstaller"),
             parent_key_name: text("ParentKeyName"),
             release_type: text("ReleaseType"),
+            website: ["URLInfoAbout", "HelpLink", "URLUpdateInfo"]
+                .into_iter()
+                .filter_map(text)
+                .find(|v| !v.trim().is_empty()),
             key_name: key.name().to_string(),
         })
     }

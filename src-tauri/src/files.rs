@@ -11,16 +11,22 @@
 //! 5. `installers`: setup files in Downloads for programs that are installed (Safe).
 //! 6. `old-downloads`: downloads not opened or changed in over a year (Check).
 //! 7. `duplicates`: identical copies in the user's folders; the oldest copy is kept (Check).
-//! 8. `large-files`: files of 1 GB or more in the user's folders (Check).
-//! 9. `unknown-folders`: big folders in AppData and ProgramData (Check, review only:
-//!    listed with an explanation, never moved as a group).
+//! 8. `similar-photos`: photos that look almost the same (bursts, retakes, resized
+//!    copies); the largest of each set is suggested to keep (Check, reviewed set by
+//!    set: never moved as a whole group). See `files/photos.rs`. The one exception
+//!    to "one group at most": the copy a duplicate set keeps is compared too, since
+//!    it stays where it is.
+//! 9. `large-files`: files of 1 GB or more in the user's folders (Check).
+//! 10. `unknown-folders`: big folders in AppData and ProgramData (Check, review only:
+//!     listed with an explanation, never moved as a group).
 //!
-//! Groups 2-4 and 9 live in `files/extra.rs`; folder explanations in `explain.rs`.
+//! Groups 2-4 and 10 live in `files/extra.rs`; folder explanations in `explain.rs`.
 //!
 //! What the UI shows is rebuilt from the kept file lists by `review.rs`, leaving
 //! out files that are gone or changed and files the user asked never to see again.
 
 mod extra;
+pub(crate) mod photos;
 
 use crate::explain::KnownFolders;
 use serde::Serialize;
@@ -95,14 +101,16 @@ pub enum ScanStep {
     Downloads,
     Personal,
     Duplicates,
+    Photos,
     AppFolders,
 }
 
-const STEPS: [ScanStep; 5] = [
+const STEPS: [ScanStep; 6] = [
     ScanStep::Caches,
     ScanStep::Downloads,
     ScanStep::Personal,
     ScanStep::Duplicates,
+    ScanStep::Photos,
     ScanStep::AppFolders,
 ];
 
@@ -144,6 +152,9 @@ pub struct ScanResult {
     pub files: HashMap<String, Vec<ScannedFile>>,
     /// Every set of identical files, oldest first: the copy kept unless the user picks another.
     pub duplicate_sets: Vec<Vec<ScannedFile>>,
+    /// Every set of similar photos, largest first: the one suggested to keep.
+    /// For `similar-photos`, `files` holds every photo but the first of each set.
+    pub similar_sets: Vec<Vec<ScannedFile>>,
 }
 
 /// The last scan, kept so that later moves act on exactly what was found, plus
@@ -159,6 +170,7 @@ pub(crate) struct Kept {
     pub groups: Vec<FileGroup>,
     pub files: HashMap<String, Vec<ScannedFile>>,
     pub duplicate_sets: Vec<Vec<ScannedFile>>,
+    pub similar_sets: Vec<Vec<ScannedFile>>,
     /// Paths of files and folders never to show or move; see `review.rs`.
     pub excluded: Vec<PathBuf>,
     /// Ids of whole groups the user hid.
@@ -178,6 +190,7 @@ impl LastScan {
         kept.groups = result.groups;
         kept.files = result.files;
         kept.duplicate_sets = result.duplicate_sets;
+        kept.similar_sets = result.similar_sets;
         crate::review::current_groups(&kept)
     }
 }
@@ -209,10 +222,35 @@ pub async fn scan_files(
     tauri::async_runtime::spawn_blocking(move || {
         let locations = platform::locations();
         let installed = platform::installed_app_names();
-        let result = scan(&locations, &installed, SystemTime::now(), &mut |p| {
-            // The window may be gone; the scan result is still returned.
-            let _ = on_progress.send(p);
-        });
+        let cache_file = app
+            .path()
+            .app_local_data_dir()
+            .ok()
+            .map(|d| d.join(photos::CACHE_FILE));
+        let mut prints = cache_file
+            .as_deref()
+            .map(photos::PrintCache::load)
+            .unwrap_or_default();
+        let mut compared = HashSet::new();
+        let mut similar = |list: &[Seen], tick: &mut dyn FnMut()| {
+            compared.extend(list.iter().map(|s| s.path.clone()));
+            let printer = photos::system_printer();
+            photos::find_similar(list, &mut prints, printer, photos::PRINT_BUDGET, tick)
+        };
+        let result = scan(
+            &locations,
+            &installed,
+            SystemTime::now(),
+            &mut similar,
+            &mut |p| {
+                // The window may be gone; the scan result is still returned.
+                let _ = on_progress.send(p);
+            },
+        );
+        if let Some(file) = cache_file {
+            // Only a speed-up for the next scan: not saving it changes nothing else.
+            let _ = prints.save(&file, &compared);
+        }
         app.state::<LastScan>().replace(result)
     })
     .await
@@ -222,6 +260,31 @@ pub async fn scan_files(
 /// Display names of installed programs (also used by the AI help's checks).
 pub fn installed_app_names() -> Vec<String> {
     platform::installed_app_names()
+}
+
+/// The user's profile folder (`C:\\Users\\name`); `None` outside Windows.
+pub fn profile_dir() -> Option<PathBuf> {
+    platform::profile_dir()
+}
+
+/// A folder of the user profile as Windows knows it, also when the user moved it
+/// (to OneDrive or another drive): `value` names it under "User Shell Folders"
+/// (`Personal`, `My Pictures`, …) and `fallback` is its usual name in the profile.
+pub fn shell_folder(value: &str, fallback: &str) -> Option<PathBuf> {
+    platform::shell_folder(value, fallback)
+}
+
+/// Cloud-only files (OneDrive "online only") and hidden system files, which
+/// scans and searches leave alone.
+pub(crate) fn skip_entry(meta: &Metadata) -> bool {
+    platform::skip(meta)
+}
+
+/// True for a setup file whose program is installed (the scan's "Installers already
+/// used" rule, also used when tidying Downloads). `installed` are display names.
+pub(crate) fn is_used_installer(path: &Path, installed: &[String]) -> bool {
+    let words: Vec<Vec<String>> = installed.iter().map(|n| name_words(n)).collect();
+    is_installer(path) && installer_matches(path, &words)
 }
 
 /// Temp and cache folders apps recreate on their own (also used by the space map).
@@ -302,11 +365,16 @@ impl Progress<'_> {
     }
 }
 
+/// Finds sets of similar photos among the photos given, largest first; calls
+/// `tick` for every photo looked at. The app uses [`photos::find_similar`].
+pub type FindSimilar<'a> = dyn FnMut(&[Seen], &mut dyn FnMut()) -> Vec<Vec<Seen>> + 'a;
+
 /// Runs the whole scan. `installed` holds the display names of installed programs.
 pub fn scan(
     loc: &Locations,
     installed: &[String],
     now: SystemTime,
+    similar: &mut FindSimilar,
     report: &mut dyn FnMut(ScanProgress),
 ) -> ScanResult {
     let mut progress = Progress {
@@ -427,13 +495,20 @@ pub fn scan(
         &mut files,
     ));
 
-    // 4 and 5. The user's folders: duplicates, then large files.
+    // 7, 8 and 9. The user's folders: duplicates, similar photos, then large files.
     progress.start(ScanStep::Personal);
     let mut personal = Vec::new();
+    let mut photo_files = Vec::new();
     for root in dedup_dirs(&loc.personal) {
         walk(&root, &skip_personal_dir, &mut |path, meta| {
             progress.tick();
-            if meta.len() >= MIN_DUPLICATE_BYTES && !claimed.contains(&path) {
+            if claimed.contains(&path) {
+                return;
+            }
+            if meta.len() >= photos::MIN_PHOTO_BYTES && photos::is_photo(&path) {
+                photo_files.push(Seen::from_meta(path.clone(), meta));
+            }
+            if meta.len() >= MIN_DUPLICATE_BYTES {
                 personal.push(Seen::from_meta(path, meta));
             }
         });
@@ -459,6 +534,32 @@ pub fn scan(
         dup_items,
     ));
     files.insert("duplicates".into(), dup_files);
+
+    // Extra identical copies are already in the duplicates; the copy each set
+    // keeps is compared, since it stays where it is.
+    progress.start(ScanStep::Photos);
+    let copies: HashSet<&Path> = duplicate_sets
+        .iter()
+        .flat_map(|set| set[1..].iter().map(|s| s.path.as_path()))
+        .collect();
+    photo_files.retain(|s| !copies.contains(s.path.as_path()));
+    let similar_sets = similar(&photo_files, &mut || progress.tick());
+    let mut similar_items = Vec::new();
+    let mut similar_files = Vec::new();
+    for set in similar_sets.iter().filter(|s| s.len() > 1) {
+        claimed.extend(set.iter().map(|s| s.path.clone()));
+        for other in &set[1..] {
+            similar_items.push(other.item(None));
+            similar_files.push(other.scanned());
+        }
+    }
+    groups.push(group(
+        "similar-photos",
+        Safety::Check,
+        similar_files.len() as u64,
+        similar_items,
+    ));
+    files.insert("similar-photos".into(), similar_files);
 
     let large: Vec<Seen> = personal
         .into_iter()
@@ -495,14 +596,17 @@ pub fn scan(
                 .map(|f| f.id.clone());
         }
     }
-    let duplicate_sets = duplicate_sets
-        .iter()
-        .map(|set| set.iter().map(Seen::scanned).collect())
-        .collect();
+    let scanned = |sets: &[Vec<Seen>]| -> Vec<Vec<ScannedFile>> {
+        sets.iter()
+            .filter(|set| set.len() > 1)
+            .map(|set| set.iter().map(Seen::scanned).collect())
+            .collect()
+    };
     ScanResult {
         groups,
         files,
-        duplicate_sets,
+        duplicate_sets: scanned(&duplicate_sets),
+        similar_sets: scanned(&similar_sets),
     }
 }
 
@@ -552,7 +656,7 @@ pub fn to_camel(id: &str) -> String {
 }
 
 /// Drops repeated folders and folders inside another one in the list, so nothing is counted twice.
-fn dedup_dirs(dirs: &[PathBuf]) -> Vec<PathBuf> {
+pub(crate) fn dedup_dirs(dirs: &[PathBuf]) -> Vec<PathBuf> {
     let mut out: Vec<PathBuf> = Vec::new();
     for dir in dirs {
         if !out.iter().any(|d| dir.starts_with(d)) {
@@ -565,7 +669,7 @@ fn dedup_dirs(dirs: &[PathBuf]) -> Vec<PathBuf> {
 
 /// Walks `root` without following links, calling `on_file` for every regular file.
 /// Folders for which `skip_dir` returns true are not entered. Unreadable entries are skipped.
-fn walk(
+pub(crate) fn walk(
     root: &Path,
     skip_dir: &dyn Fn(&Path) -> bool,
     on_file: &mut dyn FnMut(PathBuf, &Metadata),
@@ -601,7 +705,7 @@ fn walk(
 }
 
 /// In the user's folders, app data and developer folders are not personal files.
-fn skip_personal_dir(path: &Path) -> bool {
+pub(crate) fn skip_personal_dir(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
         return false;
     };
@@ -937,12 +1041,29 @@ mod platform {
     /// The Downloads folder, also when the user moved it to another place.
     fn downloads_dir() -> Option<PathBuf> {
         const DOWNLOADS: &str = "{374DE290-123F-4565-9164-39C4925E467B}";
+        registry_folder(DOWNLOADS)
+    }
+
+    /// A folder named under "User Shell Folders" (where Windows records moved folders).
+    fn registry_folder(value: &str) -> Option<PathBuf> {
         let key = RegKey::predef(HKEY_CURRENT_USER)
             .open_subkey(r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders")
             .ok()?;
-        let raw: String = key.get_value(DOWNLOADS).ok()?;
+        let raw: String = key.get_value(value).ok()?;
         let path = PathBuf::from(expand_env(&raw));
         path.is_dir().then_some(path)
+    }
+
+    pub fn profile_dir() -> Option<PathBuf> {
+        env("USERPROFILE").filter(|p| p.is_dir())
+    }
+
+    pub fn shell_folder(value: &str, fallback: &str) -> Option<PathBuf> {
+        registry_folder(value).or_else(|| {
+            profile_dir()
+                .map(|p| p.join(fallback))
+                .filter(|p| p.is_dir())
+        })
     }
 
     /// Expands `%VAR%` references.
@@ -1017,6 +1138,14 @@ mod platform {
     pub fn installed_app_names() -> Vec<String> {
         Vec::new()
     }
+
+    pub fn profile_dir() -> Option<std::path::PathBuf> {
+        None
+    }
+
+    pub fn shell_folder(_value: &str, _fallback: &str) -> Option<std::path::PathBuf> {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -1066,7 +1195,10 @@ mod tests {
     fn run(loc: &Locations, installed: &[&str]) -> (ScanResult, Vec<ScanProgress>) {
         let installed: Vec<String> = installed.iter().map(|s| s.to_string()).collect();
         let mut updates = Vec::new();
-        let result = scan(loc, &installed, SystemTime::now(), &mut |p| updates.push(p));
+        let mut similar = |_: &[Seen], _: &mut dyn FnMut()| Vec::new();
+        let result = scan(loc, &installed, SystemTime::now(), &mut similar, &mut |p| {
+            updates.push(p)
+        });
         (result, updates)
     }
 
@@ -1155,7 +1287,53 @@ mod tests {
 
         let steps: Vec<ScanStep> = updates.iter().map(|u| u.step).collect();
         assert_eq!(steps, STEPS);
-        assert!(updates.iter().all(|u| u.step_count == 5));
+        assert!(updates.iter().all(|u| u.step_count == 6));
+    }
+
+    #[test]
+    fn similar_photos_leave_out_extra_copies_and_keep_the_first_of_each_set() {
+        let t = TempDir::new("similar");
+        let profile = t.0.join("profile");
+        const KB: usize = 1024;
+        t.file("profile/Pictures/burst-1.jpg", 300 * KB, 1, 3);
+        t.file("profile/Pictures/burst-2.jpg", 500 * KB, 2, 3);
+        t.file("profile/Pictures/burst-3.jpg", 2 * MB, 3, 3);
+        // An identical copy of burst-3: already a duplicate, so not compared again.
+        t.file("profile/Desktop/burst-3 (1).jpg", 2 * MB, 3, 1);
+        t.file("profile/Pictures/Screenshot burst.jpg", 300 * KB, 4, 3);
+        t.file("profile/Pictures/burst-tiny.jpg", 10 * KB, 5, 3);
+        t.file("profile/Pictures/burst.png", 300 * KB, 6, 3);
+        let loc = Locations {
+            personal: vec![profile],
+            ..Default::default()
+        };
+        let mut given = Vec::new();
+        let mut similar = |photos: &[Seen], tick: &mut dyn FnMut()| {
+            photos.iter().for_each(|_| tick());
+            given = photos.iter().map(|s| s.path.clone()).collect();
+            let mut set: Vec<Seen> = photos.to_vec();
+            set.sort_by_key(|s| std::cmp::Reverse(s.size));
+            vec![set]
+        };
+        let result = scan(&loc, &[], SystemTime::now(), &mut similar, &mut |_| {});
+        given.sort();
+        let names: Vec<String> = given
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, ["burst-1.jpg", "burst-2.jpg", "burst-3.jpg"]);
+
+        let g = find(&result.groups, "similar-photos").unwrap();
+        assert_eq!((g.safety, g.item_count), (Safety::Check, 2));
+        assert_eq!(g.size_bytes, 800 * KB as u64);
+        assert!(g.items.iter().all(|i| i.duplicate_of.is_none()));
+        assert_eq!(result.similar_sets.len(), 1);
+        assert!(result.similar_sets[0][0].path.ends_with("burst-3.jpg"));
+        assert!(!result.files["similar-photos"]
+            .iter()
+            .any(|f| f.path.ends_with("burst-3.jpg")));
+        let dups = find(&result.groups, "duplicates").unwrap();
+        assert_eq!(dups.item_count, 1);
     }
 
     #[test]

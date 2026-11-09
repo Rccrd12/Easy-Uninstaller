@@ -3,12 +3,16 @@
   import SampleBanner from "../components/SampleBanner.svelte";
   import Icon from "../components/Icon.svelte";
   import type { IconName } from "../icons";
-  import { getSystemDisk, listFileGroups, listInstalledApps, listLeftovers, usesSampleData } from "../api";
+  import { getHistory, getSystemDisk, listFileGroups, listInstalledApps, listLeftovers, listQuarantine, usesSampleData } from "../api";
   import { quarantine } from "../settings.svelte";
-  import { formatBytes } from "../format";
+  import { fileCount, formatBytes, itemCount } from "../format";
+  import { dayLabel, historyAmount, historyTitle } from "../history";
   import { locale, t } from "../i18n/index.svelte";
   import type { Screen } from "../screens";
-  import type { DiskInfo, FileGroup } from "../types";
+  import type { DiskInfo, FileGroup, HistorySummary, QuarantineEntry } from "../types";
+
+  /** How many recent actions the results card lists. */
+  const RECENT = 3;
 
   let { onNavigate }: { onNavigate: (s: Screen) => void } = $props();
 
@@ -23,6 +27,14 @@
   let leftoversBytes = $state<number | null>(null);
   let safeLeftoversBytes = $state(0);
   let quickClean = $state(false);
+  let history = $state<HistorySummary | null>(null);
+  let inQuarantine = $state<QuarantineEntry[] | null>(null);
+
+  /** The results and Quarantine cards: they change after every cleanup. */
+  function loadResults() {
+    getHistory().then((h) => (history = h), () => {});
+    listQuarantine().then((q) => (inQuarantine = q), () => {});
+  }
 
   function setFiles(groups: FileGroup[]) {
     // Review-only groups (unknown folders) are explained, not offered for removal.
@@ -34,11 +46,13 @@
   function refreshAfterClean(changed: boolean) {
     quickClean = false;
     if (!changed) return;
+    loadResults();
     getSystemDisk().then((d) => (disk = d));
     listFileGroups().then(setFiles);
   }
 
   $effect(() => {
+    loadResults();
     getSystemDisk().then((d) => (disk = d));
     listInstalledApps()
       .then((apps) => {
@@ -74,6 +88,13 @@
   const reclaimPct = $derived(disk ? (reclaimable / disk.totalBytes) * 100 : 0);
   const lowSpace = $derived(disk ? disk.freeBytes / disk.totalBytes < 0.15 : false);
 
+  const quarantineBytes = $derived((inQuarantine ?? []).reduce((s, e) => s + e.sizeBytes, 0));
+  const quarantineCount = $derived.by(() => {
+    const entries = inQuarantine ?? [];
+    const n = entries.reduce((s, e) => s + e.itemCount, 0);
+    return entries.every((e) => e.items.every((i) => i.kind === "file")) ? fileCount(n) : itemCount(n);
+  });
+
   const tiles: { id: Screen; icon: IconName; primary: boolean }[] = [
     { id: "apps", icon: "apps", primary: false },
     { id: "files", icon: "folder", primary: true },
@@ -83,7 +104,6 @@
 </script>
 
 <h1>{t("home.greeting")}</h1>
-<p class="muted sub">{t("home.subtitle")}</p>
 {#if usesSampleData()}<SampleBanner />{/if}
 
 <section class="card hero">
@@ -99,7 +119,6 @@
       <button class="btn btn-primary cta" onclick={() => (quickClean = true)}>{t("home.quickClean")}</button>
       <button class="btn btn-ghost cta" onclick={() => onNavigate("files")}>{t("home.seeAll")}</button>
     </div>
-    <div class="muted small hint">{t("home.quickCleanHint")}</div>
   </div>
   {#if disk}
     <div class="disk">
@@ -131,7 +150,41 @@
   {/each}
 </section>
 
-<div class="card tip"><span class="tip-icon"><Icon name="shieldCheck" size={20} /></span><span>{@html t("home.quarantineTip", { days: quarantine.keepDays })}</span></div>
+<section class="lower">
+  <div class="card box">
+    <div class="box-head">
+      <h2 class="icon-line"><Icon name="history" size={18} />{t("home.results")}</h2>
+      <button class="link" onclick={() => onNavigate("history")}>{t("home.historyLink")}<Icon name="chevronRight" size={14} /></button>
+    </div>
+    {#if history && history.actionCount > 0}
+      <div class="freed">
+        <span class="freed-big">{formatBytes(history.freedBytes)}</span>
+        <span class="muted small">{t("home.resultsFreed")}</span>
+      </div>
+      {#if history.pendingBytes > 0}<div class="muted note">{t("home.resultsPending", { size: formatBytes(history.pendingBytes) })}</div>{/if}
+      <ul class="recent">
+        {#each history.items.slice(0, RECENT) as item (item.id)}
+          <li>
+            <span class="muted day">{dayLabel(item.at)}</span>
+            <span class="what">{historyTitle(item)}</span>
+            <b class:muted={item.freedBytes === 0}>{historyAmount(item)}</b>
+          </li>
+        {/each}
+      </ul>
+    {:else if history}
+      <p class="muted empty">{t("home.resultsEmpty")}</p>
+    {/if}
+  </div>
+  <div class="card box">
+    <div class="box-head">
+      <h2 class="icon-line"><Icon name="shieldCheck" size={18} />{t("home.quarantineTitle")}</h2>
+      <button class="link" onclick={() => onNavigate("quarantine")}>{t("home.quarantineLink")}<Icon name="chevronRight" size={14} /></button>
+    </div>
+    {#if inQuarantine}
+      <div class="q-state">{inQuarantine.length ? t("home.quarantineHolds", { count: quarantineCount, size: formatBytes(quarantineBytes) }) : t("home.quarantineEmpty")}</div>
+    {/if}
+  </div>
+</section>
 
 {#if quickClean}
   <QuickClean
@@ -142,7 +195,6 @@
 {/if}
 
 <style>
-  .sub { margin: 3px 0 10px; }
   .small { font-size: 13px; }
   .hero { display: flex; gap: 32px; align-items: center; padding: 22px 26px; margin-top: 4px; }
   .big { font-size: 40px; font-weight: 700; color: var(--accent); line-height: 1.1; }
@@ -150,7 +202,6 @@
   .amount.calc { font-size: 15px; font-weight: 600; color: var(--text-muted); }
   .ctas { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
   .cta { padding: 10px 18px; font-size: 14px; }
-  .hint { margin-top: 6px; font-size: 12px; }
   .disk { flex: 1; }
   .row { display: flex; justify-content: space-between; gap: 12px; }
   .bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; margin: 10px 0 8px; background: var(--track); }
@@ -164,6 +215,22 @@
   .tile h3 { font-size: 16px; margin: 12px 0 4px; }
   .tile p { font-size: 12.5px; line-height: 1.45; flex: 1; }
   .amount { font-size: 20px; font-weight: 700; margin: 6px 0 10px; min-height: 26px; }
-  .tip-icon { display: flex; color: var(--accent); }
-  .tip { display: flex; gap: 10px; align-items: center; margin-top: 14px; padding: 12px 16px; font-size: 13px; background: var(--tip-bg); border-color: var(--tip-border); }
+  .lower { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; margin-top: 14px; }
+  @media (max-width: 860px) { .lower { grid-template-columns: 1fr; } }
+  .box { padding: 16px 18px; }
+  .box-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .box h2 { font-size: 15px; font-weight: 600; }
+  .box h2 :global(.icon) { color: var(--accent); }
+  .link { border: none; background: none; color: var(--accent); font-size: 13px; padding: 2px 0; display: inline-flex; align-items: center; gap: 2px; }
+  .link:hover { text-decoration: underline; }
+  .freed { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin: 8px 0 2px; }
+  .freed-big { font-size: 26px; font-weight: 700; color: var(--safe-fg); line-height: 1.15; }
+  .note { font-size: 12px; }
+  .recent { list-style: none; margin-top: 8px; }
+  .recent li { display: flex; align-items: center; gap: 12px; padding: 7px 0; border-top: 1px solid var(--border); font-size: 13px; }
+  .day { width: 64px; flex: none; }
+  .what { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recent b { flex: none; }
+  .empty { font-size: 13px; line-height: 1.45; margin-top: 10px; }
+  .q-state { font-size: 14px; font-weight: 600; margin: 10px 0 6px; }
 </style>

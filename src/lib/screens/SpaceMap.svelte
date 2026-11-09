@@ -4,6 +4,7 @@
   import { listInstalledApps, scanSpace, usesSampleData } from "../api";
   import { formatBytes } from "../format";
   import { locale, t } from "../i18n/index.svelte";
+  import { shownPath } from "../paths";
   import type { Screen } from "../screens";
   import { blocksForView, legendFor, spaceBlocks, type MapView } from "../spacemap";
   import { squarify } from "../treemap";
@@ -75,8 +76,6 @@
     <p class="muted sub">
       {#if usage && !loading}
         {t("map.summary", { drive: usage.mountPoint, used: formatBytes(usage.totalBytes - usage.freeBytes), total: formatBytes(usage.totalBytes) })}
-      {:else}
-        {t("map.subtitle")}
       {/if}
     </p>
   </div>
@@ -91,7 +90,6 @@
     <div class="status-title">{t("map.measuring")}</div>
     <div class="sweep" aria-hidden="true"><i></i></div>
     <span class="muted">{progress ? t("map.checked", { count: progress.filesChecked.toLocaleString(locale()) }) : " "}</span>
-    <p class="muted note icon-line"><Icon name="shieldCheck" />{t("map.readOnly")}</p>
   </div>
 {:else if error}
   <div class="card status row">
@@ -134,7 +132,7 @@
         <span class="muted">
           {t(`categories.${selected.category}`)} · {formatBytes(selected.sizeBytes)} · {t("map.ofDisk", { share: share(selected.sizeBytes) })}
         </span>
-        {#if selected.path}<span class="muted path">{selected.path}</span>
+        {#if selected.path}<span class="muted path" title={selected.path}>{shownPath(selected.path)}</span>
         {:else if selected.labelKey}<span class="muted path">{t(`map.hints.${selected.id.startsWith("other:") ? "other" : selected.id}`)}</span>{/if}
       </div>
       {#if target}

@@ -214,7 +214,6 @@
 <div class="head">
   <div>
     <h1>{t("leftovers.title")}</h1>
-    <p class="muted sub">{t("leftovers.subtitle")}</p>
   </div>
   {#if !loading}
     <button class="btn btn-ghost" onclick={load}><Icon name="refresh" />{t("leftovers.rescan")}</button>
@@ -227,7 +226,6 @@
     <span class="spinner"></span>
     <div>
       <p>{t("leftovers.searching")}</p>
-      <p class="muted small icon-line"><Icon name="shieldCheck" />{t("leftovers.scanNote")}</p>
     </div>
   </div>
 {:else if error}
@@ -240,7 +238,6 @@
     <span class="big-icon"><Icon name="checkCircle" size={26} /></span>
     <div>
       <p>{t("leftovers.empty")}</p>
-      <p class="muted small">{t("leftovers.historyNote")}</p>
     </div>
   </div>
 {:else}
@@ -300,7 +297,6 @@
       <EyeOffIcon />
       <span>
         {app ? t("leftovers.hideApp", { app }) : t("leftovers.hideGroup")}
-        <span class="muted menu-hint">{t("leftovers.hideHint")}</span>
       </span>
     </button>
   </div>
@@ -330,7 +326,6 @@
 <style>
   .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .head .btn { flex: none; margin-top: 4px; }
-  .sub { margin: 3px 0 10px; }
   .group { padding: 6px 14px 4px; margin-bottom: 10px; }
   .group-head { display: flex; align-items: center; gap: 8px; padding: 8px 4px; border-bottom: 1px solid var(--border); font-size: 14px; }
   .group-head input { width: 18px; height: 18px; accent-color: var(--accent); margin-right: 3px; }
@@ -358,7 +353,6 @@
   .menu button:hover, .menu button:focus-visible { background: var(--hover); outline: none; }
   .menu-hide { display: flex; align-items: flex-start; gap: 8px; }
   .menu-hide :global(.icon) { margin-top: 2px; }
-  .menu-hint { display: block; font-size: 12px; margin-top: 2px; }
   .toast-icon { display: flex; color: var(--text-muted); }
   .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
   .toast.error { border-left-color: var(--danger); }

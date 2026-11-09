@@ -1,6 +1,6 @@
 [package]
 name = "easy-uninstaller"
-version = "0.2.0"
+version = "0.3.0"
 description = "A lightweight, simple app to uninstall apps and free up space on Windows"
 edition = "2021"
 rust-version = "1.90"
@@ -23,22 +23,40 @@ serde_json = "1"
 # Without default features: no zip/tar support (the NSIS installer is downloaded as is), and
 # HTTPS through the system's TLS (Schannel on Windows) instead of bundling rustls.
 tauri-plugin-updater = { version = "2", default-features = false, features = ["native-tls"] }
+# Already in the dependency tree through the updater; orders versions and betas (0.3.1-beta.2).
+semver = "1"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"
 # Already in the dependency tree through Tauri; only these API areas are compiled in.
 windows = { version = "0.62", features = [
   "ApplicationModel_Core",
+  # Reminders: Windows notifications (toasts).
+  "Data_Xml_Dom",
   "Management_Deployment",
+  # The local index: is there a graphics card, which cores are the fast ones.
+  "Win32_Graphics_Dxgi",
+  "Win32_Graphics_Dxgi_Common",
   "Win32_Graphics_Gdi",
+  # The local index: frames of videos through Media Foundation, which ships with Windows.
+  "Win32_Media_MediaFoundation",
   # The AI help: HTTPS through the system's WinHTTP, API keys in Credential Manager.
   "Win32_Networking_WinHttp",
   "Win32_Security_Credentials",
+  # Names and publishers of startup programs, from their version information.
+  # OneDrive "online only": the same file attribute as OneDrive's own "Free up space".
+  "Win32_Storage_FileSystem",
   "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  # Whether an app is open before its cache is emptied (process list).
+  "Win32_System_Diagnostics_ToolHelp",
   "Win32_System_Registry",
+  "Win32_System_SystemInformation",
   "Win32_System_Threading",
+  "Win32_System_Variant",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
+  "UI_Notifications",
 ] }
 
 # Keep the shipped binary as small as possible.

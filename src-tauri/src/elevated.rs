@@ -13,6 +13,7 @@
 
 use crate::leftovers;
 use crate::quarantine::{now_secs, Item, MoveReport, Quarantine, RestoreReport, Title};
+use crate::startup::{self, StartupChange, StartupReport};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
@@ -39,12 +40,18 @@ pub enum Job {
         root: PathBuf,
         id: String,
     },
+    /// Turns programs that start for all users on or off (`startup.rs`).
+    Startup {
+        changes: Vec<StartupChange>,
+    },
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct JobResult {
     pub moved: Option<MoveReport>,
     pub restore: Option<RestoreReport>,
+    #[serde(default)]
+    pub startup: Option<StartupReport>,
     pub error: Option<String>,
 }
 
@@ -136,10 +143,23 @@ pub fn run_from_args() -> Option<i32> {
 }
 
 /// Does the job. Only a folder named `Quarantine` inside this app's data folder is
-/// accepted, and only items the leftover rules allow are moved.
+/// accepted, and only items the leftover rules allow are moved. Startup switches
+/// are changed only for entries that exist, and nothing else is touched.
 fn execute(job: Job, roots: &leftovers::Roots) -> JobResult {
     let root = match &job {
         Job::Add { root, .. } | Job::Restore { root, .. } | Job::Delete { root, .. } => root,
+        Job::Startup { changes } => {
+            // Only switches for all users: the rest belong to the user's own session.
+            let changes: Vec<StartupChange> = changes
+                .iter()
+                .filter(|c| startup::parse_id(&c.id).is_some_and(|(l, _)| l.all_users()))
+                .cloned()
+                .collect();
+            return JobResult {
+                startup: Some(startup::apply(&changes)),
+                ..JobResult::default()
+            };
+        }
     };
     if !is_quarantine_root(root) {
         return JobResult {
@@ -176,6 +196,7 @@ fn execute(job: Job, roots: &leftovers::Roots) -> JobResult {
             done
         }
         Job::Delete { id, .. } => quarantine.delete(&id),
+        Job::Startup { .. } => Ok(()),
     };
     if let Err(e) = outcome {
         result.error = Some(e.to_string());

@@ -19,7 +19,7 @@
   const then = ai.setup?.then;
 
   const CHOICES: { mode: AiMode; icon: IconName; lines: [string, IconName][] }[] = [
-    { mode: "online", icon: "cloud", lines: [["a", "thumbLike"], ["b", "ticket"], ["c", "upload"]] },
+    { mode: "online", icon: "cloud", lines: [["a", "thumbLike"], ["b", "ticket"]] },
     { mode: "local", icon: "laptop", lines: [["a", "lock"], ["b", "box"], ["c", "hourglass"]] },
     { mode: "off", icon: "dismissCircle", lines: [["a", "book"]] },
   ];
@@ -64,7 +64,7 @@
         <h2 id="ai-setup-title">{t("ai.setup.title")}</h2>
         <span class="muted step">{t("ai.setup.step", { step: 1 })}</span>
       </div>
-      <p class="lead">{t("ai.setup.lead")} <b>{t("ai.setup.leadBold")}</b>{t("ai.setup.leadEnd")}</p>
+      <p class="lead">{t("ai.setup.lead")}</p>
       <div class="choices" role="radiogroup" aria-labelledby="ai-setup-title">
         {#each CHOICES as c (c.mode)}
           <button class="choice" class:on={choice === c.mode} role="radio" aria-checked={choice === c.mode} onclick={() => (choice = c.mode)}>
@@ -76,7 +76,7 @@
         {/each}
       </div>
       <div class="foot">
-        <span class="muted">{t("ai.setup.changeLater")}</span>
+        <span></span>
         <button class="btn btn-ai" onclick={next}>{choice === "off" ? t("common.close") : t("ai.setup.continue")}</button>
       </div>
     {:else}
@@ -110,7 +110,6 @@
   h2 { font-size: 20px; font-weight: 600; }
   .step { font-size: 12.5px; flex: none; }
   .lead { margin: 8px 0 16px; font-size: 14px; line-height: 1.45; color: var(--text-muted); }
-  .lead b { color: var(--text); }
   .choices { display: grid; grid-template-columns: 1.2fr 1fr 0.8fr; gap: 12px; }
   .choice { text-align: left; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
   .choice.on { border: 2px solid var(--ai); padding: 13px 15px; background: var(--tip-bg); }
@@ -120,7 +119,6 @@
   .choice li :global(.icon) { color: var(--text-muted); margin-top: 0.15em; flex: none; }
   .choice ul { list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.4; }
   .foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
-  .foot .muted { font-size: 12.5px; }
   .foot.line { border-top: 1px solid var(--border); padding-top: 16px; }
   .btn-ai { padding: 9px 20px; font-size: 14px; }
   .btn:disabled { opacity: 0.5; cursor: default; }

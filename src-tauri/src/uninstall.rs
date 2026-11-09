@@ -309,6 +309,11 @@ fn entry_present(key: &RegKeyPath) -> bool {
         && !registry::read_raw(key).is_some_and(|r| registry::launcher_gone(&r, &|p| p.exists()))
 }
 
+/// Whether the app with this id is still installed (false for an id that is not valid).
+pub fn still_installed(id: &str) -> bool {
+    parse_id(id).is_some_and(|a| installed(&a))
+}
+
 fn installed(id: &AppId) -> bool {
     match id {
         AppId::Registry(key) => entry_present(key),
@@ -318,9 +323,27 @@ fn installed(id: &AppId) -> bool {
 
 /// What was known about apps being uninstalled, by app id.
 #[derive(Default)]
-pub struct Pending(Mutex<HashMap<String, AppHints>>);
+pub struct Pending(
+    Mutex<HashMap<String, AppHints>>,
+    Mutex<HashMap<String, Note>>,
+);
+
+/// An app being uninstalled, to add to the history once it is gone.
+struct Note {
+    name: String,
+    size: u64,
+}
 
 impl Pending {
+    fn note(&self, id: &str, note: Note) {
+        let mut map = self.1.lock().unwrap_or_else(|e| e.into_inner());
+        map.insert(id.to_string(), note);
+    }
+
+    fn take_note(&self, id: &str) -> Option<Note> {
+        self.1.lock().unwrap_or_else(|e| e.into_inner()).remove(id)
+    }
+
     fn set(&self, id: &str, hints: AppHints) {
         let mut map = self.0.lock().unwrap_or_else(|e| e.into_inner());
         map.insert(id.to_string(), hints);
@@ -336,19 +359,52 @@ impl Pending {
 }
 
 /// Runs the app's uninstaller and waits for it. Error texts the UI translates:
-/// `notInstalled`, `noUninstaller`, `itself`.
+/// `notInstalled`, `noUninstaller`, `itself`. `name` and `size_bytes` are how the
+/// app list showed the app, for the history.
 #[tauri::command]
-pub async fn uninstall_app(app: AppHandle, id: String) -> Result<UninstallOutcome, String> {
-    tauri::async_runtime::spawn_blocking(move || uninstall(&app, &id))
-        .await
-        .map_err(|e| e.to_string())?
+pub async fn uninstall_app(
+    app: AppHandle,
+    id: String,
+    name: Option<String>,
+    size_bytes: Option<u64>,
+) -> Result<UninstallOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let outcome = uninstall(&app, &id, name, size_bytes)?;
+        if outcome == UninstallOutcome::Removed {
+            note_gone(&app, &id);
+        }
+        Ok(outcome)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
-fn uninstall(app: &AppHandle, id: &str) -> Result<UninstallOutcome, String> {
+/// Adds an app that is gone from the app list to the history, once.
+fn note_gone(app: &AppHandle, id: &str) {
+    if let Some(note) = app.state::<Pending>().take_note(id) {
+        crate::history::record_uninstall(app, note.name, note.size);
+    }
+}
+
+fn uninstall(
+    app: &AppHandle,
+    id: &str,
+    name: Option<String>,
+    size: Option<u64>,
+) -> Result<UninstallOutcome, String> {
     let parsed = parse_id(id).ok_or("notInstalled")?;
+    let pending = app.state::<Pending>();
     let key = match &parsed {
         AppId::Store(full) => {
-            app.state::<Pending>().set(id, AppHints::default());
+            pending.set(id, AppHints::default());
+            let name = name.unwrap_or_else(|| full.split('_').next().unwrap_or(full).to_string());
+            pending.note(
+                id,
+                Note {
+                    name,
+                    size: size.unwrap_or(0),
+                },
+            );
             apps::store_remove(full)?;
             return Ok(UninstallOutcome::Removed);
         }
@@ -360,7 +416,15 @@ fn uninstall(app: &AppHandle, id: &str) -> Result<UninstallOutcome, String> {
     if is_self(&hints) {
         return Err("itself".into());
     }
-    app.state::<Pending>().set(id, hints);
+    let note = Note {
+        name: name
+            .filter(|n| !n.trim().is_empty())
+            .unwrap_or_else(|| hints.name.clone()),
+        size: size.unwrap_or_else(|| u64::from(raw.estimated_size.unwrap_or(0)) * 1024),
+    };
+    pending.note(id, note);
+    pending.set(id, hints);
+    crate::reinstall::prepare(app, id, &raw);
 
     // Launchers (steam://uninstall/...) run as the user and ask for rights themselves.
     let via_launcher = raw
@@ -414,10 +478,17 @@ fn gone_soon(key: &RegKeyPath) -> bool {
 
 /// Whether the app is still in the app list (the UI asks while an uninstaller runs).
 #[tauri::command]
-pub async fn is_app_installed(id: String) -> bool {
-    tauri::async_runtime::spawn_blocking(move || parse_id(&id).is_some_and(|a| installed(&a)))
-        .await
-        .unwrap_or(true)
+pub async fn is_app_installed(app: AppHandle, id: String) -> bool {
+    tauri::async_runtime::spawn_blocking(move || {
+        let present = still_installed(&id);
+        if !present {
+            // Its uninstaller finished after `uninstall_app` returned.
+            note_gone(&app, &id);
+        }
+        present
+    })
+    .await
+    .unwrap_or(true)
 }
 
 /// Looks for what an app just uninstalled left behind, and remembers the app so

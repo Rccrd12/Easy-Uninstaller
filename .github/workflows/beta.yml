@@ -1,0 +1,195 @@
+name: Beta
+
+# The beta channel (Settings > Updates > Beta versions): main with every open pull
+# request of this repository merged into it, tested, built and published as the one
+# `beta` pre-release, which replaces the one before. The app offers it only to whoever
+# turned Beta versions on (src-tauri/src/updater.rs reads releases/download/beta/latest.json).
+#
+# It runs each time CI ends (on main or on a pull request), after each Release run, and by
+# hand. Only pull requests whose own CI passed on their latest commit go in; the others are
+# left out this time and the notes say so (scripts/beta.mjs). Pull requests from forks never
+# take part. When the beta would hold nothing the last release does not, it is taken down.
+#
+# The build job runs the pull requests' code, so it can only read and never sees the update
+# signing key. The publish job runs none of it: it signs the installer the build job made,
+# writes latest.json and replaces the release. Pull requests that change this file or
+# scripts/beta.mjs run it as a dry run: everything except publishing.
+
+on:
+  workflow_run:
+    workflows: ["CI", "Release"]
+    types: [completed]
+  workflow_dispatch:
+  pull_request:
+    paths: [".github/workflows/beta.yml", "scripts/beta.mjs"]
+
+permissions:
+  contents: read
+
+# One build at a time, each to its end; a newer request waits (and replaces any other waiting).
+concurrency:
+  group: beta-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Merge the open pull requests and build
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion != 'cancelled' && github.event.workflow_run.conclusion != 'skipped')
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+    outputs:
+      changes: ${{ steps.merge.outputs.changes }}
+      version: ${{ steps.version.outputs.version }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # A dry run starts from the pull request itself, to try its own version of this workflow.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name != 'pull_request' && 'main' || '' }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Read before anything is merged: a pull request cannot change how it is merged.
+      - name: Merge the open pull requests into main
+        id: merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp scripts/beta.mjs "$RUNNER_TEMP/beta.mjs"
+          node "$RUNNER_TEMP/beta.mjs" merge "$RUNNER_TEMP/beta.json"
+
+      - uses: actions/setup-node@v4
+        if: steps.merge.outputs.changes == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.merge.outputs.changes == 'true'
+
+      - uses: Swatinem/rust-cache@v2
+        if: steps.merge.outputs.changes == 'true'
+        with:
+          workspaces: src-tauri
+          shared-key: beta
+
+      - name: Install frontend dependencies
+        if: steps.merge.outputs.changes == 'true'
+        run: npm ci
+
+      - name: Check frontend types
+        if: steps.merge.outputs.changes == 'true'
+        run: npm run check
+
+      - name: Test Rust
+        if: steps.merge.outputs.changes == 'true'
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Set the beta's version
+        id: version
+        if: steps.merge.outputs.changes == 'true'
+        run: echo "version=$(node "$RUNNER_TEMP/beta.mjs" version ${{ github.run_number }})" >> "$GITHUB_OUTPUT"
+
+      - name: Build the installer
+        if: steps.merge.outputs.changes == 'true'
+        run: npm run tauri build
+
+      - name: Collect the installer and notes
+        if: steps.merge.outputs.changes == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir beta-files
+          cp src-tauri/target/release/bundle/nsis/*-setup.exe "beta-files/EasyUninstaller-$VERSION-setup.exe"
+          node "$RUNNER_TEMP/beta.mjs" notes "$RUNNER_TEMP/beta.json" "$VERSION" beta-files/app-notes.txt > beta-files/release-notes.md
+          cat beta-files/release-notes.md >> "$GITHUB_STEP_SUMMARY"
+          ls -l beta-files
+
+      - uses: actions/upload-artifact@v4
+        if: steps.merge.outputs.changes == 'true'
+        with:
+          name: easy-uninstaller-beta
+          path: beta-files/*
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    name: Sign and publish the beta
+    needs: build
+    if: needs.build.result == 'success' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        if: needs.build.outputs.changes == 'true'
+        with:
+          name: easy-uninstaller-beta
+          path: beta-files
+
+      # The same signature the release workflow makes, with the CLI version main uses.
+      - uses: actions/checkout@v4
+        if: needs.build.outputs.changes == 'true'
+        with:
+          ref: main
+          path: main
+          sparse-checkout: package-lock.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Sign the installer and write latest.json
+        if: needs.build.outputs.changes == 'true'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::The TAURI_SIGNING_PRIVATE_KEY secret is missing; see docs/updates.md." && exit 1
+          fi
+          cli=$(node -p 'require("./main/package-lock.json").packages["node_modules/@tauri-apps/cli"].version')
+          exe="beta-files/EasyUninstaller-$VERSION-setup.exe"
+          npx --yes "@tauri-apps/cli@$cli" signer sign "$exe"
+          node -e '
+            const fs = require("fs");
+            const [exe, version, repo] = process.argv.slice(1);
+            const name = exe.split("/").pop();
+            fs.writeFileSync("beta-files/latest.json", JSON.stringify({
+              version,
+              notes: fs.readFileSync("beta-files/app-notes.txt", "utf8"),
+              pub_date: new Date().toISOString().replace(/\.\d+Z$/, "Z"),
+              platforms: { "windows-x86_64": {
+                signature: fs.readFileSync(exe + ".sig", "utf8").trim(),
+                url: `https://github.com/${repo}/releases/download/beta/${name}`,
+              } },
+            }, null, 2));
+          ' "$exe" "$VERSION" "$GITHUB_REPOSITORY"
+          cat beta-files/latest.json
+
+      - name: Publish the beta
+        if: needs.build.outputs.changes == 'true'
+        run: |
+          # The release is replaced, the `beta` tag stays: it is made once, on main.
+          gh release delete beta --repo "$GITHUB_REPOSITORY" --yes || true
+          gh release create beta \
+            beta-files/EasyUninstaller-$VERSION-setup.exe \
+            beta-files/EasyUninstaller-$VERSION-setup.exe.sig \
+            beta-files/latest.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --target main \
+            --prerelease \
+            --latest=false \
+            --title "Easy Uninstaller beta $VERSION" \
+            --notes-file beta-files/release-notes.md \
+          || { echo "::error::Could not publish the beta. If the tag could not be made, create it once: git tag beta origin/main && git push origin beta"; exit 1; }
+
+      - name: Take the beta down, it holds nothing new
+        if: needs.build.outputs.changes == 'false'
+        run: gh release delete beta --repo "$GITHUB_REPOSITORY" --yes || true

@@ -4,6 +4,8 @@
   import type { IconName } from "../icons";
   import { formatBytes } from "../format";
   import { t } from "../i18n/index.svelte";
+  import { isRegistryKey, shownPath } from "../paths";
+  import { settings } from "../settings.svelte";
   import type { LeftoverItem } from "../types";
 
   /** Without `onToggle` the row only shows the item, with no checkbox. With `onHide`, "Hide" shows on hover. */
@@ -26,7 +28,8 @@
       {#if item.safety === "check" && !item.unowned}<span class="tag tag-check">{t("common.check")}</span>{/if}
       {#if item.needsAdmin}<span class="shield" title={t("common.needsAdmin")}><Icon name="shield" size={13} label={t("common.needsAdmin")} /></span>{/if}
     </span>
-    <span class="muted path">{item.path}</span>
+    <!-- A registry key in plain words would only repeat the reason ("Settings in the registry"). -->
+    {#if settings.technical || !isRegistryKey(item.path)}<span class="muted path" class:tech={settings.technical}>{shownPath(item.path)}</span>{/if}
   </span>
   {#if onHide}
     <button class="hide-pill" aria-label={t("files.hideItem", { name: t(`leftovers.reasons.${item.reason}`) })}
@@ -46,7 +49,8 @@
   .info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .reason { font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
   .shield { display: inline-flex; color: var(--text-muted); }
-  .path { font-family: Consolas, "Cascadia Mono", monospace; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .path { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .path.tech { font-family: Consolas, "Cascadia Mono", monospace; font-size: 11.5px; user-select: text; }
   .hide-pill { flex: none; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 999px; padding: 3px 10px; font-size: 12px; opacity: 0; transition: opacity 0.12s; }
   .row:hover .hide-pill, .hide-pill:focus-visible { opacity: 1; }
   .hide-pill:hover { background: var(--hover); }
