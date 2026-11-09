@@ -525,3 +525,97 @@ export interface StartupReport {
   /** Left as they were: the user said no to the Windows permission prompt. */
   declined: string[];
 }
+
+// ── Free up space without deleting (src-tauri/src/offload.rs) ──────────────
+
+/** A file offered to be made online only or moved. Mirrors `OffloadFile`. */
+export interface OffloadFile {
+  path: string;
+  sizeBytes: number;
+  /** "YYYY-MM-DD": the later of last opened and last changed. */
+  lastUsed: string;
+}
+
+/** Mirrors `OneDriveInfo`. */
+export interface OneDriveInfo {
+  /** OneDrive folders on this PC; empty when OneDrive is not set up. */
+  folders: string[];
+  /** Files on the PC and on OneDrive that can be made online only. */
+  fileCount: number;
+  sizeBytes: number;
+  /** Largest first, at most 200. */
+  files: OffloadFile[];
+  /** Marked online only, but OneDrive has not removed the copy on the PC yet. */
+  freeingCount: number;
+  freeingBytes: number;
+}
+
+/** A file moved to another drive. Mirrors `MovedFile`. */
+export interface MovedFile {
+  id: string;
+  /** Where it was. */
+  originalPath: string;
+  /** Where it is now. */
+  path: string;
+  sizeBytes: number;
+  /** Unix seconds. */
+  movedAt: number;
+  base: string;
+}
+
+/** Mirrors `MoveInfo`. */
+export interface MoveInfo {
+  /** The drive files are moved from, "C:". */
+  systemDrive: string;
+  /** The drives files can go to, most free space first; empty when there is none. */
+  drives: DriveInfo[];
+  fileCount: number;
+  sizeBytes: number;
+  /** Largest first, at most 200. */
+  files: OffloadFile[];
+  /** Moved before and still there, newest first. */
+  moved: MovedFile[];
+}
+
+/** Mirrors `OffloadScan`. */
+export interface OffloadScan {
+  oneDrive: OneDriveInfo;
+  moveFiles: MoveInfo;
+}
+
+/** What "Free up space" or its undo did. Mirrors `OnlineReport`. */
+export interface OnlineReport {
+  doneCount: number;
+  doneBytes: number;
+  skippedCount: number;
+}
+
+/** Mirrors `offload::MoveReport`. */
+export interface DriveMoveReport {
+  /** The moves, to undo them. */
+  ids: string[];
+  movedCount: number;
+  movedBytes: number;
+  /** In use, changed since the scan, or gone. */
+  skippedCount: number;
+  /** Left in place because the other drive is nearly full. */
+  noRoomCount: number;
+  /** The folder on the other drive. */
+  folder: string;
+}
+
+/** Mirrors `MoveBackReport`. */
+export interface MoveBackReport {
+  restoredCount: number;
+  restoredBytes: number;
+  renamedCount: number;
+  failedCount: number;
+}
+
+/** Sent after each file while files are moved. Mirrors `MoveProgress`. */
+export interface MoveProgress {
+  doneBytes: number;
+  totalBytes: number;
+  doneCount: number;
+  totalCount: number;
+}

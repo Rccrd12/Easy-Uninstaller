@@ -1,7 +1,7 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, HistoryKind, HistoryName, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage, StartupApp, AppCache, NewPcAdvice, NewPcReason, UninstalledApp } from "./types";
+import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, HistoryKind, HistoryName, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage, StartupApp, AppCache, NewPcAdvice, NewPcReason, UninstalledApp, OffloadFile } from "./types";
 
 const remove = (reason: NewPcReason): NewPcAdvice => ({ advice: "remove", reason });
 const choose = (reason: NewPcReason): NewPcAdvice => ({ advice: "choose", reason });
@@ -486,4 +486,31 @@ export const sampleStartup: StartupApp[] = [
   startupApp({ id: "hkcu-run:NoteSync", name: "NoteSync Helper", publisher: "NoteSync Ltd", fileName: "notesync-helper.exe", command: `"${U}\\AppData\\Local\\NoteSync\\notesync-helper.exe"`, impact: "low", iconColor: "#038387" }),
   startupApp({ id: "hklm-run:SecurityHealth", name: "Windows Security", publisher: "Microsoft Corporation", note: "protects", fileName: "SecurityHealthSystray.exe", command: "%windir%\\system32\\SecurityHealthSystray.exe", impact: "low", advice: "system", allUsers: true, iconColor: "#2b2b2b" }),
   startupApp({ id: "hkcu-run:Discord", name: "Discord", publisher: "Discord Inc.", note: "background", fileName: "Update.exe", command: `${U}\\AppData\\Local\\Discord\\Update.exe --processStart Discord.exe`, enabled: false, impact: "high", advice: "turnOff", iconColor: "#5865f2" }),
+];
+
+// ── Free up space without deleting ────────────────────────────────────────
+
+const OD = `${U}\\OneDrive`;
+const offloadFile = (path: string, sizeBytes: number, lastUsed: string): OffloadFile => ({ path, sizeBytes, lastUsed });
+
+/** OneDrive files on the PC and in the cloud, largest first. The rest are many small photos. */
+export const sampleOnlineFiles: OffloadFile[] = [
+  offloadFile(`${OD}\\Videos\\Luca's wedding.mp4`, 3.2 * GB, "2024-07-02"),
+  offloadFile(`${OD}\\Pictures\\2019\\Holidays 2019.zip`, 2.8 * GB, "2020-01-12"),
+  offloadFile(`${OD}\\Documents\\Phone backup.zip`, 1.9 * GB, "2023-11-30"),
+  offloadFile(`${OD}\\Videos\\Graduation.mov`, 1.1 * GB, "2022-10-21"),
+  offloadFile(`${OD}\\Pictures\\Camera Roll\\VID_20230812.mp4`, 740 * MB, "2023-08-12"),
+  offloadFile(`${OD}\\Documents\\Thesis\\Thesis - final.pdf`, 210 * MB, "2021-03-09"),
+  offloadFile(`${OD}\\Pictures\\Camera Roll\\IMG_4471.HEIC`, 6.1 * MB, "2023-09-17"),
+];
+export const sampleOnlineCount = 3408;
+export const sampleOnlineBytes = 12.4 * GB;
+
+/** Videos, archives and disk images in the user's folders, largest first. */
+export const sampleMoveFiles: OffloadFile[] = [
+  offloadFile(`${U}\\Videos\\Game capture 2025-02-03.mp4`, 5.6 * GB, "2025-02-03"),
+  offloadFile(`${U}\\Videos\\Family videos 2019.mkv`, 2.2 * GB, "2020-01-06"),
+  offloadFile(`${D}\\ubuntu-22.04-desktop-amd64.iso`, 1.2 * GB, "2023-02-11"),
+  offloadFile(`${D}\\Vacation photos.zip`, 860 * MB, "2023-09-03"),
+  offloadFile(`${U}\\Music\\Albums\\Live in Rome.flac`, 480 * MB, "2022-04-09"),
 ];

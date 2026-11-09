@@ -20,6 +20,10 @@ import {
   sampleFiles,
   sampleHistory,
   sampleLeftovers,
+  sampleMoveFiles,
+  sampleOnlineBytes,
+  sampleOnlineCount,
+  sampleOnlineFiles,
   samplePreview,
   sampleQuarantine,
   sampleQuarantineSettings,
@@ -40,6 +44,7 @@ import type {
   AppCache,
   ClearCacheOutcome,
   DiskInfo,
+  DriveMoveReport,
   Exclusion,
   FileGroup,
   FileItem,
@@ -52,7 +57,13 @@ import type {
   HistorySummary,
   InstalledApp,
   LeftoverItem,
+  MoveBackReport,
+  MovedFile,
+  MoveProgress,
   MoveReport,
+  OffloadFile,
+  OffloadScan,
+  OnlineReport,
   QuarantineEntry,
   QuarantineOptions,
   QuarantineSettings,
@@ -954,4 +965,129 @@ export async function installUpdate(notify: (p: UpdateProgress) => void): Promis
   }
   // The browser cannot restart into a new version; keep showing "installing".
   return new Promise(() => {});
+}
+
+// ---------------------------------------------------------------------------
+// Free up space without deleting. Real: src-tauri/src/offload.rs.
+
+/** Browser fallback: the pretend OneDrive and drives, changed by the functions below. */
+const sampleOffload = {
+  online: [...sampleOnlineFiles],
+  onlineCount: sampleOnlineCount,
+  onlineBytes: sampleOnlineBytes,
+  freeingCount: 0,
+  freeingBytes: 0,
+  lastFreed: null as { count: number; bytes: number; files: OffloadFile[] } | null,
+  movable: [...sampleMoveFiles],
+  moved: [] as MovedFile[],
+};
+
+function sampleOffloadScan(): OffloadScan {
+  const s = sampleOffload;
+  return {
+    oneDrive: {
+      folders: ["C:\\Users\\you\\OneDrive"],
+      fileCount: s.onlineCount,
+      sizeBytes: s.onlineBytes,
+      files: s.online,
+      freeingCount: s.freeingCount,
+      freeingBytes: s.freeingBytes,
+    },
+    moveFiles: {
+      systemDrive: "C:",
+      drives: sampleDrives.map((d) => ({ ...d, freeBytes: d.freeBytes - s.moved.reduce((n, m) => n + m.sizeBytes, 0) })),
+      fileCount: s.movable.length,
+      sizeBytes: s.movable.reduce((n, f) => n + f.sizeBytes, 0),
+      files: s.movable,
+      moved: [...s.moved].sort((a, b) => b.movedAt - a.movedAt),
+    },
+  };
+}
+
+/** Looks for OneDrive files to keep only online and big files to move. Read only. */
+export async function scanOffload(): Promise<OffloadScan> {
+  if (isTauri()) return invoke<OffloadScan>("scan_offload");
+  await sleep(700);
+  return sampleOffloadScan();
+}
+
+/** The cards as they are now, without scanning again. */
+export async function currentOffload(): Promise<OffloadScan> {
+  if (isTauri()) return invoke<OffloadScan>("current_offload");
+  return sampleOffloadScan();
+}
+
+/** OneDrive's "Free up space" on every scanned file except `except` (paths). */
+export async function makeOnlineOnly(except: string[]): Promise<OnlineReport> {
+  if (isTauri()) return invoke<OnlineReport>("make_online_only", { except });
+  await sleep(900);
+  const s = sampleOffload;
+  const kept = s.online.filter((f) => except.includes(f.path));
+  const keptBytes = kept.reduce((n, f) => n + f.sizeBytes, 0);
+  const report = { doneCount: s.onlineCount - kept.length, doneBytes: s.onlineBytes - keptBytes, skippedCount: 0 };
+  s.lastFreed = { count: report.doneCount, bytes: report.doneBytes, files: s.online.filter((f) => !except.includes(f.path)) };
+  s.freeingCount += report.doneCount;
+  s.freeingBytes += report.doneBytes;
+  s.online = kept;
+  s.onlineCount = kept.length;
+  s.onlineBytes = keptBytes;
+  return report;
+}
+
+/** Undoes the last `makeOnlineOnly`: OneDrive keeps the files on this PC again. */
+export async function keepOnThisPc(): Promise<OnlineReport> {
+  if (isTauri()) return invoke<OnlineReport>("keep_on_this_pc");
+  await sleep(600);
+  const s = sampleOffload;
+  const last = s.lastFreed;
+  if (!last) return { doneCount: 0, doneBytes: 0, skippedCount: 0 };
+  s.freeingCount -= last.count;
+  s.freeingBytes -= last.bytes;
+  s.online = [...s.online, ...last.files].sort((a, b) => b.sizeBytes - a.sizeBytes);
+  s.onlineCount += last.count;
+  s.onlineBytes += last.bytes;
+  s.lastFreed = null;
+  return { doneCount: last.count, doneBytes: last.bytes, skippedCount: 0 };
+}
+
+/** Moves every scanned file except `except` to `drive` ("D:"), into a folder named `folderName`. */
+export async function moveToDrive(except: string[], drive: string, folderName: string, notify: (p: MoveProgress) => void): Promise<DriveMoveReport> {
+  if (isTauri()) {
+    const onProgress = new Channel<MoveProgress>();
+    onProgress.onmessage = notify;
+    return invoke<DriveMoveReport>("move_to_drive", { except, drive, folderName, onProgress });
+  }
+  const s = sampleOffload;
+  const files = s.movable.filter((f) => !except.includes(f.path));
+  const total = files.reduce((n, f) => n + f.sizeBytes, 0);
+  const folder = `${drive}\\${folderName}`;
+  const now = Math.floor(Date.now() / 1000);
+  let done = 0;
+  const ids: string[] = [];
+  for (const [i, f] of files.entries()) {
+    await sleep(500);
+    done += f.sizeBytes;
+    const id = `${now}-${i}`;
+    ids.push(id);
+    s.moved.push({ id, originalPath: f.path, path: f.path.replace(/^C:\\Users\\you/, folder), sizeBytes: f.sizeBytes, movedAt: now, base: folder });
+    notify({ doneBytes: done, totalBytes: total, doneCount: i + 1, totalCount: files.length });
+  }
+  s.movable = s.movable.filter((f) => except.includes(f.path));
+  return { ids, movedCount: files.length, movedBytes: total, skippedCount: 0, noRoomCount: 0, folder };
+}
+
+/** Moves files back from the other drive to where they were. */
+export async function moveBackFiles(ids: string[]): Promise<MoveBackReport> {
+  if (isTauri()) return invoke<MoveBackReport>("move_back_files", { ids });
+  await sleep(600);
+  const s = sampleOffload;
+  const back = s.moved.filter((m) => ids.includes(m.id));
+  s.moved = s.moved.filter((m) => !ids.includes(m.id));
+  s.movable = [...s.movable, ...back.map((m) => ({ path: m.originalPath, sizeBytes: m.sizeBytes, lastUsed: "2024-01-01" }))].sort((a, b) => b.sizeBytes - a.sizeBytes);
+  return { restoredCount: back.length, restoredBytes: back.reduce((n, m) => n + m.sizeBytes, 0), renamedCount: 0, failedCount: 0 };
+}
+
+/** Opens the folder of a moved file in Explorer, with the file selected. */
+export async function showMovedFile(id: string): Promise<void> {
+  if (isTauri()) return invoke("show_moved_file", { id });
 }

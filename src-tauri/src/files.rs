@@ -601,7 +601,7 @@ pub(crate) fn walk(
 }
 
 /// In the user's folders, app data and developer folders are not personal files.
-fn skip_personal_dir(path: &Path) -> bool {
+pub(crate) fn skip_personal_dir(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
         return false;
     };

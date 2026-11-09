@@ -37,6 +37,7 @@ windows = { version = "0.62", features = [
   "Win32_Networking_WinHttp",
   "Win32_Security_Credentials",
   # Names and publishers of startup programs, from their version information.
+  # OneDrive "online only": the same file attribute as OneDrive's own "Free up space".
   "Win32_Storage_FileSystem",
   "Win32_System_Com",
   # Whether an app is open before its cache is emptied (process list).
