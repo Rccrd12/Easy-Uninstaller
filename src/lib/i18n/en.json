@@ -1014,5 +1014,27 @@
     "text": "Easy Uninstaller {version} is ready. Updating takes a few seconds.",
     "update": "Update",
     "later": "Later"
+  },
+  "reminders": {
+    "title": "Reminders",
+    "lowSpace": "Tell me when the disk is almost full",
+    "lowSpaceHint": "A Windows notice when less than {percent}% of {drive} is free. If the disk stays full, at most once a week.",
+    "threshold": "Notify when free space is below",
+    "thresholdOption": "{percent}%",
+    "monthly": "Remind me to clean up every month",
+    "monthlyHint": "Only if you have not opened Easy Uninstaller for 30 days.",
+    "how": "Nothing keeps running in the background. Once a day Windows starts a check that takes less than a second, and a notice appears only when needed.",
+    "sample": "Show a sample notice",
+    "sampleSent": "Sent. If you did not see it, check that notifications are on in Windows Settings > System > Notifications.",
+    "sampleFailed": "Windows did not show the notice ({error}).",
+    "saveFailed": "The reminder could not be set up: {error}",
+    "notice": {
+      "lowSpaceTitle": "Disk {drive} is almost full",
+      "lowSpaceBody": "Only {free} free ({percent}%). Open Easy Uninstaller to free up space safely.",
+      "monthlyTitle": "Time for a cleanup",
+      "monthlyBody": "A month has passed since the last check. A Quick clean takes about a minute.",
+      "testTitle": "Easy Uninstaller notices are on",
+      "testBody": "Reminders will look like this. Click a notice to open the app."
+    }
   }
 }

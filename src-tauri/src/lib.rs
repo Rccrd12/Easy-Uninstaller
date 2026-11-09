@@ -12,6 +12,7 @@ mod files;
 mod leftovers;
 mod quarantine;
 mod regkey;
+mod reminders;
 mod restore_point;
 mod review;
 mod space;
@@ -22,6 +23,12 @@ mod updater;
 /// returns the exit code; `None` means start the app normally.
 pub fn run_elevated_job() -> Option<i32> {
     elevated::run_from_args()
+}
+
+/// When started by the reminders' scheduled task (see `reminders.rs`), checks whether
+/// a notification is due and returns the exit code; `None` means start the app normally.
+pub fn run_reminders_check() -> Option<i32> {
+    reminders::run_from_args()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -35,6 +42,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             quarantine::init(app.handle())?;
+            reminders::init(app.handle())?;
             review::init(app.handle())
         })
         .invoke_handler(tauri::generate_handler![
@@ -61,6 +69,10 @@ pub fn run() {
             quarantine::list_quarantine,
             quarantine::restore_quarantine,
             quarantine::delete_quarantine,
+            reminders::get_reminders,
+            reminders::set_reminders,
+            reminders::reminders_opened,
+            reminders::preview_reminder,
             restore_point::create_restore_point,
             review::current_file_groups,
             review::review_file_group,

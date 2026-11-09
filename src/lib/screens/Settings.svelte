@@ -2,13 +2,14 @@
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
   import Icon from "../components/Icon.svelte";
   import AiServicePicker from "../components/AiServicePicker.svelte";
-  import { AI_PARALLEL_CHOICES, aiStats, createRestorePoint, KEEP_DAYS_CHOICES, listExclusions } from "../api";
+  import { AI_PARALLEL_CHOICES, aiStats, createRestorePoint, KEEP_DAYS_CHOICES, listExclusions, REMINDER_THRESHOLDS } from "../api";
   import { forgetAnswers, serviceInfo } from "../ai.svelte";
   import { formatBytes } from "../format";
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
   import { quarantine, saveQuarantine, saveSettings, settings } from "../settings.svelte";
+  import { reminders, saveReminders, showSampleNotice } from "../reminders.svelte";
   import type { Screen } from "../screens";
-  import type { AiMode, AiStats, RestorePointOutcome } from "../types";
+  import type { AiMode, AiStats, ReminderSettings, RestorePointOutcome } from "../types";
   import { getTheme, setTheme, themes } from "../theme.svelte";
   import { check, install, update } from "../updates.svelte";
   // Only this field ends up in the bundle; the release workflow keeps it in sync with the tag.
@@ -43,6 +44,31 @@
     } finally {
       saving = false;
     }
+  }
+
+  // ── Reminders ──
+  let remindSaving = $state(false);
+  let remindError = $state<string | null>(null);
+  let sample = $state<"sending" | "sent" | { error: string } | null>(null);
+
+  async function changeReminders(change: Partial<ReminderSettings>) {
+    remindSaving = true;
+    remindError = null;
+    try {
+      await saveReminders({ ...reminders, ...change });
+    } catch (e) {
+      remindError = String(e);
+    } finally {
+      remindSaving = false;
+    }
+  }
+
+  async function sendSample() {
+    sample = "sending";
+    sample = await showSampleNotice().then(
+      () => "sent" as const,
+      (e) => ({ error: String(e) }),
+    );
   }
 
   // ── AI help ──
@@ -153,6 +179,44 @@
         </span>
       {/if}
     </div>
+  </div>
+</div>
+
+<h2 class="section">{t("reminders.title")}</h2>
+<div class="card list">
+  <label class="row">
+    <span class="grow">
+      {t("reminders.lowSpace")}
+      <span class="muted hint">{t("reminders.lowSpaceHint", { drive: quarantine.systemDrive, percent: reminders.threshold })}</span>
+    </span>
+    <input type="checkbox" checked={reminders.lowSpace} disabled={remindSaving}
+           onchange={(e) => changeReminders({ lowSpace: e.currentTarget.checked })} />
+  </label>
+  {#if reminders.lowSpace}
+    <label class="row sub">
+      <span>{t("reminders.threshold")}</span>
+      <select value={reminders.threshold} disabled={remindSaving} onchange={(e) => changeReminders({ threshold: Number(e.currentTarget.value) })}>
+        {#each REMINDER_THRESHOLDS as percent (percent)}<option value={percent}>{t("reminders.thresholdOption", { percent })}</option>{/each}
+      </select>
+    </label>
+  {/if}
+  <label class="row">
+    <span class="grow">
+      {t("reminders.monthly")}
+      <span class="muted hint">{t("reminders.monthlyHint")}</span>
+    </span>
+    <input type="checkbox" checked={reminders.monthly} disabled={remindSaving}
+           onchange={(e) => changeReminders({ monthly: e.currentTarget.checked })} />
+  </label>
+  <div class="row column">
+    <div class="how">
+      <span class="how-icon"><Icon name="info" /></span>
+      <span class="grow muted">{t("reminders.how")}</span>
+      <button class="btn btn-ghost" disabled={sample === "sending"} onclick={sendSample}>{t("reminders.sample")}</button>
+    </div>
+    {#if sample === "sent"}<span class="note ok" role="status">{t("reminders.sampleSent")}</span>
+    {:else if sample && sample !== "sending"}<span class="note bad" role="alert">{t("reminders.sampleFailed", { error: sample.error })}</span>{/if}
+    {#if remindError}<span class="note bad" role="alert">{t("reminders.saveFailed", { error: remindError })}</span>{/if}
   </div>
 </div>
 
@@ -316,6 +380,11 @@
   .never-item { display: inline-flex; align-items: center; gap: 6px; }
   .never-item :global(.icon) { color: var(--safe-fg); }
   .row .btn:disabled { opacity: 0.5; cursor: default; }
+  .sub { padding-left: 34px; background: var(--hover); }
+  .how { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .how-icon { display: flex; color: var(--text-muted); }
+  .how .btn { flex: none; }
+  .how .btn:disabled { opacity: 0.5; cursor: default; }
   .update { gap: 14px; }
   .update .btn { flex: none; }
   .update .btn:disabled { opacity: 0.5; cursor: default; }
