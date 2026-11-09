@@ -1145,18 +1145,13 @@
     }
   },
   "search": {
-    "placeholderAi": "Descrivi i file che cerchi, ad es. «video più grandi di 500 MB che non apro da un anno»",
-    "placeholderName": "Cerca i tuoi file per nome",
     "placeholderContent": "Descrivi cosa mostrano i file, ad es. «vacanze al mare»",
     "button": "Cerca",
     "tidy": "Riordina i Download",
-    "aiOff": "Con l'aiuto AI attivo puoi cercare scrivendo una frase intera.",
-    "turnOn": "Attivalo",
     "title": "Cerca nei tuoi file",
     "understanding": "{service} sta leggendo la frase…",
     "searching": "Cerco su questo PC…",
     "understood": "Ho capito:",
-    "byName": "Cerco per nome:",
     "lookingFor": "Cerco:",
     "edit": "Modifica",
     "doneEditing": "Fatto",
@@ -1215,15 +1210,15 @@
     "error": {
       "empty": "Scrivi cosa stai cercando.",
       "notSearch": "Non sembra una ricerca di file. Prova a descriverli, ad es. «PDF nei Download dell'anno scorso»."
-    }
+    },
+    "placeholderLocked": "Indicizza i file per poterli cercare",
+    "needServer": "Il server del tuo modello non è impostato.",
+    "getModel": "Scarica il modello ({size})",
+    "useOwn": "Usa il tuo",
+    "nothingIndexed": "Ancora nessuna foto o video indicizzato."
   },
   "searchTopic": {
-    "title": "Cerca «{topic}» dentro foto e video",
-    "hint": "Serve il modello che riconosce cosa mostrano: {size} da scaricare.",
-    "download": "Scarica il modello",
     "options": "Opzioni",
-    "indexing": "Sto ancora indicizzando: {left} file da guardare.",
-    "refresh": "Aggiorna",
     "more": "Mostra anche i meno simili ({count})",
     "chip": "simili a «{topic}»",
     "byTopic": "Prima i più simili",
@@ -1233,41 +1228,31 @@
     "title": "Ricerca per contenuto",
     "status": {
       "none": "Modello non scaricato",
-      "noneHint": "{size} da scaricare, una volta sola.",
       "downloading": "Scarico il modello: {done} di {total}",
       "verifying": "Controllo i file scaricati…",
       "indexing": "Indicizzo: {done} fatti, {left} da guardare",
       "current": "Ora: {name}",
       "paused": "In pausa: {count} indicizzati",
       "ready": "Pronto: {count} indicizzati",
-      "files": "{count} file"
+      "files": "{count} file",
+      "ownNone": "Modello non impostato"
     },
     "download": "Scarica ({size})",
     "cancel": "Annulla",
     "pause": "Pausa",
     "resume": "Riprendi",
     "quality": {
-      "label": "Modello",
+      "label": "Qualità",
       "light": "Leggero",
       "better": "Migliore",
       "best": "Massimo",
-      "hints": {
-        "light": "{size}. Va bene su qualsiasi PC.",
-        "better": "{size}. Un po' più preciso.",
-        "best": "{size}. Il più preciso, ma pesa il doppio."
-      },
       "changed": "Il nuovo modello va scaricato, poi l'indice si rifà da capo."
     },
     "depth": {
       "label": "Video",
       "quick": "Veloce",
       "partial": "Parziale",
-      "full": "Completa",
-      "hints": {
-        "quick": "Solo l'anteprima di ogni video.",
-        "partial": "8 fotogrammi per video.",
-        "full": "Un fotogramma ogni 5 secondi: molto più lento."
-      }
+      "full": "Completa"
     },
     "what": {
       "label": "Cosa cercare",
@@ -1288,7 +1273,31 @@
       "badFile": "Il file scaricato non è quello atteso ({detail}): l'ho eliminato.",
       "engine": "Il modello non è partito ({detail}).",
       "engineSlow": "Il modello non risponde: riprova.",
-      "notReady": "Il modello non è ancora scaricato."
+      "notReady": "Il modello non è ancora scaricato.",
+      "serverOff": "A quell'indirizzo non risponde nessuno: il server è acceso?",
+      "notFound": "File o indirizzo non validi (solo su questo PC).",
+      "noVision": "Legge solo il testo: manca il file mmproj.",
+      "needEngine": "Serve anche llama.cpp, scaricato con «Usa questo»."
+    },
+    "source": {
+      "label": "Modello",
+      "download": "EmbeddingGemma",
+      "files": "File miei",
+      "server": "Server mio"
+    },
+    "own": {
+      "found": "Trovati sul PC",
+      "searching": "Cerco i modelli…",
+      "noneFound": "Nessun modello di embedding in LM Studio o llama.cpp.",
+      "textOnly": "solo testo",
+      "model": "Modello (.gguf)",
+      "vision": "Immagini (mmproj .gguf)",
+      "url": "Indirizzo",
+      "try": "Prova",
+      "trying": "Provo…",
+      "ok": "Funziona · vettori da {dim}",
+      "use": "Usa questo",
+      "inUse": "In uso"
     }
   },
   "tidy": {
@@ -1298,14 +1307,13 @@
     "noDownloads": "Su questo PC non ho trovato la cartella Download.",
     "askAi": "Proponi le cartelle con l'AI",
     "byType": "Ordina per tipo, senza AI",
-    "aiOff": "L'aiuto AI è spento: puoi ordinare per tipo, oppure attivarlo per cartelle con nomi più chiari.",
     "lastRun": "Ultimo riordino, {date}: {files} in {folders}.",
     "undoLast": "Rimettili com'erano",
     "folderOne": "1 cartella",
     "folders": "{count} cartelle",
     "confirm": {
       "title": "Cosa invio a {service}",
-      "intro": "Invio nome, dimensione e mese di {files}.",
+      "intro": "I nomi di {files}, con dimensione e mese.",
       "notSent": "Altri {files} li riordini la prossima volta.",
       "send": "Invia e proponi",
       "showList": "Vedi l'elenco",
@@ -1316,9 +1324,9 @@
       "title": "Proposta: {files} in {folders}",
       "byType": "Ordinati per tipo",
       "byAi": "Proposta di {service}",
-      "left": "{files} restano dove sono: l'AI non era sicura di dove metterli.",
+      "left": "{files} restano dove sono.",
       "leftByType": "{files} di altro tipo restano dove sono.",
-      "notSent": "{files} non sono stati guardati questa volta: ripeti dopo.",
+      "notSent": "{files} non guardati questa volta.",
       "new": "Nuova cartella",
       "exists": "Esiste già",
       "in": "in {place}",
@@ -1329,8 +1337,7 @@
       "pick": "Sposta {name}"
     },
     "installers": {
-      "title": "Installer già usati",
-      "desc": "Installer di programmi già installati."
+      "title": "Installer già usati"
     },
     "apply": {
       "summary": "{files} in {folders}",

@@ -122,6 +122,8 @@ pub fn run() {
             semantic::index_install,
             semantic::index_cancel_download,
             semantic::index_remove,
+            semantic::index_check,
+            semantic::index_find_models,
             space::scan_space,
             startup::list_startup_apps,
             startup::set_startup_apps,

@@ -685,8 +685,17 @@ export type IndexQuality = "light" | "better" | "best";
 /** Quick: the video's preview. Partial: 8 frames. Full: one frame every 5 seconds. */
 export type IndexDepth = "quick" | "partial" | "full";
 
+/** Download: EmbeddingGemma 2, fetched by the app. Files: GGUF files already on this PC. Server: a llama.cpp server on this PC. */
+export type IndexSource = "download" | "files" | "server";
+
 export interface IndexSettings {
+  source: IndexSource;
   quality: IndexQuality;
+  /** Files: the model and its picture part (`mmproj…gguf`). */
+  ownModel: string;
+  ownVision: string;
+  /** Server: its address, on this PC only. */
+  serverUrl: string;
   depth: IndexDepth;
   photos: boolean;
   videos: boolean;
@@ -721,6 +730,23 @@ export interface IndexStatus {
   diskBytes: number;
   /** Still to download for the chosen model. */
   downloadBytes: number;
+}
+
+/** What "Try" found out about a model. */
+export interface IndexCheck {
+  text: boolean;
+  pictures: boolean;
+  dim: number;
+  /** An `index.error.*` key, maybe with `:detail`. */
+  error: string | null;
+}
+
+/** An embedding model another app downloaded (LM Studio, llama.cpp, Hugging Face). */
+export interface OwnModel {
+  model: string;
+  /** The `mmproj` file beside it: without it pictures cannot be read. */
+  vision: string | null;
+  bytes: number;
 }
 
 // ── Tidying Downloads (src-tauri/src/tidy.rs) ──────────────────────────────

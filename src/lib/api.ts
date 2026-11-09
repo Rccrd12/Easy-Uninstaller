@@ -97,8 +97,10 @@ import type {
   UninstalledApp,
   UpdateInfo,
   UpdateProgress,
+  IndexCheck,
   IndexSettings,
   IndexStatus,
+  OwnModel,
 } from "./types";
 
 /** Matches `KEEP_DAYS_CHOICES` in src-tauri/src/quarantine.rs. */
@@ -1003,8 +1005,23 @@ export const INDEX_DOWNLOAD_BYTES: Record<IndexSettings["quality"], number> = {
 const sampleIndexListeners = new Set<(s: IndexStatus) => void>();
 // `?index=ready` starts the browser sample with the model already downloaded.
 const sampleIndexReady = typeof location !== "undefined" && new URLSearchParams(location.search).get("index") === "ready";
+/** The engine (llama.cpp) alone: what the person's own model files need. */
+const ENGINE_BYTES = 23_700_000;
+let sampleEngine = sampleIndexReady;
 const sampleIndex: IndexStatus = {
-  settings: { quality: "light", depth: "partial", photos: true, videos: true, documents: true, wholePc: false, paused: false },
+  settings: {
+    source: "download",
+    quality: "light",
+    ownModel: "",
+    ownVision: "",
+    serverUrl: "",
+    depth: "partial",
+    photos: true,
+    videos: true,
+    documents: true,
+    wholePc: false,
+    paused: false,
+  },
   ready: sampleIndexReady,
   download: null,
   error: null,
@@ -1057,12 +1074,22 @@ export async function onIndexStatus(cb: (s: IndexStatus) => void): Promise<() =>
 
 export async function indexSetSettings(settings: IndexSettings): Promise<IndexStatus> {
   if (isTauri()) return invoke<IndexStatus>("index_set_settings", { settings });
-  const qualityChanged = settings.quality !== sampleIndex.settings.quality;
+  const was = sampleIndex.settings;
+  const modelChanged =
+    settings.source !== was.source ||
+    (settings.source === "download" && settings.quality !== was.quality) ||
+    (settings.source === "files" && settings.ownModel !== was.ownModel) ||
+    (settings.source === "server" && settings.serverUrl !== was.serverUrl);
   sampleIndex.settings = { ...settings };
-  if (qualityChanged) {
-    sampleIndex.ready = false;
+  if (modelChanged) {
     sampleIndex.indexed = 0;
-    sampleIndex.downloadBytes = INDEX_DOWNLOAD_BYTES[settings.quality];
+    if (settings.source === "download") {
+      sampleIndex.ready = false;
+      sampleIndex.downloadBytes = INDEX_DOWNLOAD_BYTES[settings.quality];
+    } else {
+      sampleIndex.ready = settings.source === "server" || sampleEngine;
+      sampleIndex.downloadBytes = sampleIndex.ready ? 0 : ENGINE_BYTES;
+    }
   }
   if (settings.paused) {
     if (sampleIndexTimer) clearInterval(sampleIndexTimer);
@@ -1090,6 +1117,7 @@ export async function indexInstall(): Promise<IndexStatus> {
       } else {
         sampleIndex.download = null;
         sampleIndex.ready = true;
+        sampleEngine = true;
         sampleIndex.downloadBytes = 0;
         sampleIndex.diskBytes = total;
         sampleIndexRound();
@@ -1114,10 +1142,39 @@ export async function indexCancelDownload(): Promise<void> {
 export async function indexRemove(): Promise<IndexStatus> {
   if (isTauri()) return invoke<IndexStatus>("index_remove");
   if (sampleIndexTimer) clearInterval(sampleIndexTimer);
-  Object.assign(sampleIndex, { ready: false, download: null, indexing: false, indexed: 0, pending: 0, current: null, diskBytes: 0, error: null });
-  sampleIndex.downloadBytes = INDEX_DOWNLOAD_BYTES[sampleIndex.settings.quality];
+  sampleEngine = false;
+  const source = sampleIndex.settings.source;
+  Object.assign(sampleIndex, { ready: source === "server", download: null, indexing: false, indexed: 0, pending: 0, current: null, diskBytes: 0, error: null });
+  sampleIndex.downloadBytes = source === "download" ? INDEX_DOWNLOAD_BYTES[sampleIndex.settings.quality] : source === "files" ? ENGINE_BYTES : 0;
   sampleIndexChanged();
   return structuredClone(sampleIndex);
+}
+
+/** Tries a model before it is used: a few words, then a small picture. */
+export async function indexCheck(settings: IndexSettings): Promise<IndexCheck> {
+  if (isTauri()) return invoke<IndexCheck>("index_check", { settings });
+  await sleep(1200);
+  const fail = (error: string, text = false): IndexCheck => ({ text, pictures: false, dim: text ? 768 : 0, error });
+  if (settings.source === "server") {
+    return /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/.test(settings.serverUrl.trim()) ? { text: true, pictures: true, dim: 768, error: null } : fail("index.error.notFound");
+  }
+  if (settings.source === "files") {
+    if (!/\.gguf$/i.test(settings.ownModel.trim())) return fail("index.error.notFound");
+    if (!sampleEngine) return fail("index.error.needEngine");
+    if (!settings.ownVision.trim()) return fail("index.error.noVision", true);
+  }
+  return { text: true, pictures: true, dim: 768, error: null };
+}
+
+/** Embedding models other apps already downloaded (LM Studio, llama.cpp, Hugging Face). */
+export async function indexFindModels(): Promise<OwnModel[]> {
+  if (isTauri()) return invoke<OwnModel[]>("index_find_models");
+  await sleep(500);
+  const lm = "C:\\Users\\you\\.lmstudio\\models";
+  return [
+    { model: `${lm}\\unsloth\\embeddinggemma-2-GGUF\\embeddinggemma-2-Q8_0.gguf`, vision: `${lm}\\unsloth\\embeddinggemma-2-GGUF\\mmproj-embeddinggemma-2-Q8_0.gguf`, bytes: 309_855_520 },
+    { model: `${lm}\\nomic-ai\\nomic-embed-text-v1.5-GGUF\\nomic-embed-text-v1.5.Q4_K_M.gguf`, vision: null, bytes: 84_106_624 },
+  ];
 }
 
 // ── Tidying Downloads (src-tauri/src/tidy.rs) ──────────────────────────────

@@ -207,7 +207,6 @@
               <button class="btn btn-ai" onclick={startAi}><Icon name="sparkle" />{t("tidy.askAi")}</button>
               <button class="btn btn-ghost" onclick={byType}><Icon name="list" />{t("tidy.byType")}</button>
             </div>
-            {#if !aiReady()}<p class="muted small ai-off">{t("tidy.aiOff")}</p>{/if}
           {/if}
         </div>
       </div>
@@ -288,7 +287,6 @@
           <span class="tile small-tile quarantine-tile" aria-hidden="true"><Icon name="quarantine" size={18} /></span>
           <div class="folder-text">
             <div class="folder-name"><b>{t("tidy.installers.title")}</b></div>
-            <div class="muted small">{t("tidy.installers.desc")}</div>
           </div>
           <span class="size">{formatBytes(p.installers.reduce((s, f) => s + f.sizeBytes, 0))}</span>
         </div>
@@ -375,7 +373,6 @@
   .intro-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .intro-text b { font-size: 15px; }
   .buttons { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-  .ai-off { margin-top: 8px; }
   .last { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; }
   .undone { margin: -4px 0 12px; }
 

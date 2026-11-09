@@ -6,8 +6,9 @@
   import StatusIcon from "./StatusIcon.svelte";
   import { openScannedFile, quarantineFound, restoreQuarantine, searchFiles, searchUnderstand, showScannedFile } from "../api";
   import { aiConfig, aiErrorText, aiReady } from "../ai.svelte";
-  import { cancelIndexDownload, indexErrorText, indexReady, installIndex, localIndex, watchIndex } from "../localIndex.svelte";
+  import { indexErrorText, indexReady, watchIndex } from "../localIndex.svelte";
   import type { IconName } from "../icons";
+  import { needsHelp, readSentence } from "../localQuery";
   import { fileCount, formatBytes, formatDate, GB, MB, removedLines, restoreSummary } from "../format";
   import { getLanguage, locale, t } from "../i18n/index.svelte";
   import { displayPath, fileKind, folderOf, nameOf } from "../paths";
@@ -15,9 +16,11 @@
   import type { MoveReport, SearchFilter, SearchKind, SearchPlace, SearchResult, SearchSort } from "../types";
 
   /**
-   * Finding files by a sentence (AI help, phase 2). The AI turns the sentence into a
-   * filter, shown as chips the user can remove or change; the search itself runs on this
-   * PC. Nothing is picked or moved on its own: picked files go to Quarantine.
+   * Finding files by a sentence in the local index. Sizes, dates and kinds are read on
+   * this PC (`localQuery.ts`) and the rest is what the files should show; only a sentence
+   * the rules cannot read goes to the AI, when it is on. The filter is shown as chips the
+   * user can remove or change. Nothing is picked or moved on its own: picked files go to
+   * Quarantine.
    */
   let { sentence, onBack, onOptions }: { sentence: string; onBack: () => void; onOptions?: () => void } = $props();
   watchIndex();
@@ -27,12 +30,11 @@
   const SIZES = [10 * MB, 100 * MB, 500 * MB, GB, 5 * GB];
   const UNUSED = [30, 90, 180, 365, 730, 1825];
   const RECENT = [1, 7, 30, 365];
-  const empty = (): SearchFilter => ({ kinds: [], minBytes: null, maxBytes: null, unusedDays: null, recentDays: null, places: [], words: [], sort: "size", topic: null, loose: false });
 
   let current = $state("");
   let filter = $state<SearchFilter | null>(null);
-  /** How the sentence became a filter: by the AI, as words of names, or as a topic for the local index. */
-  let mode = $state<"ai" | "name" | "topic">("ai");
+  /** How the sentence became a filter: read on this PC, or by the AI (a sentence the rules could not read). */
+  let mode = $state<"ai" | "topic">("topic");
   let phase = $state<"understanding" | "searching" | "done" | "error">("understanding");
   let error = $state<string | null>(null);
   let result = $state<SearchResult | null>(null);
@@ -67,25 +69,19 @@
     result = null;
     editing = false;
     selected = new Set();
-    let next: SearchFilter;
-    if (aiReady()) {
-      mode = "ai";
+    // Sizes, dates and kinds are read here; the rest is what the files show.
+    let next = readSentence(s);
+    mode = "topic";
+    if (needsHelp(next) && aiReady()) {
+      // Left over: words of a size or a date the rules missed. The AI reads the sentence.
       phase = "understanding";
       try {
-        next = await searchUnderstand(aiConfig(), s, getLanguage());
-      } catch (e) {
-        if (id !== runId) return;
-        error = errorText(e);
-        phase = "error";
-        return;
+        const understood = await searchUnderstand(aiConfig(), s, getLanguage());
+        next = { ...understood, topic: understood.topic ?? next.topic, words: [] };
+        mode = "ai";
+      } catch {
+        // The AI could not help: the sentence as the rules read it.
       }
-    } else if (indexReady()) {
-      // No AI, but the local index: the whole sentence is what the files should show.
-      mode = "topic";
-      next = { ...empty(), topic: s };
-    } else {
-      mode = "name";
-      next = { ...empty(), words: s.split(/[\s,]+/).filter(Boolean) };
     }
     if (id !== runId) return;
     filter = next;
@@ -152,8 +148,6 @@
     wasReady = ready;
   });
 
-  const ix = $derived(localIndex.status);
-  const percent = (done: number, total: number) => (total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0);
 
   function toggleKind(k: SearchKind) {
     if (!filter) return;
@@ -215,7 +209,7 @@
   <button class="back" onclick={onBack}><Icon name="chevronLeft" size={14} />{t("files.title")}</button>
   <h1>{t("search.title")}</h1>
   <div class="bar-wrap">
-    <SearchBar value={current} busy={phase === "understanding"} onSearch={(s) => (current === s ? run(s) : (current = s))} />
+    <SearchBar value={current} busy={phase === "understanding"} onSearch={(s) => (current === s ? run(s) : (current = s))} {onOptions} />
   </div>
 
   {#if phase === "understanding"}
@@ -228,7 +222,7 @@
     {@const f = filter}
     {@const list = chips(f)}
     <div class="chips">
-      <span class="muted chips-label">{t(mode === "name" ? "search.byName" : mode === "topic" ? "search.lookingFor" : "search.understood")}</span>
+      <span class="muted chips-label">{t(mode === "topic" ? "search.lookingFor" : "search.understood")}</span>
       {#if list.length === 0}<span class="chip fixed">{t("search.anyFile")}</span>{/if}
       {#each list as chip (chip.label)}
         <span class="chip">
@@ -295,33 +289,10 @@
       </div>
     {/if}
 
-    {#if f.topic && ix && !ix.ready}
-      <div class="card topic-card">
-        <span class="topic-tile" aria-hidden="true"><Icon name="sparkle" size={20} /></span>
-        <div class="topic-text">
-          <b>{t("searchTopic.title", { topic: f.topic })}</b>
-          {#if ix.download}
-            <span class="muted small">{ix.download.verifying ? t("index.status.verifying") : t("index.status.downloading", { done: formatBytes(ix.download.doneBytes), total: formatBytes(ix.download.totalBytes) })}</span>
-            <span class="bar" class:indeterminate={ix.download.verifying}><span style:width="{ix.download.verifying ? 30 : percent(ix.download.doneBytes, ix.download.totalBytes)}%"></span></span>
-          {:else}
-            <span class="muted small">{t("searchTopic.hint", { size: formatBytes(ix.downloadBytes) })}</span>
-          {/if}
-          {#if ix.error}<span class="small bad" role="alert">{indexErrorText(ix.error)}</span>{/if}
-        </div>
-        {#if ix.download}
-          <button class="btn btn-ghost" onclick={cancelIndexDownload}>{t("index.cancel")}</button>
-        {:else}
-          {#if onOptions}<button class="btn btn-ghost" onclick={onOptions}>{t("searchTopic.options")}</button>{/if}
-          <button class="btn btn-ai" disabled={localIndex.busy} onclick={installIndex}><Icon name="download" />{t("searchTopic.download")}</button>
-        {/if}
-      </div>
-    {/if}
-    {#if result?.byTopic && ix?.indexing && ix.pending > 0}
-      <p class="topic-line icon-line"><span class="spinner small-spin" aria-hidden="true"></span>{t("searchTopic.indexing", { left: count(ix.pending) })}<button class="link" onclick={search}>{t("searchTopic.refresh")}</button></p>
-    {/if}
     {#if result?.topicError}
       <p class="topic-line bad" role="alert">{t("searchTopic.error", { error: indexErrorText(result.topicError) })}</p>
     {/if}
+
 
     {#if phase === "searching" && !result}
       <div class="card status" role="status"><span class="spinner" aria-hidden="true"></span>{t("search.searching")}</div>
@@ -364,7 +335,6 @@
         <div class="card footer">
           <div class="footer-text">
             <b>{t("files.review.selected", { files: fileCount(selected.size), size: formatBytes(selectedBytes) })}</b>
-            <span class="muted small">{t("files.review.restorable", { days: quarantine.keepDays })}</span>
           </div>
           <span class="grow"></span>
           <button class="btn btn-ghost" onclick={() => (selected = allSelected ? new Set() : new Set(files.map((f) => f.path)))}>
@@ -424,13 +394,6 @@
   .words { user-select: text; }
 
 
-  .topic-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 12px; border-left: 3px solid var(--ai); }
-  .topic-tile { width: 40px; height: 40px; border-radius: var(--radius); background: var(--tip-bg); color: var(--ai); display: flex; align-items: center; justify-content: center; flex: none; }
-  .topic-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; }
-  .bar { display: block; height: 6px; margin-top: 4px; border-radius: 3px; background: var(--track); overflow: hidden; max-width: 420px; }
-  .bar > span { display: block; height: 100%; border-radius: 3px; background: var(--ai); transition: width 0.2s; }
-  .bar.indeterminate > span { animation: slide 1.2s ease-in-out infinite; }
-  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
   .bad { color: var(--check-fg); font-weight: 600; }
   .topic-line { font-size: 13px; margin: -2px 0 10px; color: var(--text-muted); }
   .more { display: block; margin: 8px 2px 0; }

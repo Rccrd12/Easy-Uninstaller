@@ -384,7 +384,7 @@
       {/if}
     </div>
     {#if usesSampleData()}<SampleBanner />{/if}
-    <SearchBar onSearch={(s) => { notice = null; searching = s; }} onTidy={() => { notice = null; tidying = true; }} />
+    <SearchBar onSearch={(s) => { notice = null; searching = s; }} onTidy={() => { notice = null; tidying = true; }} onOptions={() => onNavigate("settings")} />
 
     {#if scanning}
       <div class="card scan" role="status" aria-live="polite">

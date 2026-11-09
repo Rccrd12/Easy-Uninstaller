@@ -1,7 +1,9 @@
-//! llama.cpp's server, started by the app with the downloaded model when the
-//! index or a search needs it, on this PC only (127.0.0.1, a free port), with no
-//! window and at low priority so the PC stays usable. It stops after a few idle
-//! minutes and when the app closes.
+//! llama.cpp's server, started by the app with the downloaded model (or the
+//! person's own GGUF files) when the index or a search needs it, on this PC only
+//! (127.0.0.1, a free port), with no window and at low priority so the PC stays
+//! usable. It stops after a few idle minutes and when the app closes.
+//!
+//! Or a llama.cpp server the person already runs on this PC: then it is only asked.
 
 use super::store;
 use crate::ai::http::{self, HttpError, Url};
@@ -25,8 +27,25 @@ const REQUEST_LIMIT: Duration = Duration::from_secs(300);
 pub struct Setup {
     pub exe: PathBuf,
     pub text: PathBuf,
-    pub vision: PathBuf,
+    /// The part that reads pictures (`mmproj`); without it only words work.
+    pub vision: Option<PathBuf>,
     pub log: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Backend {
+    /// llama.cpp started by the app.
+    Own(Setup),
+    /// A llama.cpp server the person runs on this PC (a loopback address).
+    Server(Url),
+}
+
+/// Who turns pictures and words into vectors.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Engine {
+    pub backend: Backend,
+    /// EmbeddingGemma: a search goes with its task prefix.
+    pub gemma: bool,
 }
 
 struct Running {
@@ -49,9 +68,12 @@ pub enum Input<'a> {
 /// The request body for llama.cpp's own `/embeddings` endpoint. Pictures go as
 /// base64 with the media marker in the prompt; EmbeddingGemma wants no prefix for
 /// them, and `task: search result | query: ` before a search.
-pub fn body(input: &Input) -> Value {
+pub fn body(input: &Input, gemma: bool) -> Value {
     match input {
-        Input::Query(text) => json!({ "content": format!("task: search result | query: {text}") }),
+        Input::Query(text) if gemma => {
+            json!({ "content": format!("task: search result | query: {text}") })
+        }
+        Input::Query(text) => json!({ "content": text }),
         Input::Picture(png) => json!({
             "content": [{ "prompt_string": "<__media__>", "multimodal_data": [crate::apps::icon::base64(png)] }]
         }),
@@ -142,11 +164,11 @@ fn start(setup: &Setup) -> Result<Running, String> {
     let port = free_port()?;
     let log = File::create(&setup.log).map_err(|e| e.to_string())?;
     let mut cmd = Command::new(&setup.exe);
-    cmd.arg("--model")
-        .arg(&setup.text)
-        .arg("--mmproj")
-        .arg(&setup.vision)
-        .args(["--embeddings", "--pooling", "mean"])
+    cmd.arg("--model").arg(&setup.text);
+    if let Some(vision) = &setup.vision {
+        cmd.arg("--mmproj").arg(vision);
+    }
+    cmd.args(["--embeddings", "--pooling", "mean"])
         .args([
             "--ctx-size",
             "4096",
@@ -196,9 +218,49 @@ fn start(setup: &Setup) -> Result<Running, String> {
     })
 }
 
-/// One vector, unit length. Starts the server when it is not running (or runs
-/// another model). Blocking; one request at a time.
-pub fn embed(setup: &Setup, input: &Input) -> Result<Vec<f32>, String> {
+/// Where a person's own server takes embeddings: llama.cpp's `/embeddings`, also
+/// when the address given ends in `/v1` (that one reads no pictures).
+pub fn server_endpoint(base: &Url) -> Url {
+    let mut root = base.clone();
+    let path = base.path.trim_end_matches('/');
+    root.path = path.strip_suffix("/v1").unwrap_or(path).to_string();
+    root.join("embeddings")
+}
+
+/// One vector, unit length. Starts the app's server when it is not running (or
+/// runs another model). Blocking; one request at a time.
+pub fn embed(engine: &Engine, input: &Input) -> Result<Vec<f32>, String> {
+    let body = serde_json::to_vec(&body(input, engine.gemma)).map_err(|e| e.to_string())?;
+    let answer = match &engine.backend {
+        Backend::Own(setup) => ask_own(setup, &body)?,
+        Backend::Server(base) => match http::request(
+            "POST",
+            &server_endpoint(base),
+            &[],
+            Some(&body),
+            REQUEST_LIMIT,
+        ) {
+            Ok(a) => a,
+            Err(HttpError::Timeout) => return Err("index.error.engineSlow".into()),
+            Err(HttpError::Offline) => return Err("index.error.serverOff".into()),
+            Err(e) => return Err(format!("index.error.engine:{e:?}")),
+        },
+    };
+    if answer.status != 200 {
+        let text = String::from_utf8_lossy(&answer.body);
+        return Err(format!(
+            "index.error.engine:{} {}",
+            answer.status,
+            crate::ai::prompt::tidy(&text, 200)
+        ));
+    }
+    let value: Value =
+        serde_json::from_slice(&answer.body).map_err(|_| "index.error.engine:answer")?;
+    let v = vector_of(&value).ok_or("index.error.engine:answer")?;
+    store::unit(&v).ok_or_else(|| "index.error.engine:answer".into())
+}
+
+fn ask_own(setup: &Setup, body: &[u8]) -> Result<http::Response, String> {
     let mut running = RUNNING.lock().map_err(|e| e.to_string())?;
     let stale = match running.as_mut() {
         Some(r) => r.setup != *setup || matches!(r.child.try_wait(), Ok(Some(_))),
@@ -214,39 +276,26 @@ pub fn embed(setup: &Setup, input: &Input) -> Result<Vec<f32>, String> {
     }
     let r = running.as_mut().ok_or("index.error.engineSlow")?;
     r.last_used = Instant::now();
-    let body = serde_json::to_vec(&body(input)).map_err(|e| e.to_string())?;
     let answer = http::request(
         "POST",
         &url(r.port, "/embeddings"),
         &[],
-        Some(&body),
+        Some(body),
         REQUEST_LIMIT,
     );
     r.last_used = Instant::now();
-    let answer = match answer {
-        Ok(a) => a,
-        Err(HttpError::Timeout) => return Err("index.error.engineSlow".into()),
+    match answer {
+        Ok(a) => Ok(a),
+        Err(HttpError::Timeout) => Err("index.error.engineSlow".into()),
         Err(e) => {
             // It may have stopped: the next request starts it again.
             if let Some(mut gone) = running.take() {
                 let _ = gone.child.kill();
                 let _ = gone.child.wait();
             }
-            return Err(format!("index.error.engine:{e:?}"));
+            Err(format!("index.error.engine:{e:?}"))
         }
-    };
-    if answer.status != 200 {
-        let text = String::from_utf8_lossy(&answer.body);
-        return Err(format!(
-            "index.error.engine:{} {}",
-            answer.status,
-            crate::ai::prompt::tidy(&text, 200)
-        ));
     }
-    let value: Value =
-        serde_json::from_slice(&answer.body).map_err(|_| "index.error.engine:answer")?;
-    let v = vector_of(&value).ok_or("index.error.engine:answer")?;
-    store::unit(&v).ok_or_else(|| "index.error.engine:answer".into())
 }
 
 /// Stops the server after a few minutes without requests. One watcher per start.
@@ -303,11 +352,33 @@ mod tests {
 
     #[test]
     fn requests_follow_embeddinggemma_and_llama_cpp() {
-        let q = body(&Input::Query("vacanze al mare"));
+        let q = body(&Input::Query("vacanze al mare"), true);
         assert_eq!(q["content"], "task: search result | query: vacanze al mare");
-        let p = body(&Input::Picture(b"png"));
+        let other = body(&Input::Query("vacanze al mare"), false);
+        assert_eq!(
+            other["content"], "vacanze al mare",
+            "another model: the words alone"
+        );
+        let p = body(&Input::Picture(b"png"), true);
         assert_eq!(p["content"][0]["prompt_string"], "<__media__>");
         assert_eq!(p["content"][0]["multimodal_data"][0], "cG5n");
+    }
+
+    #[test]
+    fn a_server_is_asked_at_its_embeddings_endpoint() {
+        let at = |text: &str| server_endpoint(&Url::parse(text).unwrap()).to_text();
+        assert_eq!(
+            at("http://127.0.0.1:8080"),
+            "http://127.0.0.1:8080/embeddings"
+        );
+        assert_eq!(
+            at("http://127.0.0.1:8080/"),
+            "http://127.0.0.1:8080/embeddings"
+        );
+        assert_eq!(
+            at("http://localhost:8080/v1/"),
+            "http://localhost:8080/embeddings"
+        );
     }
 
     #[test]
