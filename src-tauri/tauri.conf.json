@@ -44,7 +44,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQyQ0UxRkUyNzEzRkUwMTIKUldRUzREOXg0aC9PUWtybnExR2tMOUtENGUzZTVaeTNsVGY2a1V4UmZvVmcyWjdURkZNbVFzdlEK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg2NDJGOERFQUEzMDIxM0QKUldROUlUQ3EzdmhDaGlibkl1MTZTeGJ1em5ZckZFbTlaU2JaMzlqM2R6ZFlQcS9WRkFaU1ZPSUgK",
       "endpoints": ["https://github.com/Rccrd12/Easy-Uninstaller/releases/latest/download/latest.json"],
       "windows": { "installMode": "passive" }
     }
