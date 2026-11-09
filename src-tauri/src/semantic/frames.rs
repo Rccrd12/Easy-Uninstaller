@@ -3,6 +3,9 @@
 //! Previews come from Windows (the same ones Explorer shows). Frames of a video
 //! are read with Media Foundation, which ships with Windows; where it is missing
 //! (Windows "N" editions) or cannot read the file, the video's preview is used.
+//!
+//! "Full" looks at a frame every second but keeps one only when the picture
+//! changed (`Scenes`): every scene is seen, and a still scene costs nothing.
 
 use super::Depth;
 use crate::search::FileKind;
@@ -12,10 +15,76 @@ use std::path::Path;
 pub const SIDE: u32 = 448;
 /// "Partial": this many frames, spread over the video.
 pub const PARTIAL_FRAMES: u64 = 8;
-/// "Full": one frame every this many seconds...
-pub const FULL_EVERY_SECS: u64 = 5;
-/// ...but never more than this many (a 2-hour film); longer videos spread them out.
-pub const FULL_MAX_FRAMES: u64 = 1440;
+/// "Full": a frame is looked at every this many seconds...
+pub const FULL_EVERY_SECS: u64 = 1;
+/// ...at most this many times (2 hours); longer videos spread them out...
+pub const FULL_MAX_LOOKS: u64 = 7200;
+/// ...and at most this many are kept for the model.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const FULL_MAX_FRAMES: usize = 1440;
+/// How different (0-255, on average) a frame must be from the last kept one to be a new scene.
+#[cfg_attr(not(windows), allow(dead_code))]
+const SCENE_CHANGE: u32 = 18;
+/// The side of the tiny grey picture frames are compared by.
+#[cfg_attr(not(windows), allow(dead_code))]
+const PRINT: usize = 16;
+
+/// Keeps the frames that start a new scene.
+#[cfg_attr(not(windows), allow(dead_code))]
+#[derive(Default)]
+pub struct Scenes {
+    last: Option<[u8; PRINT * PRINT]>,
+}
+
+#[cfg_attr(not(windows), allow(dead_code))]
+impl Scenes {
+    /// Whether this frame (`w` x `h` RGBA) differs enough from the last one kept;
+    /// if so, it becomes the last one kept.
+    pub fn is_new(&mut self, w: u32, h: u32, rgba: &[u8]) -> bool {
+        let Some(print) = fingerprint(w, h, rgba) else {
+            return false;
+        };
+        let new = self.last.is_none_or(|last| {
+            let diff: u32 = last
+                .iter()
+                .zip(&print)
+                .map(|(a, b)| u32::from(a.abs_diff(*b)))
+                .sum();
+            diff / (PRINT * PRINT) as u32 >= SCENE_CHANGE
+        });
+        if new {
+            self.last = Some(print);
+        }
+        new
+    }
+}
+
+/// The frame shrunk to 16 x 16 grey squares (the average of each block).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn fingerprint(w: u32, h: u32, rgba: &[u8]) -> Option<[u8; PRINT * PRINT]> {
+    let (w, h) = (w as usize, h as usize);
+    if w == 0 || h == 0 || rgba.len() < w * h * 4 {
+        return None;
+    }
+    let mut sum = [0u64; PRINT * PRINT];
+    let mut count = [0u64; PRINT * PRINT];
+    for y in 0..h {
+        let by = y * PRINT / h;
+        for x in 0..w {
+            let p = (y * w + x) * 4;
+            let grey =
+                (u64::from(rgba[p]) * 3 + u64::from(rgba[p + 1]) * 6 + u64::from(rgba[p + 2])) / 10;
+            let cell = by * PRINT + x * PRINT / w;
+            sum[cell] += grey;
+            count[cell] += 1;
+        }
+    }
+    let mut out = [0u8; PRINT * PRINT];
+    for (o, (s, c)) in out.iter_mut().zip(sum.iter().zip(count)) {
+        *o = s.checked_div(c).unwrap_or(0) as u8;
+    }
+    Some(out)
+}
 
 /// When to take frames, in 100-nanosecond units (Media Foundation's), for a video this long.
 pub fn frame_times(duration: u64, depth: Depth) -> Vec<u64> {
@@ -23,7 +92,7 @@ pub fn frame_times(duration: u64, depth: Depth) -> Vec<u64> {
     let count = match depth {
         Depth::Quick => 1,
         Depth::Partial => PARTIAL_FRAMES,
-        Depth::Full => (secs / FULL_EVERY_SECS).clamp(1, FULL_MAX_FRAMES),
+        Depth::Full => (secs / FULL_EVERY_SECS).clamp(1, FULL_MAX_LOOKS),
     };
     if duration == 0 {
         return vec![0];
@@ -43,7 +112,8 @@ pub fn pictures(path: &Path, kind: FileKind, depth: Depth) -> Vec<Vec<u8>> {
     };
     match kind {
         FileKind::Video if depth != Depth::Quick => {
-            let frames = platform::video_frames(path, &|d| frame_times(d, depth));
+            let frames =
+                platform::video_frames(path, &|d| frame_times(d, depth), depth == Depth::Full);
             if frames.is_empty() {
                 preview()
             } else {
@@ -96,7 +166,7 @@ pub fn bgrx_to_rgba(
 
 #[cfg(windows)]
 mod platform {
-    use super::bgrx_to_rgba;
+    use super::{bgrx_to_rgba, Scenes, FULL_MAX_FRAMES};
     use std::path::Path;
     use windows::core::{GUID, HSTRING};
     use windows::Win32::Media::MediaFoundation::*;
@@ -107,13 +177,17 @@ mod platform {
     /// Media Foundation's "all streams" for stream selection.
     const ALL_STREAMS: u32 = 0xFFFF_FFFE;
 
-    pub fn video_frames(path: &Path, times: &dyn Fn(u64) -> Vec<u64>) -> Vec<Vec<u8>> {
+    pub fn video_frames(
+        path: &Path,
+        times: &dyn Fn(u64) -> Vec<u64>,
+        scenes: bool,
+    ) -> Vec<Vec<u8>> {
         // SAFETY: COM and Media Foundation are set up for this call and undone below.
         let init = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
         let started = unsafe { MFStartup(MF_VERSION, MFSTARTUP_LITE) }.is_ok();
         let frames = if started {
             // SAFETY: plain Media Foundation calls on objects owned here.
-            unsafe { read(path, times) }.unwrap_or_default()
+            unsafe { read(path, times, scenes) }.unwrap_or_default()
         } else {
             Vec::new()
         };
@@ -128,9 +202,11 @@ mod platform {
         frames
     }
 
+    /// `scenes`: only frames that differ from the last one kept.
     unsafe fn read(
         path: &Path,
         times: &dyn Fn(u64) -> Vec<u64>,
+        scenes: bool,
     ) -> windows::core::Result<Vec<Vec<u8>>> {
         unsafe {
             let mut attrs: Option<IMFAttributes> = None;
@@ -160,7 +236,11 @@ mod platform {
             let _ = PropVariantClear(&mut duration);
 
             let mut out = Vec::new();
+            let mut seen = Scenes::default();
             for t in times(length) {
+                if out.len() >= FULL_MAX_FRAMES {
+                    break;
+                }
                 let mut at = PROPVARIANT::default();
                 (*at.Anonymous.Anonymous).vt = VT_I8;
                 (*at.Anonymous.Anonymous).Anonymous.hVal = t as i64;
@@ -191,7 +271,9 @@ mod platform {
                 let picture = bgrx_to_rgba(bytes, width, height, stride);
                 let _ = buffer.Unlock();
                 if let Some((w, h, rgba)) = picture {
-                    out.push(crate::apps::icon::encode_png(w, h, &rgba));
+                    if !scenes || seen.is_new(w, h, &rgba) {
+                        out.push(crate::apps::icon::encode_png(w, h, &rgba));
+                    }
                 }
             }
             Ok(out)
@@ -204,7 +286,11 @@ mod platform {
 mod platform {
     use std::path::Path;
 
-    pub fn video_frames(_path: &Path, _times: &dyn Fn(u64) -> Vec<u64>) -> Vec<Vec<u8>> {
+    pub fn video_frames(
+        _path: &Path,
+        _times: &dyn Fn(u64) -> Vec<u64>,
+        _scenes: bool,
+    ) -> Vec<Vec<u8>> {
         Vec::new()
     }
 }
@@ -224,16 +310,37 @@ mod tests {
         assert_eq!(partial[7], 75 * SEC);
         assert_eq!(
             frame_times(60 * SEC, Depth::Full).len(),
-            12,
-            "one every 5 seconds"
+            60,
+            "one look every second"
         );
         assert_eq!(
             frame_times(3 * 3600 * SEC, Depth::Full).len(),
-            1440,
+            7200,
             "a long film is capped"
         );
-        assert_eq!(frame_times(2 * SEC, Depth::Full).len(), 1);
+        assert_eq!(frame_times(2 * SEC, Depth::Full).len(), 2);
+        assert_eq!(
+            frame_times(SEC / 2, Depth::Full).len(),
+            1,
+            "shorter than a second"
+        );
         assert_eq!(frame_times(0, Depth::Full), [0]);
+    }
+
+    #[test]
+    fn only_frames_of_a_new_scene_are_kept() {
+        let plain = |r: u8, g: u8, b: u8| [r, g, b, 255].repeat(64 * 36);
+        let sea = plain(30, 90, 200);
+        let mut sea_moved = sea.clone();
+        sea_moved[0] = 40; // a wave: a pixel or two
+        let beach = plain(230, 200, 120);
+        let mut scenes = Scenes::default();
+        assert!(scenes.is_new(64, 36, &sea), "the first frame");
+        assert!(!scenes.is_new(64, 36, &sea), "the same picture");
+        assert!(!scenes.is_new(64, 36, &sea_moved), "almost the same");
+        assert!(scenes.is_new(64, 36, &beach), "another scene");
+        assert!(scenes.is_new(64, 36, &sea), "back to the sea");
+        assert!(!scenes.is_new(0, 0, &[]), "no picture");
     }
 
     #[test]
