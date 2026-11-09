@@ -85,7 +85,6 @@
     <span class="tile"><Icon name="broom" size={24} /></span>
     <div class="grow">
       <b>{withCache.length ? t("cache.total", { size: formatBytes(total), count: withCache.length }) : t("cache.allEmpty")}</b>
-      <div class="muted">{t("cache.what")}</div>
     </div>
     <button class="btn btn-primary" disabled={busy.size > 0 || !withCache.length} onclick={() => clear(withCache)}>
       {busy.size ? t("cache.clearing") : t("cache.clearAll")}
@@ -129,7 +128,6 @@
 
 <style>
   .hero { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 12px; flex-wrap: wrap; }
-  .hero .muted { font-size: 13px; margin-top: 2px; }
   .tile { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--accent-soft); color: var(--accent); flex: none; }
   .grow { flex: 1; min-width: 200px; }
   .note { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: 13.5px; }

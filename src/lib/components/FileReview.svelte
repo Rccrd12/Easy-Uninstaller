@@ -293,8 +293,6 @@
             <option value="newest">{t("files.review.newest")}</option>
           </select>
         </label>
-      {:else}
-        <span class="muted hint">{group.safety === "safe" ? t("files.review.hintSafe") : t("files.review.hintCheck")}</span>
       {/if}
       <span class="grow"></span>
       <label class="rule">
@@ -307,9 +305,6 @@
       </label>
     </div>
 
-    {#if isSimilar}
-      <p class="muted similar-hint icon-line"><Icon name="info" />{t("files.review.similarHint")}</p>
-    {/if}
 
     {#if review.totalCount > review.files.length && !isSets}
       <p class="muted capped">{t("files.review.capped", { shown: count(review.files.length), total: count(review.totalCount) })}</p>
@@ -482,7 +477,6 @@
 
   .toolbar { display: flex; align-items: center; gap: 14px; padding: 10px 14px; margin-bottom: 10px; flex-wrap: wrap; }
   .rule { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-  .hint { font-size: 12.5px; }
   select { font-family: inherit; font-size: 13px; padding: 5px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); }
   .grow { flex: 1; }
   .capped { font-size: 12.5px; margin: -4px 0 8px; }
@@ -527,7 +521,6 @@
   .check-space { width: 18px; flex: none; }
   .line { display: flex; align-items: center; gap: 6px; min-width: 0; }
 
-  .similar-hint { font-size: 12.5px; margin: -2px 0 10px; }
   .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
   .photo { position: relative; border: 2px solid var(--border); border-radius: 8px; padding: 6px 6px 8px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .photo.keep { background: var(--keep-copy-bg); border-color: var(--keep-copy-border); }

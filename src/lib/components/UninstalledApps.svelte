@@ -30,7 +30,6 @@
 </script>
 
 {#if list.length}
-  <p class="muted intro">{t("uninstalled.intro")}</p>
   <div class="card list">
     {#each list as app (app.id)}
       {@const again = installedNames.has(app.name.toLowerCase())}
@@ -54,7 +53,6 @@
       </div>
     {/each}
   </div>
-  <p class="note"><Icon name="info" />{t("uninstalled.note")}</p>
 {:else}
   <div class="empty">
     <span class="tile"><Icon name="undo" size={26} /></span>
@@ -63,7 +61,6 @@
 {/if}
 
 <style>
-  .intro { margin: 4px 0 10px; line-height: 1.45; }
   .list { overflow: hidden; }
   .row { display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 14px; border-top: 1px solid var(--border); }
   .row:first-child { border-top: none; }
@@ -76,8 +73,6 @@
   .tag { display: inline-flex; align-items: center; gap: 5px; }
   .forget { background: none; border: none; color: var(--text-muted); padding: 6px; border-radius: var(--radius-sm); display: flex; }
   .forget:hover { background: var(--hover); color: var(--text); }
-  .note { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--text-muted); margin-top: 12px; line-height: 1.45; }
-  .note :global(.icon) { margin-top: 0.15em; }
   .empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px 24px; text-align: center; }
   .empty p { max-width: 420px; line-height: 1.45; }
   .tile { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: var(--icon-tile-bg); color: var(--icon-tile-fg); }

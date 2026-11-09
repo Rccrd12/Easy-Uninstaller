@@ -26,7 +26,6 @@
   },
   "home": {
     "greeting": "Ciao",
-    "subtitle": "Ecco cosa puoi fare per liberare spazio.",
     "canFree": "Puoi liberare in sicurezza",
     "disk": "Disco {drive}",
     "diskUsage": "{used} usati su {total} · {free} liberi",
@@ -43,10 +42,8 @@
     "map": "Mappa dello spazio",
     "mapText": "Guarda a colpo d'occhio cosa occupa più spazio.",
     "mapButton": "Apri la mappa",
-    "quarantineTip": "File temporanei e cache si eliminano subito. Il resto va in <b>Quarantena</b> per {days} giorni.",
     "quickClean": "Pulizia rapida",
     "seeAll": "Vedi tutto",
-    "quickCleanHint": "Solo le cose sicure, in un clic.",
     "calculating": "Sto calcolando…",
     "calculatingNote": "Sto guardando i tuoi file: ci vuole un minuto o due.",
     "appsInstalled": "{count} app · {size}",
@@ -54,7 +51,7 @@
     "historyLink": "Cronologia",
     "resultsFreed": "liberati da quando usi Easy Uninstaller",
     "resultsPending": "+ {size} in quarantena",
-    "resultsEmpty": "Qui vedrai cosa è stato fatto e quanto spazio hai liberato. Per iniziare, prova la pulizia rapida.",
+    "resultsEmpty": "Ancora niente: prova la pulizia rapida.",
     "quarantineTitle": "Quarantena",
     "quarantineHolds": "{count} · {size} che puoi ancora ripristinare",
     "quarantineEmpty": "Al momento è vuota.",
@@ -93,12 +90,9 @@
       "measuring": "Misuro…",
       "clearCache": "Svuota la cache ({size})",
       "clearing": "Svuoto la cache…",
-      "clearNote": "L'app resta installata. Chat, impostazioni e accessi non si toccano.",
       "running": "{app} è aperta. Chiudila e riprova.",
-      "runningHint": "Alcune app restano aperte in background: cerca la loro icona vicino all'orologio.",
       "tryAgain": "Riprova",
       "cleared": "Liberati {size}",
-      "clearedNote": "Al prossimo avvio l'app potrebbe metterci un po' di più mentre ricrea la cache.",
       "skipped": "{count} file erano in uso e sono stati lasciati dove sono.",
       "error": "Non sono riuscito a svuotare la cache.",
       "noCache": "Per questa app non conosciamo una cache da svuotare in sicurezza.",
@@ -118,7 +112,6 @@
     "none": "Nessuna delle tue app ha una cache che sappiamo svuotare.",
     "total": "{size} di cache in {count} app",
     "allEmpty": "Le cache sono già vuote",
-    "what": "File che le app ricreano da sole. Chat, impostazioni e accessi restano.",
     "clearAll": "Svuota tutte",
     "clearing": "Svuoto…",
     "clear": "Svuota",
@@ -137,9 +130,9 @@
     "retry": "Riprova",
     "heroTitle": "Il PC parte con {count} programmi",
     "heroTitleOne": "Il PC parte con 1 programma",
-    "heroText": "Spegnerne {count} può rendere più veloce l'accensione. Puoi riaccenderli quando vuoi.",
-    "heroTextOne": "Spegnerne 1 può rendere più veloce l'accensione. Puoi riaccenderlo quando vuoi.",
-    "heroTextNone": "Nessun consiglio: i programmi accesi sono quelli utili. Spegnerne uno non lo disinstalla mai.",
+    "heroText": "Spegnerne {count} può velocizzare l'accensione.",
+    "heroTextOne": "Spegnerne 1 può velocizzare l'accensione.",
+    "heroTextNone": "Nessun consiglio: quelli accesi sono utili.",
     "turnOffSuggested": "Spegni i {count} consigliati",
     "turnOffSuggestedOne": "Spegni quello consigliato",
     "working": "Modifico…",
@@ -169,39 +162,34 @@
     },
     "switchLabel": "{name} parte con Windows",
     "allUsers": "Tutti gli utenti",
-    "allUsersHint": "Parte per chiunque usi questo PC: per cambiarlo Windows chiede il permesso.",
     "systemHint": "Serve a Windows: qui non si può spegnere.",
-    "estimate": "L'impatto è una stima: Windows non dà i numeri esatti alle altre app, quindi l'app usa quello che sa di ogni programma e la sua dimensione.",
-    "applyNote": "Le modifiche valgono dalla prossima accensione del PC. I programmi restano installati.",
-    "turnedOff": "Spenti {count} programmi: la prossima volta non si apriranno da soli.",
-    "turnedOffOne": "Spento {name}: la prossima volta non si aprirà da solo.",
+    "turnedOff": "Spenti {count} programmi.",
+    "turnedOffOne": "Spento {name}.",
     "turnedOn": "{name} tornerà a partire con Windows.",
     "undo": "Annulla",
     "undone": "Rimesso tutto come prima.",
     "failed": "Non sono riuscito a cambiare {name}.",
     "failedMany": "Non sono riuscito a cambiare {count} programmi.",
-    "declined": "I programmi di tutti gli utenti sono rimasti com'erano: Windows non ha avuto il permesso.",
+    "declined": "Windows non ha dato il permesso: non è cambiato nulla.",
     "empty": "Nessun programma parte da solo con Windows.",
     "offTitle": "Spenti ({count})"
   },
   "newPc": {
     "bannerTitle": "PC nuovo? Togli le app che non hai scelto tu",
-    "bannerText": "{count} app sono arrivate con Windows o con il PC ({size}). Ti dico quali di solito non servono.",
+    "bannerText": "{count} app arrivate con Windows o con il PC ({size}).",
     "start": "Inizia",
     "later": "Non ora",
     "title": "Pulizia del PC nuovo",
-    "intro": "Queste app sono arrivate con Windows o con il PC. Ho già scelto quelle che di solito non servono: controlla e cambia quello che vuoi.",
+    "intro": "Ho già scelto quelle che di solito non servono.",
     "stepChoose": "Scegli",
     "stepUninstall": "Disinstalla",
     "stepDone": "Fatto",
     "groupRemove": "Di solito non servono",
     "groupRemoveNote": "già selezionate",
     "groupChoose": "Decidi tu",
-    "groupChooseNote": "alcuni le usano: selezionale solo se non ti servono",
-    "safeNote": "Windows, i driver e le app per gli aggiornamenti non sono mai in questo elenco.",
     "uninstall": "Disinstalla {count} app",
     "doneTitle": "Fatto: niente più app superflue",
-    "doneText": "Le app che hai tolto sono in App › Disinstallate, se un giorno ti servono.",
+    "doneText": "Le ritrovi in App › Disinstallate.",
     "backToApps": "Torna alle app",
     "seeUninstalled": "Vedi le disinstallate",
     "reasons": {
@@ -220,7 +208,6 @@
     }
   },
   "uninstalled": {
-    "intro": "Le app che hai disinstallato con Easy Uninstaller. Se te ne serve di nuovo una, la reinstalli da qui.",
     "when": "disinstallata il {date}",
     "store": "Apri nel Microsoft Store",
     "steam": "Apri in Steam",
@@ -228,14 +215,12 @@
     "search": "Cerca su internet",
     "again": "Di nuovo installata",
     "forget": "Togli dall'elenco",
-    "note": "Si apre la pagina da cui scaricarla: l'installazione la fai tu, come la prima volta.",
     "empty": "Nessuna app disinstallata finora.",
     "error": "Impossibile leggere l'elenco delle app disinstallate.",
     "openError": "Impossibile aprire la pagina."
   },
   "files": {
     "title": "File",
-    "subtitle": "File che forse non ti servono più, raggruppati. I colori ti dicono quanto è sicuro toglierli.",
     "safeSection": "Sicuri da togliere",
     "checkSection": "Da controllare",
     "selected": "Selezionati {size}",
@@ -340,14 +325,12 @@
     "undone": "Fatto: tutto è tornato al suo posto.",
     "freeUp": "Libera {size}",
     "deleteNow": "Elimina ({size})",
-    "howRemoved": "File temporanei, cache, miniature, rapporti di errore e vecchi elementi del Cestino si eliminano subito. Il resto va in Quarantena per {days} giorni.",
     "deletedRightAway": "Eliminati subito: non servono più.",
     "deleted": "Eliminati: {count}, {size}.",
     "folderCount": "{count} cartelle",
     "folderCountOne": "1 cartella",
     "entryCount": "{count} elementi",
     "entryCountOne": "1 elemento",
-    "reviewOnly": "Tocca una cartella per sapere cos'è e, se vuoi, spostarla in Quarantena.",
     "reviewFirst": "Le foto simili si scelgono gruppo per gruppo.",
     "wasIn": "era in {path}",
     "review": {
@@ -366,8 +349,6 @@
       "then": "poi",
       "oldest": "la più vecchia",
       "newest": "la più recente",
-      "hintSafe": "Tutto selezionato: togli la spunta a quello che vuoi tenere.",
-      "hintCheck": "Niente è selezionato: spunta solo quello che non ti serve più.",
       "sortBy": "Ordina per",
       "sortSize": "Dimensione",
       "sortDate": "Ultimo utilizzo",
@@ -402,7 +383,6 @@
       "similarSubtitleOne": "1 gruppo di foto simili · fino a {size} da liberare",
       "keepPhoto": "In ogni gruppo tieni",
       "largest": "la più grande (più dettagli)",
-      "similarHint": "La foto segnata «Tieni» resta. Le altre selezionate vanno in Quarantena.",
       "similarSet": "{count} foto simili",
       "onePhotoStays": "Una foto di ogni gruppo resta sempre dov'è."
     },
@@ -416,24 +396,17 @@
     "hideItem": "Nascondi {name}",
     "groupMenu": "Altro per {name}",
     "hideGroup": "Nascondi questo gruppo",
-    "hideGroupHint": "Non verrà più proposto. Non cancella niente.",
     "hiddenLink": "Hai nascosto {count}.",
     "hiddenLinkAction": "Vedi e mostra di nuovo"
   },
   "quick": {
     "title": "Pulizia rapida",
-    "subtitle": "Tolgo solo le cose sicure.",
-    "scanning": "Cerco quello che si può togliere in sicurezza…",
+    "scanning": "Cerco cosa togliere…",
     "freeNow": "Spazio libero subito",
-    "freeNowNote": "file temporanei, cache e simili: eliminati",
-    "freeNowDrive": "eliminati, o spostati nella Quarantena sul disco {drive}",
     "held": "In quarantena per {days} giorni",
-    "heldNote": "puoi ripristinarli, poi vengono eliminati e lo spazio torna libero",
-    "heldTip": "Tieni la Quarantena su un altro disco per liberare subito anche questo",
     "free": "Libera {size}",
     "details": "Prima voglio vedere i dettagli",
     "cleaning": "Pulizia in corso…",
-    "cleaningNote": "I file in uso vengono saltati e lasciati come sono.",
     "doneTitle": "Fatto! Spazio liberato subito",
     "freed": "sul tuo disco, disponibili da ora",
     "nothingFreed": "non è stato possibile liberare spazio subito",
@@ -448,18 +421,16 @@
   },
   "leftovers": {
     "title": "Avanzi",
-    "subtitle": "Cartelle, voci di registro e collegamenti lasciati da programmi che non sono più installati.",
     "count": "{count} avanzi",
     "countOne": "1 avanzo",
     "searching": "Cerco gli avanzi…",
     "empty": "Nessun avanzo trovato: il tuo PC è in ordine.",
-    "historyNote": "Cerco anche le cartelle lasciate da app disinstallate in passato, a mano o con altri programmi.",
     "rescan": "Cerca di nuovo",
     "failed": "La ricerca non è riuscita: {error}",
     "retry": "Riprova",
     "from": "Lasciati da {app}",
     "maybeTitle": "Forse avanzi",
-    "maybeText": "Nessuna app installata usa queste cartelle e niente al loro interno è cambiato da almeno 6 mesi. Potrebbero comunque servire a qualcosa che usi: controlla prima di toglierle.",
+    "maybeText": "Nessuna app le usa e non cambiano da 6 mesi. Controlla prima di toglierle.",
     "lastChange": "ultima modifica {when}",
     "groups": {
       "brokenShortcut": "Collegamenti che non portano a nulla",
@@ -486,16 +457,14 @@
       "brokenEntry": "Voce nell'elenco delle app senza programma"
     },
     "hideApp": "Nascondi gli avanzi di {app}",
-    "hideGroup": "Nascondi questo gruppo",
-    "hideHint": "Restano dove sono e non te li proponiamo più."
+    "hideGroup": "Nascondi questo gruppo"
   },
   "map": {
     "title": "Mappa dello spazio",
-    "subtitle": "Ogni riquadro è grande quanto lo spazio che usa.",
     "onlyApps": "Solo app",
     "onlyFiles": "Solo file",
     "everything": "Tutto",
-    "summary": "Ogni riquadro è grande quanto lo spazio che usa. Disco {drive} · {used} usati su {total}.",
+    "summary": "Disco {drive} · {used} usati su {total}.",
     "rescan": "Misura di nuovo",
     "measuring": "Sto misurando lo spazio sul disco…",
     "checked": "{count} file controllati",
@@ -536,7 +505,7 @@
   },
   "quarantine": {
     "title": "Quarantena",
-    "subtitle": "Gli elementi rimossi restano qui per {days} giorni, poi vengono eliminati definitivamente.",
+    "subtitle": "Restano qui {days} giorni, poi vengono eliminati.",
     "summary": "{count} · {size} in quarantena",
     "removedOn": "Rimosso {when}",
     "expires": "eliminato definitivamente {when}",
@@ -557,12 +526,10 @@
     "restoreFailed": "Non è stato possibile rimetterli a posto, sono ancora in Quarantena: {count}.",
     "failed": "Qualcosa è andato storto: {error}",
     "deleted": "Eliminato definitivamente. Liberati {size}.",
-    "permission": "Windows chiede il permesso per ripristinarli o eliminarli.",
     "declined": "Non fatto: il permesso non è stato dato."
   },
   "history": {
     "title": "Cronologia",
-    "subtitle": "Tutto quello che Easy Uninstaller ha fatto su questo PC, dal più recente.",
     "freed": "liberati da quando usi Easy Uninstaller",
     "since": "{count} dal {date}",
     "actions": "{count} azioni",
@@ -586,29 +553,25 @@
     "restored": "Rimesso a posto il {date}",
     "partRestored": "{size} rimessi a posto il {date}",
     "about": "circa {size}",
-    "empty": "Ancora niente. Qui troverai ogni pulizia, disinstallazione e rimozione di avanzi, con lo spazio che ha liberato.",
+    "empty": "Ancora niente.",
     "clear": "Cancella la cronologia",
-    "clearConfirm": "Cancellare la cronologia? Il totale riparte da zero. Nessun file viene toccato.",
+    "clearConfirm": "Cancellare la cronologia?",
     "failed": "Non riesco a leggere la cronologia: {error}"
   },
   "settings": {
     "title": "Impostazioni",
     "language": "Lingua",
     "theme": "Tema",
-    "themeHint": "Sistema segue la modalità chiara o scura scelta in Windows.",
     "themes": {
       "system": "Sistema",
       "light": "Chiaro",
       "dark": "Scuro"
     },
     "largeText": "Testo più grande",
-    "largeTextHint": "Ingrandisce testi e pulsanti, per una lettura più agevole.",
     "technical": "Mostra i dettagli tecnici",
-    "technicalHint": "Percorsi completi, chiavi di registro, versioni e cartelle di installazione. Disattivato: solo linguaggio semplice.",
     "quarantineDays": "Conserva gli elementi rimossi per",
     "days": "{days} giorni",
     "restorePoint": "Crea un punto di ripristino prima di disinstallare",
-    "restorePointHint": "Protegge programmi e impostazioni. Windows chiede il permesso.",
     "restorePointNow": "Creane uno ora",
     "restorePointStatus": {
       "creating": "Creazione del punto di ripristino…",
@@ -617,37 +580,31 @@
       "disabled": "Ripristino configurazione di sistema è disattivato su questo PC.",
       "failed": "Non è stato possibile creare il punto di ripristino."
     },
-    "quarantineDaysHint": "Vale per quello che togli da adesso in poi.",
     "quarantineDrive": "Dove tenere la Quarantena",
-    "quarantineDriveHint": "Su un altro disco, lo spazio su {drive} si libera subito. Quello che è già in Quarantena resta dov'è.",
+    "quarantineDriveHint": "Su un altro disco lo spazio si libera subito.",
     "driveDefault": "Disco {drive} (con l'app)",
     "driveOption": "Disco {drive} ({label}) · {free} liberi",
     "driveOptionNoLabel": "Disco {drive} · {free} liberi",
     "driveMissing": "Disco {drive} (non collegato)",
-    "driveChosen": "Lo spazio su {system} si libera appena togli dei file.",
     "noOtherDrive": "Questo PC non ha altri dischi.",
     "saveFailed": "Non è stato possibile salvare la modifica: {error}",
     "hidden": "Elementi nascosti",
-    "hiddenHint": "File, cartelle, gruppi e avanzi che non vuoi più vedere",
     "manage": "Gestisci",
     "updates": "Aggiornamenti",
     "version": "Easy Uninstaller {version}",
-    "updateIdle": "Gli aggiornamenti sono gratuiti.",
     "updateCheck": "Cerca aggiornamenti",
     "updateChecking": "Controllo…",
     "updateUpToDate": "Hai già l'ultima versione.",
     "updateAvailable": "È disponibile la versione {version}.",
     "updateNow": "Aggiorna ora",
-    "updateRestartNote": "L'app si chiude e si riapre da sola in pochi secondi.",
     "updateDownloading": "Scarico l'aggiornamento… {percent}%",
     "updateDownloadingNoSize": "Scarico l'aggiornamento…",
-    "updateInstalling": "Installo la versione {version}: l'app si chiude e si riapre da sola.",
+    "updateInstalling": "Installo la versione {version}…",
     "updateOffline": "Non riesco a collegarmi a Internet. Controlla la connessione e riprova.",
     "updateFailed": "Non riesco a cercare aggiornamenti ({error}).",
-    "updateInstallFailed": "Non sono riuscito a installare l'aggiornamento ({error}). Non è cambiato nulla.",
+    "updateInstallFailed": "Aggiornamento non riuscito ({error}).",
     "updateRetry": "Riprova",
-    "updateAuto": "Controlla ogni volta che apri l'app",
-    "updateAutoHint": "Controlla su GitHub se c'è una versione nuova."
+    "updateAuto": "Controlla ogni volta che apri l'app"
   },
   "technical": {
     "registryPlain": "Un'impostazione salvata in Windows",
@@ -674,10 +631,8 @@
     "confirmTitle": "Disinstallare {name}?",
     "confirmMany": "Disinstallare {count} app?",
     "totalSize": "In tutto {size}",
-    "restorePointNote": "Prima di iniziare creo un punto di ripristino. Se qualcosa va storto, torni indietro.",
-    "storeNote": "Windows rimuove questa app insieme ai suoi dati.",
-    "storeAlso": "Le app del Microsoft Store le rimuove Windows insieme ai loro dati.",
-    "adminNote": "Windows chiederà il permesso per le app installate per tutti gli utenti del PC.",
+    "storeNote": "Si cancellano anche i suoi dati.",
+    "storeAlso": "Le app dello Store si tolgono con i loro dati.",
     "creatingRestorePoint": "Creo un punto di ripristino…",
     "restorePointAsk": "Windows chiede il permesso.",
     "restorePointNot": {
@@ -687,17 +642,15 @@
     },
     "continueWithout": "Disinstalla comunque",
     "running": "Disinstallo {name}…",
-    "runningNote": "Di solito bastano pochi secondi. Se si apre una finestra di {name}, segui i suoi passi.",
+    "runningNote": "Se si apre una finestra di {name}, segui i suoi passi.",
     "waiting": "Aspetto che la disinstallazione di {name} finisca…",
-    "waitingNote": "{name} sta finendo da sola. Se hai chiuso la sua finestra o hai scelto di tenerla, smetti di aspettare.",
+    "waitingNote": "Se hai chiuso la sua finestra, smetti di aspettare.",
     "stopWaiting": "Smetti di aspettare",
     "notRemoved": "{name} non è stata disinstallata",
-    "cancelled": "La disinstallazione è stata annullata. Non è cambiato nulla.",
-    "declined": "Il permesso non è stato dato, quindi non è cambiato nulla.",
-    "stillThere": "{name} è ancora installata. Non è cambiato nient'altro.",
+    "cancelled": "Disinstallazione annullata.",
+    "declined": "Permesso non dato: non è cambiato nulla.",
+    "stillThere": "{name} è ancora installata.",
     "searching": "Cerco quello che {name} ha lasciato…",
-    "searchingNote": "Solo cartelle, chiavi di registro e collegamenti con il suo nome esatto, non usati da altre app.",
-    "quarantineNote": "Tutto va in Quarantena per {days} giorni.",
     "adminLeftovers": "Windows chiederà il permesso per {count}.",
     "cleaning": "Sposto {count} in Quarantena…",
     "removedTitle": "{name} è stata rimossa",
@@ -718,11 +671,10 @@
       "notInstalled": "Questa app non è più installata.",
       "noUninstaller": "Questa app non ha un programma di disinstallazione. Se non c'è più, trovi la sua voce in Avanzi.",
       "itself": "Easy Uninstaller non può disinstallare sé stesso: usa le Impostazioni di Windows.",
-      "stillInstalled": "L'app è ancora installata, quindi non ho cercato nulla.",
-      "declined": "Il permesso non è stato dato, quindi non è cambiato nulla.",
+      "stillInstalled": "L'app è ancora installata.",
+      "declined": "Permesso non dato: non è cambiato nulla.",
       "other": "Qualcosa è andato storto: {error}"
-    },
-    "reinstallNote": "Le app tolte sono in App › Disinstallate."
+    }
   },
   "explain": {
     "title": "Cos'è questo?",
@@ -739,9 +691,9 @@
       "keep": "Meglio tenerla",
       "unknown": "Non la conosco"
     },
-    "source": "Spiegazione integrata nell'app · nessun dato inviato",
+    "source": "Spiegazione integrata",
     "unknownTitle": "Per “{name}” non ho una spiegazione",
-    "unknownHint": "Di solito una cartella ha il nome dell'app o dell'azienda che l'ha creata. Se non la riconosci, lasciala dov'è.",
+    "unknownHint": "Se non la riconosci, lasciala dov'è.",
     "back": "Torna a {group}",
     "folders": {
       "temp": {
@@ -920,7 +872,6 @@
   },
   "hidden": {
     "title": "Elementi nascosti",
-    "subtitle": "Cose che hai scelto di non vedere più.",
     "count": "{count} elementi",
     "countOne": "1 elemento",
     "tabs": {
@@ -940,10 +891,9 @@
     "groupNote": "Gruppo intero della schermata File",
     "showAgain": "Mostra di nuovo",
     "showAll": "Mostra tutti di nuovo",
-    "note": "Mostrare di nuovo non sposta niente: torna semplicemente nella lista.",
-    "empty": "Non hai nascosto niente. Quando nascondi un file, una cartella o un gruppo, lo trovi qui.",
-    "done": "Nascosto: {name}. Resta dove si trova e non verrà più proposto.",
-    "doneMany": "Nascosti: {count}. Restano dove sono e non verranno più proposti.",
+    "empty": "Non hai nascosto niente.",
+    "done": "Nascosto: {name}.",
+    "doneMany": "Nascosti: {count}.",
     "shownAgain": "Di nuovo visibile.",
     "shownAgainMany": "Di nuovo visibili: {count}.",
     "failed": "Non è stato possibile salvare: {error}",
@@ -1048,8 +998,6 @@
       "retry": "Riprova",
       "via": "Tramite {service}",
       "asking": "Chiedo a {service}…",
-      "askingHint": "Di solito pochi secondi.",
-      "askingLocal": "Un modello sul PC può metterci un minuto, di più la prima volta.",
       "startingHint": "Il primo avvio può richiedere un minuto."
     },
     "confirm": {
@@ -1062,7 +1010,7 @@
       "names": "Alcuni nomi ({shown} di {total})",
       "showText": "Vedi il testo esatto",
       "hideText": "Nascondi il testo esatto",
-      "dontAsk": "Non chiedermelo più (si cambia in Impostazioni)"
+      "dontAsk": "Non chiedermelo più"
     },
     "answer": {
       "title": "Risposta dell'AI",
@@ -1073,15 +1021,14 @@
       "noApp": "Nessuna app installata ha questo nome",
       "modified": "Ultima modifica dentro: {date}",
       "notWindows": "Non è una cartella di Windows",
-      "mayBeWrong": "L'AI può sbagliare: controlla prima di togliere.",
       "askAgain": "Chiedi di nuovo"
     },
     "move": {
       "keepText": "L'AI consiglia di tenerla:"
     },
     "all": {
-      "intro": "{count} cartelle qui l'app non le conosce. L'AI può capire cosa sono.",
-      "introOne": "Una cartella qui l'app non la conosce. L'AI può capire cos'è.",
+      "intro": "{count} cartelle che l'app non conosce.",
+      "introOne": "Una cartella che l'app non conosce.",
       "askAll": "Chiedi all'AI per tutte",
       "askRest": "Chiedi per le altre {count}",
       "looked": "L'AI ha guardato {count} cartelle che l'app non conosceva",
@@ -1095,9 +1042,9 @@
     },
     "picker": {
       "intro": {
-        "cli": "Programmi già installati sul PC, collegati al tuo account. L'app li usa come faresti tu.",
-        "api": "Paghi solo quello che usi, direttamente al servizio.",
-        "local": "Programmi per modelli sul PC. L'app controlla quelli accesi."
+        "cli": "Con il tuo abbonamento.",
+        "api": "Paghi a consumo.",
+        "local": "Modelli sul PC."
       },
       "found": "Trovato",
       "notInstalled": "Non installato",
@@ -1127,41 +1074,26 @@
       "keyFirst": "Aggiungi la chiave: l'elenco arriva dal servizio.",
       "addressFirst": "Scrivi l'indirizzo: l'elenco arriva dal server.",
       "recommended": "consigliato",
-      "modelHint": {
-        "claudeCode": "Anche Opus (più preciso, consuma più limiti) o Haiku (più veloce).",
-        "cli": "I modelli del tuo abbonamento.",
-        "api": "L'elenco arriva dal servizio.",
-        "local": "I modelli che hai già scaricato. Più grande = più preciso ma più lento."
-      },
       "modelName": "Nome del modello",
       "noList": "Non riesco a leggere l'elenco: scrivi il nome del modello.",
       "test": "Prova",
       "testing": "Provo…",
       "works": "Funziona. Risposta in {seconds} secondi.",
       "notes": {
-        "cliCost": "Nessun costo extra: usa i limiti del tuo abbonamento.",
-        "cliTools": "Parte in una cartella vuota e senza strumenti: non può leggere, cambiare o cancellare file.",
-        "apiCost": "Circa 1 centesimo a domanda con i modelli consigliati.",
-        "apiDirect": "La domanda va dal tuo PC al servizio, senza server nostri in mezzo.",
-        "localPrivate": "Nessun dato esce dal PC.",
-        "localFree": "Gratis."
+        "apiCost": "Circa 1 centesimo a domanda con i modelli consigliati."
       },
       "autoStarts": "Si avvia da solo",
       "starting": "Avvio Unsloth Studio… {seconds} s",
-      "autoStart": "Avvialo e chiudilo da solo",
-      "autoStartHint": "Lo avvio senza finestre quando serve una risposta e lo chiudo 5 minuti dopo l'ultima domanda. Chiudo solo quello avviato da me."
+      "autoStart": "Avvialo e chiudilo da solo"
     },
     "setup": {
       "title": "Vuoi attivare l'aiuto AI?",
       "step": "Passo {step} di 2",
-      "lead": "L'AI ti spiega le cartelle che l'app non conosce e ti dice se sembrano utili o no.",
-      "leadBold": "Non sposta niente da sola",
-      "leadEnd": ": decidi sempre tu.",
+      "lead": "L'AI ti spiega le cartelle che l'app non conosce.",
       "online": {
         "title": "Online",
         "a": "Risposte migliori e veloci",
-        "b": "Usa un abbonamento che hai già (Claude, ChatGPT, Google) tramite il suo programma, oppure una chiave API",
-        "c": "Escono percorso e nomi dei file, mai il contenuto"
+        "b": "Usa un abbonamento che hai già (Claude, ChatGPT, Google) tramite il suo programma, oppure una chiave API"
       },
       "local": {
         "title": "Sul PC",
@@ -1173,7 +1105,6 @@
         "title": "No, grazie",
         "a": "L'app continua con le sue spiegazioni integrate"
       },
-      "changeLater": "Puoi cambiare idea quando vuoi in Impostazioni.",
       "continue": "Continua",
       "onlineTitle": "Scegli il servizio online",
       "localTitle": "Scegli il programma sul PC",
@@ -1187,11 +1118,6 @@
       "title": "Aiuto AI",
       "new": "Nuovo",
       "mode": "Dove lavora l'AI",
-      "modeHint": {
-        "off": "Spento: l'app usa solo le sue spiegazioni integrate.",
-        "online": "Un servizio online: tramite il programma del tuo abbonamento o con una chiave API.",
-        "local": "Un modello sul PC: non esce niente."
-      },
       "modes": {
         "off": "Spento",
         "online": "Online",
@@ -1204,11 +1130,11 @@
       "monthOne": "1 domanda",
       "costApi": "si paga al servizio, circa 1 centesimo l'una",
       "saved": "Risposte salvate sul PC",
-      "savedCount": "{count} cartelle: non vengono chieste di nuovo.",
-      "savedOne": "1 cartella: non viene chiesta di nuovo.",
+      "savedCount": "{count} cartelle",
+      "savedOne": "1 cartella",
       "clear": "Cancella",
       "parallel": "Domande insieme",
-      "parallelHint": "Per “Chiedi per tutte”. Più sono, prima finisce, ma consumi prima limiti o credito."
+      "parallelHint": "Più veloce, ma consuma prima limiti o credito."
     },
     "tag": {
       "removable": "Si può togliere",
@@ -1305,7 +1231,6 @@
   },
   "index": {
     "title": "Ricerca per contenuto",
-    "hint": "Trova foto e video da quello che mostrano, anche quando il nome non dice niente.",
     "status": {
       "none": "Modello non scaricato",
       "noneHint": "{size} da scaricare, una volta sola.",
@@ -1348,14 +1273,12 @@
       "label": "Cosa cercare",
       "photos": "Foto",
       "videos": "Video",
-      "documents": "Documenti",
-      "documentsHint": "I documenti li trova l'indice di Windows, senza scaricare altro."
+      "documents": "Documenti"
     },
     "where": {
       "label": "Dove",
       "mine": "Le tue cartelle",
-      "all": "Tutto il PC",
-      "allHint": "Anche gli altri dischi, tranne le cartelle di Windows e dei programmi."
+      "all": "Tutto il PC"
     },
     "space": "Spazio usato",
     "remove": "Elimina modello e indice",
@@ -1370,7 +1293,6 @@
   },
   "tidy": {
     "title": "Riordina i Download",
-    "subtitle": "L'AI propone delle cartelle per i file sparsi in Download.",
     "loose": "{files} sparsi in Download · {size}",
     "none": "Download è già in ordine: non ci sono file sparsi.",
     "noDownloads": "Su questo PC non ho trovato la cartella Download.",
@@ -1408,14 +1330,13 @@
     },
     "installers": {
       "title": "Installer già usati",
-      "desc": "Installer di programmi già installati. Spuntali per toglierli."
+      "desc": "Installer di programmi già installati."
     },
     "apply": {
       "summary": "{files} in {folders}",
       "plusInstallers": "e {files} in quarantena",
       "button": "Riordina",
       "moving": "Riordino…",
-      "note": "Puoi rimettere tutto com'era con un clic.",
       "nothing": "Spunta almeno un file."
     },
     "done": {
@@ -1437,30 +1358,29 @@
   },
   "updateNotice": {
     "title": "È disponibile una nuova versione",
-    "text": "Easy Uninstaller {version} è pronto. L'aggiornamento richiede pochi secondi.",
+    "text": "Easy Uninstaller {version} è pronto.",
     "update": "Aggiorna",
     "later": "Più tardi"
   },
   "reminders": {
     "title": "Promemoria",
     "lowSpace": "Avvisami quando il disco è quasi pieno",
-    "lowSpaceHint": "Un avviso di Windows quando su {drive} resta libero meno del {percent}%. Se il disco resta pieno, al massimo una volta a settimana.",
+    "lowSpaceHint": "Quando su {drive} resta meno del {percent}%.",
     "threshold": "Avvisa quando lo spazio libero scende sotto il",
     "thresholdOption": "{percent}%",
     "monthly": "Ricordami una pulizia ogni mese",
-    "monthlyHint": "Solo se non apri Easy Uninstaller da 30 giorni.",
-    "how": "Nessun programma resta acceso. Una volta al giorno Windows fa un controllo che dura meno di un secondo, e l'avviso compare solo quando serve.",
+    "monthlyHint": "Se non apri l'app da 30 giorni.",
     "sample": "Mostra un avviso di prova",
-    "sampleSent": "Inviato. Se non l'hai visto, controlla che le notifiche siano attive in Impostazioni di Windows > Sistema > Notifiche.",
+    "sampleSent": "Inviato. Se non lo vedi, attiva le notifiche di Windows.",
     "sampleFailed": "Windows non ha mostrato l'avviso ({error}).",
     "saveFailed": "Non è stato possibile attivare il promemoria: {error}",
     "notice": {
       "lowSpaceTitle": "Il disco {drive} è quasi pieno",
       "lowSpaceBody": "Restano solo {free} liberi ({percent}%). Apri Easy Uninstaller per liberare spazio.",
       "monthlyTitle": "È ora di una pulizia",
-      "monthlyBody": "È passato un mese dall'ultimo controllo. Una Pulizia rapida richiede circa un minuto.",
+      "monthlyBody": "È passato un mese dall'ultima pulizia.",
       "testTitle": "Gli avvisi di Easy Uninstaller sono attivi",
-      "testBody": "I promemoria appariranno così. Fai clic su un avviso per aprire l'app."
+      "testBody": "I promemoria appariranno così."
     }
   },
   "offload": {
@@ -1474,12 +1394,11 @@
       "tag": "Restano nel cloud",
       "freeingTag": "In corso",
       "freeingNote": "OneDrive sta liberando {size} dal PC",
-      "about": "Questi file sono già su OneDrive. Posso togliere la copia dal PC: li vedi ancora nelle cartelle e si scaricano quando li apri.",
+      "about": "Sono già su OneDrive: tolgo la copia dal PC e si riscaricano quando li apri.",
       "before": "Sempre disponibile sul PC",
       "after": "Solo online, si scarica quando lo apri",
       "freeing": "OneDrive sta liberando {size} dal PC ({count}). Ci vuole qualche minuto, mentre OneDrive è acceso.",
-      "note": "Niente viene cancellato. Per riaprirli serve internet.",
-      "rule": "File da 1 MB in su non modificati negli ultimi 30 giorni: quelli su cui lavori restano sul PC. È la stessa cosa di “Libera spazio” di OneDrive.",
+      "note": "Per riaprirli serve internet.",
       "button": "Libera {size} dal PC",
       "working": "Lo chiedo a OneDrive…",
       "done": "Fatto: {count} ora sono solo online. OneDrive libera {size} dal PC nei prossimi minuti, mentre è acceso.",
@@ -1496,11 +1415,9 @@
       "tag": "Sposta",
       "movedTag": "Spostati",
       "movedNote": "Su un altro disco: {count}. Puoi riportarli indietro.",
-      "about": "Video, archivi e immagini disco grandi possono stare su un altro disco. Li sposto in “{folder}” su {drive} e puoi riportarli indietro quando vuoi.",
+      "about": "Li sposto in “{folder}” su {drive}. Puoi riportarli indietro.",
       "drive": "Sposta su",
       "folderName": "Spostati da {letter}",
-      "note": "Ogni file viene copiato su {drive} e poi tolto da {system}. App e giochi non vengono spostati.",
-      "rule": "Video, archivi, immagini disco e audio senza perdita da 100 MB in su nelle tue cartelle. I file di OneDrive restano dove sono.",
       "button": "Sposta {size} su {drive}",
       "working": "Sposto…",
       "moving": "Sposto {n} di {total} · {done} di {size}",

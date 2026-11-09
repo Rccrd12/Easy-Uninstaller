@@ -58,7 +58,6 @@
 </script>
 
 <h1>{t("history.title")}</h1>
-<p class="muted sub">{t("history.subtitle")}</p>
 {#if usesSampleData()}<SampleBanner />{/if}
 
 {#if error}
@@ -132,7 +131,6 @@
 {/if}
 
 <style>
-  .sub { margin: 3px 0 10px; }
   .small { font-size: 13px; }
   .grow { flex: 1; }
 

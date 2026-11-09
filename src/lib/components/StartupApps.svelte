@@ -147,16 +147,16 @@
       <div class="info">
         <div class="name">
           {app.name}
-          {#if app.allUsers}<span class="tag tag-info" title={t("startup.allUsersHint")}>{t("startup.allUsers")}</span>{/if}
+          {#if app.allUsers}<span class="tag tag-info">{t("startup.allUsers")}</span>{/if}
         </div>
         <div class="muted meta" title={app.command}>{detail(app) || " "}</div>
       </div>
-      <span class="impact impact-{app.impact}" title={t("startup.estimate")}>
+      <span class="impact impact-{app.impact}">
         <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>
         {t(`startup.impact.${app.impact}`)}
       </span>
       <span class="advice">{#if tag}<span class="tag {tag.cls}">{t(tag.key)}</span>{/if}</span>
-      <label class="switch" title={app.advice === "system" ? t("startup.systemHint") : app.allUsers ? t("startup.allUsersHint") : undefined}>
+      <label class="switch" title={app.advice === "system" ? t("startup.systemHint") : undefined}>
         <input type="checkbox" role="switch" checked={app.enabled}
                disabled={app.advice === "system" || busy.has(app.id)}
                aria-label={t("startup.switchLabel", { name: app.name })}
@@ -177,7 +177,6 @@
     </div>
   {/if}
 
-  <p class="muted foot"><Icon name="info" /> {t("startup.applyNote")} {t("startup.estimate")}</p>
 {/if}
 
 <style>

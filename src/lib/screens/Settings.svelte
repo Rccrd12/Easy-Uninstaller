@@ -122,7 +122,6 @@
   <div class="row theme">
     <span id="theme-label">
       {t("settings.theme")}
-      <span class="muted hint">{t("settings.themeHint")}</span>
     </span>
     <div class="segmented" role="radiogroup" aria-labelledby="theme-label">
       {#each themes as theme (theme)}
@@ -135,21 +134,18 @@
   <label class="row">
     <span>
       {t("settings.largeText")}
-      <span class="muted hint">{t("settings.largeTextHint")}</span>
     </span>
     <input type="checkbox" bind:checked={settings.largeText} onchange={() => { saveSettings(); applyTextSize(); }} />
   </label>
   <label class="row">
     <span>
       {t("settings.technical")}
-      <span class="muted hint">{t("settings.technicalHint")}</span>
     </span>
     <input type="checkbox" bind:checked={settings.technical} onchange={saveSettings} />
   </label>
   <label class="row">
     <span>
       {t("settings.quarantineDays")}
-      <span class="muted hint">{t("settings.quarantineDaysHint")}</span>
     </span>
     <select value={quarantine.keepDays} disabled={saving} onchange={(e) => changeQuarantine({ keepDays: Number(e.currentTarget.value) })}>
       {#each KEEP_DAYS_CHOICES as days (days)}<option value={days}>{t("settings.days", { days })}</option>{/each}
@@ -172,8 +168,6 @@
     </label>
     {#if !quarantine.drives.length && !quarantine.drive}
       <span class="muted note">{t("settings.noOtherDrive")}</span>
-    {:else if quarantine.drive}
-      <span class="note ok">{t("settings.driveChosen", { drive: quarantine.drive, system: quarantine.systemDrive })}</span>
     {/if}
     {#if saveError}<span class="note bad" role="alert">{t("settings.saveFailed", { error: saveError })}</span>{/if}
   </div>
@@ -181,7 +175,6 @@
     <span class="hidden-icon"><EyeOffIcon size={18} /></span>
     <span class="grow">
       {t("settings.hidden")}
-      <span class="muted hint">{t("settings.hiddenHint")}</span>
     </span>
     {#if hiddenCount}<span class="count">{hiddenCount}</span>{/if}
     <span class="manage">{t("settings.manage")}<Icon name="chevronRight" size={14} /></span>
@@ -190,7 +183,6 @@
     <label class="restore-toggle">
       <span>
         {t("settings.restorePoint")}
-        <span class="muted hint">{t("settings.restorePointHint")}</span>
       </span>
       <input type="checkbox" bind:checked={settings.restorePoint} onchange={saveSettings} />
     </label>
@@ -233,8 +225,7 @@
   </label>
   <div class="row column">
     <div class="how">
-      <span class="how-icon"><Icon name="info" /></span>
-      <span class="grow muted">{t("reminders.how")}</span>
+      <span class="grow"></span>
       <button class="btn btn-ghost" disabled={sample === "sending"} onclick={sendSample}>{t("reminders.sample")}</button>
     </div>
     {#if sample === "sent"}<span class="note ok" role="status">{t("reminders.sampleSent")}</span>
@@ -248,7 +239,6 @@
   <div class="row theme">
     <span id="ai-mode-label">
       {t("ai.settings.mode")}
-      <span class="muted hint">{t(`ai.settings.modeHint.${settings.ai.mode}`)}</span>
     </span>
     <div class="segmented" role="radiogroup" aria-labelledby="ai-mode-label">
       {#each modes as mode (mode)}
@@ -319,14 +309,13 @@
           <span class="bar" class:indeterminate={ix.download.verifying}><span style:width="{ix.download.verifying ? 30 : percent(ix.download.doneBytes, ix.download.totalBytes)}%"></span></span>
         {:else if !ix.ready}
           <span class="version">{t("index.status.none")}</span>
-          <span class="muted hint">{t("index.hint")} {t("index.status.noneHint", { size: formatBytes(ix.downloadBytes) })}</span>
+          <span class="muted hint">{t("index.status.noneHint", { size: formatBytes(ix.downloadBytes) })}</span>
         {:else if ix.indexing}
           <span class="version">{t("index.status.indexing", { done: count(ix.indexed), left: count(ix.pending) })}</span>
           <span class="bar"><span style:width="{percent(ix.indexed, ix.indexed + ix.pending)}%"></span></span>
           {#if ix.current}<span class="muted hint current">{t("index.status.current", { name: ix.current })}</span>{/if}
         {:else}
           <span class="version">{t(st.paused ? "index.status.paused" : "index.status.ready", { count: count(ix.indexed) })}</span>
-          <span class="muted hint">{t("index.hint")}</span>
         {/if}
         {#if ix.error}<span class="hint bad" role="alert">{indexErrorText(ix.error)}</span>{/if}
       </span>
@@ -365,7 +354,6 @@
     <div class="row theme">
       <span>
         {t("index.what.label")}
-        <span class="muted hint">{t("index.what.documentsHint")}</span>
       </span>
       <div class="checks">
         <label><input type="checkbox" checked={st.photos} onchange={(e) => changeIndex({ photos: e.currentTarget.checked })} />{t("index.what.photos")}</label>
@@ -376,7 +364,6 @@
     <div class="row theme">
       <span id="index-where">
         {t("index.where.label")}
-        {#if st.wholePc}<span class="muted hint">{t("index.where.allHint")}</span>{/if}
       </span>
       <div class="segmented" role="radiogroup" aria-labelledby="index-where">
         <button role="radio" aria-checked={!st.wholePc} class:on={!st.wholePc} onclick={() => changeIndex({ wholePc: false })}>{t("index.where.mine")}</button>
@@ -400,15 +387,12 @@
   <div class="row update" aria-live="polite">
     <span class="grow">
       <span class="version">{t("settings.version", { version })}</span>
-      {#if phase.kind === "idle"}
-        <span class="muted hint">{t("settings.updateIdle")}</span>
-      {:else if phase.kind === "checking"}
+      {#if phase.kind === "checking"}
         <span class="muted hint">{t("settings.updateChecking")}</span>
       {:else if phase.kind === "upToDate"}
         <span class="hint ok">{t("settings.updateUpToDate")}</span>
       {:else if phase.kind === "available"}
         <span class="hint available">{t("settings.updateAvailable", { version: phase.info.version })}</span>
-        <span class="muted hint">{t("settings.updateRestartNote")}</span>
       {:else if phase.kind === "downloading"}
         <span class="muted hint">
           {phase.percent === null ? t("settings.updateDownloadingNoSize") : t("settings.updateDownloading", { percent: phase.percent })}
@@ -439,7 +423,6 @@
   <label class="row">
     <span>
       {t("settings.updateAuto")}
-      <span class="muted hint">{t("settings.updateAutoHint")}</span>
     </span>
     <input type="checkbox" bind:checked={settings.checkUpdates} onchange={saveSettings} />
   </label>
@@ -483,7 +466,6 @@
   .row .btn:disabled { opacity: 0.5; cursor: default; }
   .sub { padding-left: 34px; background: var(--hover); }
   .how { display: flex; align-items: center; gap: 10px; font-size: 13px; }
-  .how-icon { display: flex; color: var(--text-muted); }
   .how .btn { flex: none; }
   .how .btn:disabled { opacity: 0.5; cursor: default; }
   .update { gap: 14px; }

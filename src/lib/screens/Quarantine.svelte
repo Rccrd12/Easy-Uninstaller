@@ -143,7 +143,7 @@
           </div>
         </div>
         <span class="size">{formatBytes(e.sizeBytes)}</span>
-        <button class="btn btn-primary" disabled={busyId !== null} onclick={() => restore(e)} title={e.needsAdmin ? t("quarantine.permission") : undefined}>
+        <button class="btn btn-primary" disabled={busyId !== null} onclick={() => restore(e)}>
           {#if busyId === e.id && confirmId !== e.id}{t("quarantine.restoring")}{:else}<Icon name={e.needsAdmin ? "shield" : "undo"} />{t("common.restore")}{/if}
         </button>
         <button class="btn btn-ghost" disabled={busyId !== null} onclick={() => (confirmId = confirmId === e.id ? null : e.id)}>

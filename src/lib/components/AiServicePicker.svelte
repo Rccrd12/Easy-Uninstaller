@@ -2,7 +2,7 @@
   import Icon from "./Icon.svelte";
   import type { IconName } from "../icons";
 
-  const NOTE_ICONS: Record<string, IconName> = { cliCost: "money", cliTools: "lock", apiCost: "money", apiDirect: "lock", localPrivate: "lock", localFree: "money" };
+  const NOTE_ICONS: Record<string, IconName> = { apiCost: "money" };
   import { onMount } from "svelte";
   import { aiModels, aiOpenPage, aiRemoveKey, aiServices, aiSetKey, aiTest } from "../api";
   import { ai, AI_SERVICES, aiConfig, aiErrorText, recommendedModel, serviceInfo, type AiKind, type AiServiceInfo } from "../ai.svelte";
@@ -236,10 +236,7 @@
       {#if status(info.id)?.canStart}
         <label class="auto">
           <input type="checkbox" checked={settings.ai.autoStart} onchange={(e) => setAutoStart(e.currentTarget.checked)} />
-          <span>
-            {t("ai.picker.autoStart")}
-            <span class="muted small">{t("ai.picker.autoStartHint")}</span>
-          </span>
+          <span>{t("ai.picker.autoStart")}</span>
         </label>
       {/if}
 
@@ -257,7 +254,6 @@
               <option value={m.id}>{m.label}{m.id === recommendedModel(info.id) ? ` (${t("ai.picker.recommended")})` : ""}</option>
             {/each}
           </select>
-          <span class="muted small">{t(`ai.picker.modelHint.${info.id === "claude-code" ? "claudeCode" : kind}`)}</span>
         {:else}
           <input type="text" spellcheck="false" value={settings.ai.model} placeholder={t("ai.picker.modelName")}
             onchange={(e) => pickModel(e.currentTarget.value.trim())} />
@@ -277,7 +273,7 @@
       </div>
 
       <ul class="notes">
-        {#each kind === "cli" ? ["cliCost", "cliTools"] : kind === "api" ? ["apiCost", "apiDirect"] : ["localPrivate", "localFree"] as note (note)}
+        {#each kind === "api" ? ["apiCost"] : [] as note (note)}
           <li><Icon name={NOTE_ICONS[note]} />{t(`ai.picker.notes.${note}`)}</li>
         {/each}
       </ul>
@@ -317,7 +313,6 @@
   .small { font-size: 11.5px; }
   .auto { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; font-weight: 600; }
   .auto input { width: 16px; height: 16px; margin-top: 1px; accent-color: var(--ai); flex: none; }
-  .auto .small { display: block; font-weight: 400; margin-top: 2px; line-height: 1.4; }
   .test { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
   .test .btn:disabled, .key-row .btn:disabled { opacity: 0.5; cursor: default; }
   .ok-text { display: inline-flex; align-items: center; gap: 4px; color: var(--safe-fg); font-size: 12.5px; }

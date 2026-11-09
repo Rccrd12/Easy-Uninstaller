@@ -128,7 +128,6 @@
   </div>
 
   {#if phase === "scanning"}
-    <p class="muted lead">{t("quick.subtitle")}</p>
     <div class="busy" role="status" aria-live="polite">
       <span class="spinner" aria-hidden="true"></span>
       <div>
@@ -151,7 +150,6 @@
       <button class="btn btn-ghost btn-lg" onclick={onDetails}>{t("quick.seeFiles")}</button>
     </div>
   {:else if phase === "ready" || phase === "cleaning"}
-    <p class="muted lead">{t("quick.subtitle")}</p>
     <ul class="lines">
       {#each safe as group (group.id)}
         <li>
@@ -173,15 +171,12 @@
       <div>
         <div class="muted small">{t("quick.freeNow")}</div>
         <div class="num">{formatBytes(nowBytes)}</div>
-        <div class="muted small">{quarantine.drive ? t("quick.freeNowDrive", { drive: quarantine.drive }) : t("quick.freeNowNote")}</div>
       </div>
       {#if heldBytes > 0}
         <div class="vr"></div>
         <div>
           <div class="muted small">{t("quick.held", { days: quarantine.keepDays })}</div>
           <div class="num plain">{formatBytes(heldBytes)}</div>
-          <div class="muted small">{t("quick.heldNote")}</div>
-          <button class="link small" onclick={onSettings}>{t("quick.heldTip")}<Icon name="chevronRight" size={12} /></button>
         </div>
       {/if}
     </div>
@@ -192,8 +187,6 @@
       </button>
       {#if phase === "ready"}
         <button class="btn btn-ghost btn-lg" onclick={onDetails}>{t("quick.details")}</button>
-      {:else}
-        <span class="muted small">{t("quick.cleaningNote")}</span>
       {/if}
     </div>
   {:else if phase === "done" && report}
@@ -256,8 +249,6 @@
   .vr { width: 1px; background: var(--border); }
   .num { font-size: 26px; font-weight: 700; color: var(--accent); margin: 2px 0; }
   .num.plain { color: var(--text); }
-  .link { border: none; background: none; color: var(--accent); padding: 0; margin-top: 6px; text-align: left; }
-  .link:hover { text-decoration: underline; }
 
   .actions { display: flex; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
   .btn-lg { padding: 10px 18px; font-size: 14px; }

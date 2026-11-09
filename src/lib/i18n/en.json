@@ -26,7 +26,6 @@
   },
   "home": {
     "greeting": "Hi there",
-    "subtitle": "Here is what you can do to free up space.",
     "canFree": "You can safely free",
     "disk": "Drive {drive}",
     "diskUsage": "{used} used of {total} · {free} free",
@@ -42,11 +41,9 @@
     "map": "Space map",
     "mapText": "See at a glance what takes up the most space.",
     "mapButton": "Open map",
-    "quarantineTip": "Temporary files and caches are deleted right away. Everything else goes to <b>Quarantine</b> for {days} days.",
     "used": "Used",
     "quickClean": "Quick clean",
     "seeAll": "See everything",
-    "quickCleanHint": "Only what is safe, in one click.",
     "calculating": "Calculating…",
     "calculatingNote": "I'm looking at your files: it takes a minute or two.",
     "appsInstalled": "{count} apps · {size}",
@@ -54,7 +51,7 @@
     "historyLink": "History",
     "resultsFreed": "freed since you started using Easy Uninstaller",
     "resultsPending": "+ {size} in Quarantine",
-    "resultsEmpty": "Here you will see what was done and how much space it gave back. Quick clean is a good place to start.",
+    "resultsEmpty": "Nothing yet: try a quick clean.",
     "quarantineTitle": "Quarantine",
     "quarantineHolds": "{count} · {size} you can still restore",
     "quarantineEmpty": "Empty right now.",
@@ -93,12 +90,9 @@
       "measuring": "Measuring…",
       "clearCache": "Clear cache ({size})",
       "clearing": "Clearing the cache…",
-      "clearNote": "The app stays installed. Chats, settings and sign-ins are not touched.",
       "running": "{app} is open. Close it, then try again.",
-      "runningHint": "Some apps keep running in the background: look for their icon next to the clock.",
       "tryAgain": "Try again",
       "cleared": "Freed {size}",
-      "clearedNote": "The next time you open it, the app may take a little longer while it rebuilds its cache.",
       "skipped": "{count} files were in use and were left alone.",
       "error": "Could not clear the cache.",
       "noCache": "We don't know of a cache for this app that can be cleared safely.",
@@ -118,7 +112,6 @@
     "none": "None of your apps has a cache we know how to empty.",
     "total": "{size} of cache in {count} apps",
     "allEmpty": "The caches are already empty",
-    "what": "Files the apps recreate on their own. Chats, settings and sign-ins stay.",
     "clearAll": "Clear all",
     "clearing": "Clearing…",
     "clear": "Clear",
@@ -137,9 +130,9 @@
     "retry": "Try again",
     "heroTitle": "Your PC starts with {count} programs",
     "heroTitleOne": "Your PC starts with 1 program",
-    "heroText": "Turning off {count} of them can make your PC start faster. You can turn them back on any time.",
-    "heroTextOne": "Turning off 1 of them can make your PC start faster. You can turn it back on any time.",
-    "heroTextNone": "Nothing to suggest: the programs still on are useful ones. Turning one off never uninstalls it.",
+    "heroText": "Turning off {count} can make startup faster.",
+    "heroTextOne": "Turning off 1 can make startup faster.",
+    "heroTextNone": "Nothing to suggest: the ones that are on are useful.",
     "turnOffSuggested": "Turn off the {count} suggested",
     "turnOffSuggestedOne": "Turn off the suggested one",
     "working": "Changing…",
@@ -169,39 +162,34 @@
     },
     "switchLabel": "{name} starts with Windows",
     "allUsers": "All users",
-    "allUsersHint": "Starts for everyone who uses this PC: Windows asks for permission to change it.",
     "systemHint": "Windows needs it: it can't be turned off here.",
-    "estimate": "Impact is an estimate: Windows doesn't share the exact numbers with other apps, so the app uses what it knows about each program and its size.",
-    "applyNote": "Changes apply the next time you turn on the PC. The programs stay installed.",
-    "turnedOff": "Turned off {count} programs: they won't open by themselves next time.",
-    "turnedOffOne": "Turned off {name}: it won't open by itself next time.",
+    "turnedOff": "Turned off {count} programs.",
+    "turnedOffOne": "Turned off {name}.",
     "turnedOn": "{name} will start with Windows again.",
     "undo": "Undo",
     "undone": "Put back as before.",
     "failed": "Couldn't change {name}.",
     "failedMany": "Couldn't change {count} programs.",
-    "declined": "Programs for all users were left as they were: Windows permission was not given.",
+    "declined": "Windows didn't give permission: nothing changed.",
     "empty": "No program starts by itself with Windows.",
     "offTitle": "Turned off ({count})"
   },
   "newPc": {
     "bannerTitle": "New PC? Remove the apps you didn't choose",
-    "bannerText": "{count} apps came with Windows or with the PC ({size}). I'll tell you which ones are usually not needed.",
+    "bannerText": "{count} apps came with Windows or the PC ({size}).",
     "start": "Start",
     "later": "Not now",
     "title": "New PC cleanup",
-    "intro": "These apps came with Windows or with the PC. I've already picked the ones usually not needed: check them and change anything you like.",
+    "intro": "I've already picked the ones people usually don't need.",
     "stepChoose": "Choose",
     "stepUninstall": "Uninstall",
     "stepDone": "Done",
     "groupRemove": "Usually not needed",
     "groupRemoveNote": "already selected",
     "groupChoose": "Your choice",
-    "groupChooseNote": "some people use these: select them only if you don't",
-    "safeNote": "Windows, drivers and update tools are never on this list.",
     "uninstall": "Uninstall {count} apps",
     "doneTitle": "Done: no more unneeded apps",
-    "doneText": "The apps you removed are in Apps › Uninstalled, if you ever need them.",
+    "doneText": "You'll find them in Apps › Uninstalled.",
     "backToApps": "Back to apps",
     "seeUninstalled": "See uninstalled apps",
     "reasons": {
@@ -220,7 +208,6 @@
     }
   },
   "uninstalled": {
-    "intro": "Apps you uninstalled with Easy Uninstaller. If you need one again, reinstall it from here.",
     "when": "uninstalled on {date}",
     "store": "Open in Microsoft Store",
     "steam": "Open in Steam",
@@ -228,14 +215,12 @@
     "search": "Search the web",
     "again": "Installed again",
     "forget": "Remove from list",
-    "note": "This opens the page to download it: you install it yourself, like the first time.",
     "empty": "No apps uninstalled yet.",
     "error": "Could not read the list of uninstalled apps.",
     "openError": "Could not open the page."
   },
   "files": {
     "title": "Files",
-    "subtitle": "Files you may not need anymore, grouped. The colors tell you how safe it is to remove them.",
     "safeSection": "Safe to remove",
     "checkSection": "Worth a look",
     "selected": "Selected {size}",
@@ -340,14 +325,12 @@
     "undone": "Done: everything is back where it was.",
     "freeUp": "Free up {size}",
     "deleteNow": "Delete ({size})",
-    "howRemoved": "Temporary files, caches, thumbnails, crash reports and old Recycle Bin items are deleted right away. Everything else waits in Quarantine for {days} days.",
     "deletedRightAway": "Deleted right away: no longer needed.",
     "deleted": "Deleted: {count}, {size}.",
     "folderCount": "{count} folders",
     "folderCountOne": "1 folder",
     "entryCount": "{count} items",
     "entryCountOne": "1 item",
-    "reviewOnly": "Tap a folder to find out what it is and, if you want, move it to Quarantine.",
     "reviewFirst": "Similar photos are picked group by group.",
     "wasIn": "was in {path}",
     "review": {
@@ -366,8 +349,6 @@
       "then": "then",
       "oldest": "the oldest",
       "newest": "the newest",
-      "hintSafe": "All selected: untick anything you want to keep.",
-      "hintCheck": "Nothing is selected: tick only what you no longer need.",
       "sortBy": "Sort by",
       "sortSize": "Size",
       "sortDate": "Last used",
@@ -402,7 +383,6 @@
       "similarSubtitleOne": "1 set of similar photos · up to {size} to free",
       "keepPhoto": "In each set, keep",
       "largest": "the largest (most detail)",
-      "similarHint": "The photo marked Keep stays. The other selected ones go to Quarantine.",
       "similarSet": "{count} similar photos",
       "onePhotoStays": "One photo of every set always stays where it is."
     },
@@ -416,24 +396,17 @@
     "hideItem": "Hide {name}",
     "groupMenu": "More for {name}",
     "hideGroup": "Hide this group",
-    "hideGroupHint": "It won't be suggested again. Nothing is deleted.",
     "hiddenLink": "You hid {count}.",
     "hiddenLinkAction": "See and show again"
   },
   "quick": {
     "title": "Quick clean",
-    "subtitle": "I only remove what is safe.",
-    "scanning": "Looking for what is safe to remove…",
+    "scanning": "Looking for what to remove…",
     "freeNow": "Free space right away",
-    "freeNowNote": "temporary files, caches and the like: deleted",
-    "freeNowDrive": "deleted, or moved to the Quarantine on drive {drive}",
     "held": "In Quarantine for {days} days",
-    "heldNote": "you can restore it; after that it is deleted and the space comes back",
-    "heldTip": "Keep the Quarantine on another drive to free this right away too",
     "free": "Free {size}",
     "details": "Let me see the details first",
     "cleaning": "Cleaning up…",
-    "cleaningNote": "Files in use are skipped and left as they are.",
     "doneTitle": "Done! Space freed right away",
     "freed": "on your disk, available now",
     "nothingFreed": "nothing could be freed right away",
@@ -448,18 +421,16 @@
   },
   "leftovers": {
     "title": "Leftovers",
-    "subtitle": "Folders, registry entries and shortcuts left by programs that are no longer installed.",
     "count": "{count} leftovers",
     "countOne": "1 leftover",
     "searching": "Looking for leftovers…",
     "empty": "No leftovers found: your PC is tidy.",
-    "historyNote": "I also look for folders left by apps uninstalled earlier, by hand or with other tools.",
     "rescan": "Search again",
     "failed": "The search could not finish: {error}",
     "retry": "Try again",
     "from": "Left by {app}",
     "maybeTitle": "Maybe leftovers",
-    "maybeText": "No installed app uses these folders, and nothing in them changed for at least 6 months. They could still belong to something you use: check before removing them.",
+    "maybeText": "No app uses them and they haven't changed in 6 months. Check before removing them.",
     "lastChange": "last changed {when}",
     "groups": {
       "brokenShortcut": "Shortcuts that lead nowhere",
@@ -486,16 +457,14 @@
       "brokenEntry": "Entry in the app list with no program"
     },
     "hideApp": "Hide {app}'s leftovers",
-    "hideGroup": "Hide this group",
-    "hideHint": "They stay where they are and won't be suggested again."
+    "hideGroup": "Hide this group"
   },
   "map": {
     "title": "Space map",
-    "subtitle": "Each block is as big as the space it uses.",
     "onlyApps": "Apps only",
     "onlyFiles": "Files only",
     "everything": "Everything",
-    "summary": "Each block is as big as the space it uses. Drive {drive} · {used} used of {total}.",
+    "summary": "Drive {drive} · {used} used of {total}.",
     "rescan": "Measure again",
     "measuring": "Measuring the space on your disk…",
     "checked": "{count} files checked",
@@ -536,7 +505,7 @@
   },
   "quarantine": {
     "title": "Quarantine",
-    "subtitle": "Removed items are kept here for {days} days, then deleted for good.",
+    "subtitle": "Kept here for {days} days, then deleted.",
     "summary": "{count} · {size} in quarantine",
     "removedOn": "Removed {when}",
     "expires": "deleted for good {when}",
@@ -557,12 +526,10 @@
     "restoreFailed": "Could not be put back and are still in Quarantine: {count}.",
     "failed": "Something went wrong: {error}",
     "deleted": "Deleted for good. {size} freed.",
-    "permission": "Windows asks for permission to restore or delete these.",
     "declined": "Not done: permission was not given."
   },
   "history": {
     "title": "History",
-    "subtitle": "Everything Easy Uninstaller did on this PC, newest first.",
     "freed": "freed since you started using Easy Uninstaller",
     "since": "{count} since {date}",
     "actions": "{count} actions",
@@ -586,29 +553,25 @@
     "restored": "Put back on {date}",
     "partRestored": "{size} put back on {date}",
     "about": "about {size}",
-    "empty": "Nothing here yet. Every cleanup, uninstall and leftover removal will be listed here, with the space it gave back.",
+    "empty": "Nothing yet.",
     "clear": "Clear history",
-    "clearConfirm": "Clear the history? The total starts again from zero. No file is touched.",
+    "clearConfirm": "Clear the history?",
     "failed": "Could not read the history: {error}"
   },
   "settings": {
     "title": "Settings",
     "language": "Language",
     "theme": "Theme",
-    "themeHint": "System follows the light or dark mode chosen in Windows.",
     "themes": {
       "system": "System",
       "light": "Light",
       "dark": "Dark"
     },
     "largeText": "Larger text",
-    "largeTextHint": "Makes text and buttons bigger, so they are easier to read.",
     "technical": "Show technical details",
-    "technicalHint": "Full paths, registry keys, versions and install folders. Off: plain language only.",
     "quarantineDays": "Keep removed items for",
     "days": "{days} days",
     "restorePoint": "Create a restore point before uninstalling",
-    "restorePointHint": "Protects programs and settings. Windows asks for permission.",
     "restorePointNow": "Create one now",
     "restorePointStatus": {
       "creating": "Creating a restore point…",
@@ -617,37 +580,31 @@
       "disabled": "System Restore is turned off on this PC.",
       "failed": "The restore point could not be created."
     },
-    "quarantineDaysHint": "Applies to what you remove from now on.",
     "quarantineDrive": "Where to keep the Quarantine",
-    "quarantineDriveHint": "On another drive, the space on {drive} is freed right away. Items already in Quarantine stay where they are.",
+    "quarantineDriveHint": "On another drive, space is freed right away.",
     "driveDefault": "Drive {drive} (with the app)",
     "driveOption": "Drive {drive} ({label}) · {free} free",
     "driveOptionNoLabel": "Drive {drive} · {free} free",
     "driveMissing": "Drive {drive} (not connected)",
-    "driveChosen": "Space on {system} is freed as soon as you remove files.",
     "noOtherDrive": "This PC has no other drive.",
     "saveFailed": "Could not save the change: {error}",
     "hidden": "Hidden items",
-    "hiddenHint": "Files, folders, groups and leftovers you don't want to see any more",
     "manage": "Manage",
     "updates": "Updates",
     "version": "Easy Uninstaller {version}",
-    "updateIdle": "Updates are free.",
     "updateCheck": "Check for updates",
     "updateChecking": "Checking…",
     "updateUpToDate": "You have the latest version.",
     "updateAvailable": "Version {version} is available.",
     "updateNow": "Update now",
-    "updateRestartNote": "The app closes and opens again by itself in a few seconds.",
     "updateDownloading": "Downloading the update… {percent}%",
     "updateDownloadingNoSize": "Downloading the update…",
-    "updateInstalling": "Installing version {version}: the app closes and opens again by itself.",
+    "updateInstalling": "Installing version {version}…",
     "updateOffline": "Could not reach the internet. Check your connection and try again.",
     "updateFailed": "Could not check for updates ({error}).",
-    "updateInstallFailed": "The update could not be installed ({error}). Nothing has changed.",
+    "updateInstallFailed": "Update failed ({error}).",
     "updateRetry": "Try again",
-    "updateAuto": "Check each time the app opens",
-    "updateAutoHint": "Checks GitHub for a new version."
+    "updateAuto": "Check each time the app opens"
   },
   "technical": {
     "registryPlain": "A setting stored in Windows",
@@ -674,10 +631,8 @@
     "confirmTitle": "Uninstall {name}?",
     "confirmMany": "Uninstall {count} apps?",
     "totalSize": "Together {size}",
-    "restorePointNote": "Before starting I'll create a restore point. If something goes wrong, you can go back.",
-    "storeNote": "Windows removes this app together with its data.",
-    "storeAlso": "Microsoft Store apps are removed by Windows together with their data.",
-    "adminNote": "Windows will ask for permission for apps installed for everyone on this PC.",
+    "storeNote": "Its data is removed too.",
+    "storeAlso": "Store apps are removed with their data.",
     "creatingRestorePoint": "Creating a restore point…",
     "restorePointAsk": "Windows asks for permission.",
     "restorePointNot": {
@@ -687,17 +642,15 @@
     },
     "continueWithout": "Uninstall anyway",
     "running": "Uninstalling {name}…",
-    "runningNote": "It usually takes a few seconds. If a window from {name} opens, follow its steps there.",
+    "runningNote": "If a {name} window opens, follow its steps.",
     "waiting": "Waiting for {name}'s uninstaller to finish…",
-    "waitingNote": "{name} is finishing on its own. If you closed its window or chose to keep it, stop waiting.",
+    "waitingNote": "If you closed its window, stop waiting.",
     "stopWaiting": "Stop waiting",
     "notRemoved": "{name} was not uninstalled",
-    "cancelled": "The uninstall was cancelled. Nothing was changed.",
-    "declined": "Permission was not given, so nothing was changed.",
-    "stillThere": "{name} is still installed. Nothing else was changed.",
+    "cancelled": "Uninstall cancelled.",
+    "declined": "Permission not given: nothing changed.",
+    "stillThere": "{name} is still installed.",
     "searching": "Looking for what {name} left behind…",
-    "searchingNote": "Only folders, registry keys and shortcuts with its exact name, not used by other apps.",
-    "quarantineNote": "Everything goes to Quarantine for {days} days.",
     "adminLeftovers": "Windows will ask for permission for {count}.",
     "cleaning": "Moving {count} to Quarantine…",
     "removedTitle": "{name} was removed",
@@ -718,11 +671,10 @@
       "notInstalled": "This app is no longer installed.",
       "noUninstaller": "This app has no uninstaller. If it is gone, you'll find its entry in Leftovers.",
       "itself": "Easy Uninstaller can't uninstall itself: use Windows Settings for that.",
-      "stillInstalled": "The app is still installed, so nothing was searched.",
-      "declined": "Permission was not given, so nothing was changed.",
+      "stillInstalled": "The app is still installed.",
+      "declined": "Permission not given: nothing changed.",
       "other": "Something went wrong: {error}"
-    },
-    "reinstallNote": "Removed apps are in Apps › Uninstalled."
+    }
   },
   "explain": {
     "title": "What is this?",
@@ -739,9 +691,9 @@
       "keep": "Better keep it",
       "unknown": "Don't know it"
     },
-    "source": "Explanation built into the app · no data sent",
+    "source": "Built-in explanation",
     "unknownTitle": "I have no explanation for “{name}”",
-    "unknownHint": "A folder is usually named after the app or company that made it. If you don't recognise it, leave it where it is.",
+    "unknownHint": "If you don't recognize it, leave it where it is.",
     "back": "Back to {group}",
     "folders": {
       "temp": {
@@ -920,7 +872,6 @@
   },
   "hidden": {
     "title": "Hidden items",
-    "subtitle": "Things you chose not to see again.",
     "count": "{count} items",
     "countOne": "1 item",
     "tabs": {
@@ -940,10 +891,9 @@
     "groupNote": "Whole group on the Files screen",
     "showAgain": "Show again",
     "showAll": "Show all again",
-    "note": "Showing again moves nothing: it is simply listed again.",
-    "empty": "Nothing is hidden. When you hide a file, a folder or a group, you'll find it here.",
-    "done": "Hidden: {name}. It stays where it is and won't be suggested again.",
-    "doneMany": "Hidden: {count}. They stay where they are and won't be suggested again.",
+    "empty": "You haven't hidden anything.",
+    "done": "Hidden: {name}.",
+    "doneMany": "Hidden: {count}.",
     "shownAgain": "Shown again.",
     "shownAgainMany": "Shown again: {count}.",
     "failed": "Couldn't save: {error}",
@@ -1048,8 +998,6 @@
       "retry": "Try again",
       "via": "Through {service}",
       "asking": "Asking {service}…",
-      "askingHint": "Usually a few seconds.",
-      "askingLocal": "A model on this PC can take a minute, more the first time.",
       "startingHint": "The first start can take a minute."
     },
     "confirm": {
@@ -1062,7 +1010,7 @@
       "names": "Some names ({shown} of {total})",
       "showText": "See the exact text",
       "hideText": "Hide the exact text",
-      "dontAsk": "Don't ask me again (you can change it in Settings)"
+      "dontAsk": "Don't ask me again"
     },
     "answer": {
       "title": "The AI's answer",
@@ -1073,15 +1021,14 @@
       "noApp": "No installed app has this name",
       "modified": "Last change inside: {date}",
       "notWindows": "Not a Windows folder",
-      "mayBeWrong": "The AI can be wrong: check before removing.",
       "askAgain": "Ask again"
     },
     "move": {
       "keepText": "The AI says to keep it:"
     },
     "all": {
-      "intro": "{count} folders here are unknown to the app. The AI can guess what they are.",
-      "introOne": "One folder here is unknown to the app. The AI can guess what it is.",
+      "intro": "{count} folders the app doesn't know.",
+      "introOne": "One folder the app doesn't know.",
       "askAll": "Ask the AI for all",
       "askRest": "Ask for the other {count}",
       "looked": "The AI looked at {count} folders the app didn't know",
@@ -1095,9 +1042,9 @@
     },
     "picker": {
       "intro": {
-        "cli": "Programs already on your PC, signed in to your account. The app uses them as you would.",
-        "api": "You only pay what you use, directly to the service.",
-        "local": "Programs for models on this PC. The app checks which ones are running."
+        "cli": "With your subscription.",
+        "api": "Pay as you go.",
+        "local": "Models on this PC."
       },
       "found": "Found",
       "notInstalled": "Not installed",
@@ -1127,41 +1074,26 @@
       "keyFirst": "Add the key: the list comes from the service.",
       "addressFirst": "Write the address: the list comes from the server.",
       "recommended": "recommended",
-      "modelHint": {
-        "claudeCode": "Also Opus (more precise, uses more of your limits) or Haiku (faster).",
-        "cli": "The models your subscription offers.",
-        "api": "The list comes from the service.",
-        "local": "The models you already downloaded. Bigger is more precise but slower."
-      },
       "modelName": "Model name",
       "noList": "The list could not be read: type the model's name.",
       "test": "Test",
       "testing": "Testing…",
       "works": "It works. Answered in {seconds} seconds.",
       "notes": {
-        "cliCost": "No extra cost: it uses your subscription's limits.",
-        "cliTools": "It starts in an empty folder with no tools: it cannot read, change or delete files.",
-        "apiCost": "About 1 cent per question with the recommended models.",
-        "apiDirect": "The question goes from your PC to the service, with no server of ours in between.",
-        "localPrivate": "Nothing leaves this PC.",
-        "localFree": "Free."
+        "apiCost": "About 1 cent per question with the recommended models."
       },
       "autoStarts": "Starts by itself",
       "starting": "Starting Unsloth Studio… {seconds} s",
-      "autoStart": "Start and stop it by itself",
-      "autoStartHint": "Started with no window when a question needs it, and stopped 5 minutes after the last one. Only the one this app started is ever stopped."
+      "autoStart": "Start and stop it by itself"
     },
     "setup": {
       "title": "Turn on the AI help?",
       "step": "Step {step} of 2",
-      "lead": "The AI explains the folders the app does not know and tells you whether they look useful.",
-      "leadBold": "It never moves anything by itself",
-      "leadEnd": ": you always decide.",
+      "lead": "The AI explains the folders the app doesn't know.",
       "online": {
         "title": "Online",
         "a": "Better and faster answers",
-        "b": "Uses a subscription you already have (Claude, ChatGPT, Google) through its program, or an API key",
-        "c": "Folder paths and file names are sent, never what is inside"
+        "b": "Uses a subscription you already have (Claude, ChatGPT, Google) through its program, or an API key"
       },
       "local": {
         "title": "On this PC",
@@ -1173,7 +1105,6 @@
         "title": "No, thanks",
         "a": "The app keeps using its built-in explanations"
       },
-      "changeLater": "You can change your mind at any time in Settings.",
       "continue": "Continue",
       "onlineTitle": "Choose the online service",
       "localTitle": "Choose the program on this PC",
@@ -1187,11 +1118,6 @@
       "title": "AI help",
       "new": "New",
       "mode": "Where the AI works",
-      "modeHint": {
-        "off": "Off: the app only uses its built-in explanations.",
-        "online": "An online service: through your subscription's program or with an API key.",
-        "local": "A model on this PC: nothing leaves it."
-      },
       "modes": {
         "off": "Off",
         "online": "Online",
@@ -1204,11 +1130,11 @@
       "monthOne": "1 question",
       "costApi": "paid to the service, about 1 cent each",
       "saved": "Answers saved on this PC",
-      "savedCount": "{count} folders: they are not asked about again.",
-      "savedOne": "1 folder: it is not asked about again.",
+      "savedCount": "{count} folders",
+      "savedOne": "1 folder",
       "clear": "Clear",
       "parallel": "Questions at the same time",
-      "parallelHint": "For “Ask for all”. More finish sooner, but use up your limits or credit faster."
+      "parallelHint": "Faster, but uses up limits or credit sooner."
     },
     "tag": {
       "removable": "Can likely go",
@@ -1305,7 +1231,6 @@
   },
   "index": {
     "title": "Search by content",
-    "hint": "Finds photos and videos by what they show, even when the name says nothing.",
     "status": {
       "none": "Model not downloaded",
       "noneHint": "{size} to download, once.",
@@ -1348,14 +1273,12 @@
       "label": "What to search",
       "photos": "Photos",
       "videos": "Videos",
-      "documents": "Documents",
-      "documentsHint": "Documents are found by the Windows index, with nothing more to download."
+      "documents": "Documents"
     },
     "where": {
       "label": "Where",
       "mine": "Your folders",
-      "all": "The whole PC",
-      "allHint": "Other drives too, except the Windows and program folders."
+      "all": "The whole PC"
     },
     "space": "Space used",
     "remove": "Delete model and index",
@@ -1370,7 +1293,6 @@
   },
   "tidy": {
     "title": "Tidy up Downloads",
-    "subtitle": "The AI suggests folders for the loose files in Downloads.",
     "loose": "{files} lying loose in Downloads · {size}",
     "none": "Downloads is already tidy: there are no loose files.",
     "noDownloads": "No Downloads folder was found on this PC.",
@@ -1408,14 +1330,13 @@
     },
     "installers": {
       "title": "Installers already used",
-      "desc": "Installers of programs already installed. Tick them to remove them."
+      "desc": "Installers of programs already installed."
     },
     "apply": {
       "summary": "{files} into {folders}",
       "plusInstallers": "and {files} to Quarantine",
       "button": "Tidy up",
       "moving": "Tidying…",
-      "note": "You can put everything back with one click.",
       "nothing": "Tick at least one file."
     },
     "done": {
@@ -1437,30 +1358,29 @@
   },
   "updateNotice": {
     "title": "A new version is available",
-    "text": "Easy Uninstaller {version} is ready. Updating takes a few seconds.",
+    "text": "Easy Uninstaller {version} is ready.",
     "update": "Update",
     "later": "Later"
   },
   "reminders": {
     "title": "Reminders",
     "lowSpace": "Tell me when the disk is almost full",
-    "lowSpaceHint": "A Windows notice when less than {percent}% of {drive} is free. If the disk stays full, at most once a week.",
+    "lowSpaceHint": "When less than {percent}% is left on {drive}.",
     "threshold": "Notify when free space is below",
     "thresholdOption": "{percent}%",
     "monthly": "Remind me to clean up every month",
-    "monthlyHint": "Only if you have not opened Easy Uninstaller for 30 days.",
-    "how": "Nothing keeps running in the background. Once a day Windows starts a check that takes less than a second, and a notice appears only when needed.",
+    "monthlyHint": "If you haven't opened the app in 30 days.",
     "sample": "Show a sample notice",
-    "sampleSent": "Sent. If you did not see it, check that notifications are on in Windows Settings > System > Notifications.",
+    "sampleSent": "Sent. If you don't see it, turn on Windows notifications.",
     "sampleFailed": "Windows did not show the notice ({error}).",
     "saveFailed": "The reminder could not be set up: {error}",
     "notice": {
       "lowSpaceTitle": "Disk {drive} is almost full",
       "lowSpaceBody": "Only {free} free ({percent}%). Open Easy Uninstaller to free up space.",
       "monthlyTitle": "Time for a cleanup",
-      "monthlyBody": "A month has passed since the last check. A Quick clean takes about a minute.",
+      "monthlyBody": "It's been a month since the last cleanup.",
       "testTitle": "Easy Uninstaller notices are on",
-      "testBody": "Reminders will look like this. Click a notice to open the app."
+      "testBody": "Reminders will look like this."
     }
   },
   "offload": {
@@ -1474,12 +1394,11 @@
       "tag": "Stays in the cloud",
       "freeingTag": "In progress",
       "freeingNote": "OneDrive is freeing {size} on this PC",
-      "about": "These files are already in your OneDrive. I can remove the copy on this PC: you still see them in their folders, and they download when you open them.",
+      "about": "They're already on OneDrive: I remove the copy on this PC and they download again when you open them.",
       "before": "Always on this PC",
       "after": "Online only, downloads when you open it",
       "freeing": "OneDrive is freeing {size} on this PC ({count}). It takes a few minutes, while OneDrive is running.",
-      "note": "Nothing is deleted. You need internet to open them again.",
-      "rule": "Files of 1 MB or more not changed in the last 30 days: files you are working on stay on the PC. It is the same as “Free up space” in OneDrive.",
+      "note": "You need internet to open them again.",
       "button": "Free up {size} on this PC",
       "working": "Asking OneDrive…",
       "done": "Done: {count} are now online only. OneDrive frees {size} on this PC in the next few minutes, while it is running.",
@@ -1496,11 +1415,9 @@
       "tag": "Move",
       "movedTag": "Moved",
       "movedNote": "On another drive: {count}. You can move them back.",
-      "about": "Big videos, archives and disk images can live on another drive. I move them to “{folder}” on {drive}, and you can move them back whenever you want.",
+      "about": "I move them to “{folder}” on {drive}. You can bring them back.",
       "drive": "Move to",
       "folderName": "Moved from {letter}",
-      "note": "Each file is copied to {drive}, then removed from {system}. Apps and games are not moved.",
-      "rule": "Videos, archives, disk images and lossless audio of 100 MB or more in your folders. Files in OneDrive stay where they are.",
       "button": "Move {size} to {drive}",
       "working": "Moving…",
       "moving": "Moving {n} of {total} · {done} of {size}",

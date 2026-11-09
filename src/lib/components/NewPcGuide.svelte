@@ -59,7 +59,7 @@
 
 {#snippet group(title: string, note: string, list: InstalledApp[])}
   {#if list.length}
-    <div class="sec"><b>{title}</b> <span class="muted">· {note}</span></div>
+    <div class="sec"><b>{title}</b>{#if note} <span class="muted">· {note}</span>{/if}</div>
     <div class="card list">
       {#each list as app (app.id)}
         <label class="row" class:sel={selected.has(app.id)}>
@@ -113,10 +113,9 @@
     <p class="muted intro">{t("newPc.intro")}</p>
   {/if}
 
-  <p class="note"><Icon name="shieldCheck" />{t("newPc.safeNote")}</p>
 
   {@render group(t("newPc.groupRemove"), t("newPc.groupRemoveNote"), usuallyNot)}
-  {@render group(t("newPc.groupChoose"), t("newPc.groupChooseNote"), yourChoice)}
+  {@render group(t("newPc.groupChoose"), "", yourChoice)}
 
   <div class="card footer">
     <b>{t("apps.selected", { count: chosen.length })}</b>
@@ -150,8 +149,6 @@
   .name { font-size: 14px; font-weight: 600; }
   .why { font-size: 12.5px; }
   .size { font-size: 13.5px; width: 80px; text-align: right; flex: none; }
-  .note { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.45; color: var(--text-muted); margin: 8px 0 4px; max-width: 760px; }
-  .note :global(.icon) { margin-top: 0.15em; color: var(--safe-fg); }
   .footer { position: sticky; bottom: 0; display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-top: 12px; box-shadow: var(--shadow-up); }
   .grow { flex: 1; min-width: 0; }
   .btn:disabled { opacity: 0.5; cursor: default; }

@@ -182,7 +182,6 @@
 <div class="tidy">
   <button class="back" onclick={onBack}><Icon name="chevronLeft" size={14} />{t("files.title")}</button>
   <h1>{t("tidy.title")}</h1>
-  <p class="muted sub">{t("tidy.subtitle")}</p>
 
   {#if error}
     <div class="card status error-card" role="alert"><StatusIcon kind="warn" /><span>{error}</span></div>
@@ -312,7 +311,7 @@
     <div class="card footer">
       <div class="footer-text">
         <b>{t("tidy.apply.summary", { files: fileCount(moveCount), folders: folders(folderTotal) })}{#if pickedInstallers.size} {t("tidy.apply.plusInstallers", { files: fileCount(pickedInstallers.size) })}{/if}</b>
-        <span class="muted small">{moveCount || pickedInstallers.size ? t("tidy.apply.note") : t("tidy.apply.nothing")}</span>
+        {#if !moveCount && !pickedInstallers.size}<span class="muted small">{t("tidy.apply.nothing")}</span>{/if}
       </div>
       <span class="grow"></span>
       <button class="btn btn-ghost" disabled={phase === "applying"} onclick={() => { plan = null; load(); }}>{t("common.cancel")}</button>
@@ -360,7 +359,6 @@
   .tidy { padding-bottom: 8px; }
   .back { border: none; background: none; color: var(--text-muted); font-size: 13px; padding: 2px 0; margin-bottom: 4px; display: inline-flex; align-items: center; gap: 4px; }
   .back:hover { color: var(--accent); }
-  .sub { margin: 3px 0 14px; max-width: 760px; line-height: 1.45; }
   h2 { font-size: 16px; font-weight: 600; }
   .small { font-size: 12px; }
   .grow { flex: 1; }

@@ -90,7 +90,6 @@
       <li><Icon name="check" />{t("ai.answer.notWindows")}</li>
     </ul>
   </div>
-  <p class="muted foot">{t("ai.answer.mayBeWrong", { days: quarantine.keepDays })}</p>
   <p class="muted foot icon-line"><span><button class="link" onclick={askAgain}>{t("ai.answer.askAgain")}</button></span></p>
 {:else if asking}
   <div class="box">
@@ -100,7 +99,6 @@
       <p class="muted small">{t("ai.box.startingHint")}</p>
     {:else}
       <p class="asking"><span class="spinner" aria-hidden="true"></span>{t("ai.box.asking", { service })}</p>
-      <p class="muted small">{t(isLocal ? "ai.box.askingLocal" : "ai.box.askingHint")}</p>
     {/if}
   </div>
 {:else if preview}

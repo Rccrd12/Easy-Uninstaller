@@ -104,7 +104,6 @@
 </script>
 
 <h1>{t("home.greeting")}</h1>
-<p class="muted sub">{t("home.subtitle")}</p>
 {#if usesSampleData()}<SampleBanner />{/if}
 
 <section class="card hero">
@@ -120,7 +119,6 @@
       <button class="btn btn-primary cta" onclick={() => (quickClean = true)}>{t("home.quickClean")}</button>
       <button class="btn btn-ghost cta" onclick={() => onNavigate("files")}>{t("home.seeAll")}</button>
     </div>
-    <div class="muted small hint">{t("home.quickCleanHint")}</div>
   </div>
   {#if disk}
     <div class="disk">
@@ -185,7 +183,6 @@
     {#if inQuarantine}
       <div class="q-state">{inQuarantine.length ? t("home.quarantineHolds", { count: quarantineCount, size: formatBytes(quarantineBytes) }) : t("home.quarantineEmpty")}</div>
     {/if}
-    <p class="muted tip">{@html t("home.quarantineTip", { days: quarantine.keepDays })}</p>
   </div>
 </section>
 
@@ -198,7 +195,6 @@
 {/if}
 
 <style>
-  .sub { margin: 3px 0 10px; }
   .small { font-size: 13px; }
   .hero { display: flex; gap: 32px; align-items: center; padding: 22px 26px; margin-top: 4px; }
   .big { font-size: 40px; font-weight: 700; color: var(--accent); line-height: 1.1; }
@@ -206,7 +202,6 @@
   .amount.calc { font-size: 15px; font-weight: 600; color: var(--text-muted); }
   .ctas { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
   .cta { padding: 10px 18px; font-size: 14px; }
-  .hint { margin-top: 6px; font-size: 12px; }
   .disk { flex: 1; }
   .row { display: flex; justify-content: space-between; gap: 12px; }
   .bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; margin: 10px 0 8px; background: var(--track); }
@@ -238,5 +233,4 @@
   .recent b { flex: none; }
   .empty { font-size: 13px; line-height: 1.45; margin-top: 10px; }
   .q-state { font-size: 14px; font-weight: 600; margin: 10px 0 6px; }
-  .tip { font-size: 12.5px; line-height: 1.5; }
 </style>

@@ -104,7 +104,23 @@ export const ai = $state({
   starting: null as number | null,
 });
 
-onAiStart((s) => (ai.starting = s.state === "starting" ? s.seconds : null)).catch(() => {});
+// The backend reports the seconds between its health checks, which can take a few seconds
+// each; a local clock keeps the counter ticking once a second.
+let startedAt = 0;
+let startTimer: ReturnType<typeof setInterval> | null = null;
+onAiStart((s) => {
+  if (s.state !== "starting") {
+    if (startTimer) clearInterval(startTimer);
+    startTimer = null;
+    ai.starting = null;
+    return;
+  }
+  if (!startTimer) {
+    startedAt = Date.now() - s.seconds * 1000;
+    startTimer = setInterval(() => (ai.starting = Math.floor((Date.now() - startedAt) / 1000)), 1000);
+  }
+  ai.starting = Math.max(s.seconds, Math.floor((Date.now() - startedAt) / 1000));
+}).catch(() => {});
 
 const key = (path: string) => path.toLowerCase();
 

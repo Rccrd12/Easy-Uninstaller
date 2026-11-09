@@ -378,7 +378,6 @@
     <div class="head">
       <div>
         <h1>{t("files.title")}</h1>
-        <p class="muted sub">{t("files.subtitle")}</p>
       </div>
       {#if !scanning}
         <button class="btn btn-ghost" onclick={() => load(true)}><Icon name="refresh" />{t("files.rescan")}</button>
@@ -448,9 +447,6 @@
           {moving ? t("files.moving") : actionLabel(selectionDeletes, selectionMoves, selectedBytes)}
         </button>
       </div>
-      {#if selectionDeletes}
-        <p class="muted how">{t("files.howRemoved", { days: quarantine.keepDays })}</p>
-      {/if}
     {/if}
 
     {#if !scanning && hiddenCount > 0}
@@ -553,13 +549,12 @@
         <button class="btn btn-ghost wide" onclick={() => openReview(g)}><Icon name="search" />{t("files.review.oneByOne")}</button>
       {/if}
       {#if focused.reviewOnly}
-        <p class="muted review-note icon-line"><Icon name="info" />{t("files.reviewOnly")}</p>
+        <!-- Folders are moved one at a time, from their explanation. -->
       {:else if reviewFirst(focused)}
         <!-- Moved from the review only. -->
       {:else}
         {@const id = focused.id}
         {@const deletes = DELETE_NOW_GROUPS.includes(id)}
-        {#if deletes}<p class="muted how">{t("files.deletedRightAway")}</p>{/if}
         <button class="btn btn-primary wide" disabled={moving} onclick={() => remove([id])}>
           {moving ? t("files.moving") : actionLabel(deletes, !deletes, focused.sizeBytes)}
         </button>
@@ -608,7 +603,7 @@
     {/if}
     <button role="menuitem" class="menu-hide" onclick={() => act((g) => hide([hiddenItem("group", g.id, g.titleKey)]))}>
       <EyeOffIcon />
-      <span>{t("files.hideGroup")}<span class="muted menu-hint">{t("files.hideGroupHint")}</span></span>
+      <span>{t("files.hideGroup")}</span>
     </button>
   </div>
 {/if}
@@ -620,7 +615,6 @@
   .col { flex: 1; min-width: 0; }
   .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .head .btn { flex: none; margin-top: 4px; }
-  .sub { margin: 3px 0 10px; }
   h2 { font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.3px; text-transform: uppercase; margin: 14px 0 6px; }
   .group { display: flex; align-items: center; gap: 12px; padding: 11px 14px; margin-bottom: 7px; border-width: 2px; border-color: transparent; cursor: pointer; }
   .group.focused { border-color: var(--accent); }
@@ -633,8 +627,6 @@
   .footer { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
   .btn:disabled { opacity: 0.5; cursor: default; }
   .grow { flex: 1; }
-  .how { font-size: 12px; margin-top: 8px; text-align: right; }
-  .side .how { text-align: left; margin-top: 12px; }
 
   .scan { padding: 22px 24px; margin-top: 8px; }
   .scan-title { font-size: 17px; font-weight: 600; }
@@ -704,7 +696,6 @@
   .menu hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
   .menu-hide { display: flex; align-items: flex-start; gap: 8px; }
   .menu-hide :global(.icon) { margin-top: 2px; }
-  .menu-hint { display: block; font-size: 12px; margin-top: 2px; }
   .toast { position: fixed; right: 30px; bottom: 22px; max-width: 560px; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: var(--shadow-pop); border-left: 4px solid var(--safe-fg); z-index: 10; }
   .toast.error { border-left-color: var(--danger); }
   /* Above the review's sticky footer, so its buttons stay reachable. */

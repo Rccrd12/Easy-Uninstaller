@@ -76,8 +76,6 @@
     <p class="muted sub">
       {#if usage && !loading}
         {t("map.summary", { drive: usage.mountPoint, used: formatBytes(usage.totalBytes - usage.freeBytes), total: formatBytes(usage.totalBytes) })}
-      {:else}
-        {t("map.subtitle")}
       {/if}
     </p>
   </div>

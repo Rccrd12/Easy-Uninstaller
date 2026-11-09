@@ -128,14 +128,12 @@
     {#if phase.kind === "done"}
       <div class="box ok" role="status">
         <div class="icon-line"><Icon name="checkCircle" size={18} /><b>{t("apps.detail.cleared", { size: formatBytes(phase.freed) })}</b></div>
-        <p>{t("apps.detail.clearedNote")}</p>
         {#if phase.skipped > 0}<p>{t("apps.detail.skipped", { count: fileCount(phase.skipped) })}</p>{/if}
       </div>
     {:else if cache.cacheBytes > 0}
       {#if phase.kind === "running" || (phase.kind === "idle" && cache.running)}
         <div class="box warn" role="alert">
           <div class="icon-line"><Icon name="warning" size={18} /><b>{t("apps.detail.running", { app: app.name })}</b></div>
-          <p>{t("apps.detail.runningHint")}</p>
         </div>
       {:else if phase.kind === "error"}
         <div class="box warn" role="alert"><div class="icon-line"><Icon name="warning" size={18} /><b>{t("apps.detail.error")}</b></div></div>
@@ -149,7 +147,6 @@
           <Icon name="broom" />{t("apps.detail.clearCache", { size: formatBytes(cache.cacheBytes) })}
         {/if}
       </button>
-      <p class="muted small center">{t("apps.detail.clearNote")}</p>
     {:else}
       <p class="muted small note">{t("apps.detail.emptyCache")}</p>
     {/if}
@@ -185,7 +182,6 @@
   .grow { flex: 1; }
   .wide { width: 100%; margin-top: 14px; padding: 10px 16px; font-size: 13.5px; }
   .wide:disabled { opacity: 0.75; cursor: default; }
-  .center { text-align: center; margin-top: 6px; }
   .note { margin-top: 12px; }
   .box { margin-top: 14px; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px; }
   .box p { margin: 4px 0 0 25px; }

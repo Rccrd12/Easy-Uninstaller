@@ -184,7 +184,6 @@
     {@render fileList(files)}
   {/if}
   <p class="note icon-line"><Icon name="info" />{t("offload.onedrive.note")}</p>
-  <p class="muted rule">{t("offload.onedrive.rule")}</p>
   <div class="grow"></div>
   {#if result}{@render resultBox(result)}{/if}
   {#if count > 0}
@@ -211,8 +210,6 @@
       <div class="how-row"><Icon name="drive" /><span class="path">{drive.mountPoint}\{folderName}\{where(files[0].path)}</span><span class="muted when">{t("offload.after")}</span></div>
     </div>
     {@render fileList(files)}
-    <p class="note icon-line"><Icon name="info" />{t("offload.move.note", { drive: drive.mountPoint, system: `${systemLetter}:` })}</p>
-    <p class="muted rule">{t("offload.move.rule")}</p>
   {/if}
   {#if mv.moved.length}
     <div class="label list-label moved-label">
@@ -285,7 +282,6 @@
   .more { font-size: 12px; margin-top: 6px; }
   .note { font-size: 12.5px; line-height: 1.45; margin-top: 14px; padding: 9px 11px; border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--text); }
   .note :global(.icon) { color: var(--accent); }
-  .rule { font-size: 11.5px; margin-top: 8px; line-height: 1.4; }
   .grow { flex: 1; }
   .icon-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; background: none; border-radius: var(--radius-sm); color: var(--text-muted); }
   .icon-btn:hover { background: var(--hover); color: var(--text); }
