@@ -24,7 +24,7 @@
   const SIZES = [10 * MB, 100 * MB, 500 * MB, GB, 5 * GB];
   const UNUSED = [30, 90, 180, 365, 730, 1825];
   const RECENT = [1, 7, 30, 365];
-  const empty = (): SearchFilter => ({ kinds: [], minBytes: null, maxBytes: null, unusedDays: null, recentDays: null, places: [], words: [], sort: "size" });
+  const empty = (): SearchFilter => ({ kinds: [], minBytes: null, maxBytes: null, unusedDays: null, recentDays: null, places: [], words: [], sort: "size", unsure: [] });
 
   let current = $state("");
   let filter = $state<SearchFilter | null>(null);
@@ -280,6 +280,10 @@
       </div>
     {/if}
 
+    {#if f.unsure.length}
+      <p class="unsure icon-line"><Icon name="info" />{t("search.unsure", { what: f.unsure.join(", ") })}</p>
+    {/if}
+
     <p class="tip icon-line"><Icon name="shieldCheck" />{t(byName ? "search.safetyName" : "search.safety", { days: quarantine.keepDays })}</p>
 
     {#if phase === "searching" && !result}
@@ -381,6 +385,9 @@
 
   .tip { font-size: 12.5px; line-height: 1.45; background: var(--tip-bg); border: 1px solid var(--tip-border); border-radius: var(--radius-sm); padding: 9px 12px; margin-bottom: 12px; }
   .tip :global(.icon) { color: var(--ai); flex: none; }
+
+  .unsure { font-size: 13px; line-height: 1.45; margin: -2px 0 10px; color: var(--text-muted); }
+  .unsure :global(.icon) { flex: none; }
 
   .summary { display: flex; align-items: center; gap: 10px; margin: 2px 0 8px; font-size: 14px; }
   .small-spin { width: 12px; height: 12px; }

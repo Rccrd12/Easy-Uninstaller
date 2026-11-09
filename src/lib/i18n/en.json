@@ -1029,6 +1029,7 @@
     "edit": "Change",
     "doneEditing": "Done",
     "anyFile": "All files",
+    "unsure": "A file name can't tell “{what}”, so these are all the files that match the rest.",
     "removeChip": "Remove “{what}”",
     "kinds": {
       "image": "Photos and images",

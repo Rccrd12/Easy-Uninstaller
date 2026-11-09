@@ -1029,6 +1029,7 @@
     "edit": "Modifica",
     "doneEditing": "Fatto",
     "anyFile": "Tutti i file",
+    "unsure": "Dal nome di un file non si capisce «{what}»: qui ci sono tutti i file che corrispondono al resto.",
     "removeChip": "Togli «{what}»",
     "kinds": {
       "image": "Foto e immagini",
