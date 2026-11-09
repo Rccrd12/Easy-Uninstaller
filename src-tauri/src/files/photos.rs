@@ -84,7 +84,7 @@ impl Print {
         }
         let mut gray = Vec::with_capacity(w * h);
         let mut sum = [0u64; 3];
-        for p in rgba[..w * h * 4].chunks_exact(4) {
+        for p in rgba[..w * h * 4].as_chunks::<4>().0 {
             let (r, g, b) = (u32::from(p[0]), u32::from(p[1]), u32::from(p[2]));
             sum[0] += u64::from(r);
             sum[1] += u64::from(g);
@@ -514,7 +514,9 @@ mod tests {
     /// Small changes like a camera's noise or a different JPEG quality.
     fn noisy(rgba: &[u8], amount: i32, brighter: i32) -> Vec<u8> {
         let mut state = 12345u32;
-        rgba.chunks_exact(4)
+        rgba.as_chunks::<4>()
+            .0
+            .iter()
             .flat_map(|p| {
                 let mut out = [0u8; 4];
                 for c in 0..3 {
@@ -575,7 +577,9 @@ mod tests {
     fn same_layout_in_other_colors_does_not_match() {
         let a = scene(5, 96, 72, 0.0);
         let night: Vec<u8> = a
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .flat_map(|p| [p[0] / 3, p[1] / 3, p[2] / 2 + 40, 255])
             .collect();
         assert!(!print_of(&a, 96, 72).looks_like(&print_of(&night, 96, 72)));
