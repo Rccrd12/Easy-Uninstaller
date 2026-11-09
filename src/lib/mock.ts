@@ -1,7 +1,7 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { DriveInfo, FileGroup, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage } from "./types";
+import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage } from "./types";
 
 export const sampleApps: InstalledApp[] = [
   { id: "photoshop", name: "Adobe Photoshop 2025", publisher: "Adobe", sizeBytes: 6.8 * GB, source: "win32", installedOn: "2025-01-14", lastUsed: "3 months ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#e3008c", icon: null },
@@ -102,11 +102,13 @@ const sampleExtraGroups: [id: string, key: string, safety: FileGroup["safety"], 
     { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\Explorer\\thumbcache_256.db`, 380 * MB, "2025-07-01"), explainId: "thumbCache" },
     { ...item(`${U}\\AppData\\Local\\Microsoft\\Windows\\Explorer\\thumbcache_1280.db`, 210 * MB, "2025-07-01"), explainId: "thumbCache" },
   ]],
-  ["unknown-folders", "unknownFolders", "check", 11, [
+  ["unknown-folders", "unknownFolders", "check", 13, [
     folderItem("C:\\ProgramData\\Package Cache", 4.2 * GB, "packageCache"),
     folderItem(`${U}\\AppData\\Roaming\\Zoom`, 1.1 * GB, "zoom"),
     folderItem(`${U}\\AppData\\Local\\ABX_7731`, 820 * MB, null),
     folderItem(`${U}\\AppData\\Local\\Spotify`, 640 * MB, "spotify"),
+    folderItem(`${U}\\AppData\\Local\\qbt-data`, 610 * MB, null),
+    folderItem("C:\\ProgramData\\Temp_Updater_x64", 480 * MB, null),
     folderItem(`${U}\\AppData\\Local\\NVIDIA`, 450 * MB, "shaderCache"),
     folderItem(`${U}\\AppData\\Local\\npm-cache`, 380 * MB, "devCache"),
     folderItem(`${U}\\AppData\\Roaming\\anythingllm-desktop`, 360 * MB, null),
@@ -279,3 +281,100 @@ export const sampleQuarantine: QuarantineEntry[] = [
 export const sampleQuarantineSettings: QuarantineSettings = { keepDays: 7, drive: null };
 
 export const sampleDrives: DriveInfo[] = [{ mountPoint: "D:", label: "Data", totalBytes: 931 * GB, freeBytes: 612 * GB }];
+
+// ── AI help ───────────────────────────────────────────────────────────────
+
+export const sampleAiServices: AiServiceStatus[] = [
+  { id: "claude-code", found: true, models: null, hasKey: false, canStart: false },
+  { id: "codex", found: true, models: null, hasKey: false, canStart: false },
+  { id: "antigravity-cli", found: false, models: null, hasKey: false, canStart: false },
+  { id: "anthropic", found: true, models: null, hasKey: false, canStart: false },
+  { id: "openai", found: true, models: null, hasKey: false, canStart: false },
+  { id: "google", found: true, models: null, hasKey: false, canStart: false },
+  { id: "openrouter", found: true, models: null, hasKey: false, canStart: false },
+  { id: "custom", found: true, models: null, hasKey: false, canStart: false },
+  { id: "ollama", found: true, models: 3, hasKey: false, canStart: false },
+  { id: "lmstudio", found: true, models: 2, hasKey: false, canStart: false },
+  // Installed but not running: the app starts it.
+  { id: "unsloth", found: false, models: null, hasKey: false, canStart: true },
+  { id: "local-custom", found: false, models: null, hasKey: false, canStart: false },
+];
+
+const m = (id: string, label = id): AiModel => ({ id, label });
+export const sampleAiModels: Record<string, AiModel[]> = {
+  "claude-code": [m("sonnet", "Sonnet"), m("opus", "Opus"), m("haiku", "Haiku")],
+  codex: [m("gpt-5.5", "GPT-5.5"), m("gpt-5.5-mini", "GPT-5.5 mini")],
+  "antigravity-cli": [m("gemini-3.1-pro-high"), m("gemini-3.8-flash-low")],
+  anthropic: [m("claude-sonnet-5-5", "Claude Sonnet 5.5"), m("claude-haiku-5-5", "Claude Haiku 5.5"), m("claude-opus-5-5", "Claude Opus 5.5")],
+  openai: [m("gpt-5.5"), m("gpt-5.5-mini")],
+  google: [m("gemini-3-flash"), m("gemini-3.1-pro")],
+  openrouter: [m("anthropic/claude-sonnet-5.5", "Anthropic: Claude Sonnet 5.5"), m("google/gemini-3-flash", "Google: Gemini 3 Flash")],
+  custom: [m("llama-4-scout")],
+  ollama: [m("qwen3:8b"), m("gemma3:12b"), m("llama3.2:3b")],
+  lmstudio: [m("qwen3-14b"), m("mistral-small-3.2")],
+  unsloth: [m("unsloth/Qwen3-8B-GGUF")],
+  "local-custom": [m("local-model")],
+};
+
+const DAY_S = 24 * 60 * 60;
+const nowS = () => Math.floor(Date.now() / 1000);
+
+/** What Rust would send about each sample unknown folder. */
+export function sampleFolderSummary(path: string, sizeBytes: number): FolderSummary {
+  const name = path.split("\\").pop() ?? path;
+  const root = path.startsWith("C:\\ProgramData") ? "ProgramData" : path.includes("\\Roaming\\") ? "APPDATA" : "LOCALAPPDATA";
+  const sets: Record<string, [string[], string[], number]> = {
+    ABX_7731: [["Cache", "VideoCache"], ["data_0001.blk", "data_0002.blk", "res_main.pak", "pkg_version", "config.ini", "output_log.txt"], 1204],
+    "qbt-data": [["BT_backup", "logs"], ["qBittorrent-data.conf", "watched_folders.json", "a3f1c9.fastresume", "a3f1c9.torrent"], 212],
+    Temp_Updater_x64: [["pkg"], ["update.bin", "manifest.dat", "patch_001.tmp"], 37],
+    "anythingllm-desktop": [["storage", "logs"], ["anythingllm.db", "documents.json", "vector-cache.bin"], 640],
+    uv: [["cache", "python"], ["CACHEDIR.TAG", ".gitignore", "wheels-v5", "archive-v0"], 18_402],
+  };
+  const [subfolders, names, fileCount] = sets[name] ?? [[], [], 10];
+  return { path: `%${root}%\\${name}`, sizeBytes, fileCount, modified: nowS() - 420 * DAY_S, subfolders, names };
+}
+
+type SampleAnswer = Pick<AiAnswer, "what" | "madeBy" | "verdict" | "confidence" | "reason" | "label" | "overridden"> & { installedApp?: string };
+const sampleAnswers: Record<string, { en: SampleAnswer; it: SampleAnswer }> = {
+  ABX_7731: {
+    en: { what: "Almost certainly the cache of a game: hundreds of .blk and .pak files and a VideoCache folder, typical of HoYoverse games (for example Genshin Impact).", madeBy: "HoYoverse", verdict: "removable", confidence: "medium", reason: "It only holds downloaded game data, which the game downloads again if needed.", label: "Cache of a removed game", overridden: false },
+    it: { what: "È quasi certamente la cache di un gioco: centinaia di file .blk e .pak e una cartella VideoCache, tipici dei giochi di HoYoverse (per esempio Genshin Impact).", madeBy: "HoYoverse", verdict: "removable", confidence: "medium", reason: "Contiene solo dati scaricati dal gioco, che li riscarica se servono.", label: "Cache di un gioco tolto", overridden: false },
+  },
+  "qbt-data": {
+    en: { what: "Data of qBittorrent: the list of your torrents and where each download had got to.", madeBy: "qBittorrent", verdict: "keep", confidence: "high", reason: "qBittorrent is installed: without this folder it forgets your downloads.", label: "Used by qBittorrent", overridden: true, installedApp: "qBittorrent 5.1.2 (x64)" },
+    it: { what: "Dati di qBittorrent: l'elenco dei tuoi torrent e il punto a cui era arrivato ogni download.", madeBy: "qBittorrent", verdict: "keep", confidence: "high", reason: "qBittorrent è installato: senza questa cartella perde i tuoi download.", label: "Usata da qBittorrent", overridden: true, installedApp: "qBittorrent 5.1.2 (x64)" },
+  },
+  Temp_Updater_x64: {
+    en: { what: "Probably what an app's updater left behind, but the names do not say which app.", madeBy: "", verdict: "unknown", confidence: "low", reason: "Too little to tell what it belongs to.", label: "Don't know", overridden: false },
+    it: { what: "Probabilmente quello che ha lasciato il programma di aggiornamento di un'app, ma i nomi non dicono quale.", madeBy: "", verdict: "unknown", confidence: "low", reason: "Troppo poco per capire di chi è.", label: "Non lo so", overridden: false },
+  },
+  "anythingllm-desktop": {
+    en: { what: "The data of AnythingLLM, a chat app for AI models: your chats and the documents you gave it.", madeBy: "Mintplex Labs", verdict: "keep", confidence: "high", reason: "It holds your own chats and documents.", label: "AnythingLLM chats", overridden: false },
+    it: { what: "I dati di AnythingLLM, un'app per chattare con i modelli AI: le tue chat e i documenti che le hai dato.", madeBy: "Mintplex Labs", verdict: "keep", confidence: "high", reason: "Contiene le tue chat e i tuoi documenti.", label: "Chat di AnythingLLM", overridden: false },
+  },
+  uv: {
+    en: { what: "The cache of uv, a tool for Python developers: copies of downloaded packages.", madeBy: "Astral", verdict: "removable", confidence: "high", reason: "It is only a cache: uv downloads the packages again when needed.", label: "Python package cache", overridden: false },
+    it: { what: "La cache di uv, uno strumento per chi programma in Python: copie dei pacchetti scaricati.", madeBy: "Astral", verdict: "removable", confidence: "high", reason: "È solo una cache: uv riscarica i pacchetti quando servono.", label: "Cache di pacchetti Python", overridden: false },
+  },
+};
+
+/** The answer the sample AI gives for `path`. */
+export function sampleAiAnswer(path: string, lang: string, service: string, model: string): AiAnswer {
+  const name = path.split("\\").pop() ?? path;
+  const set = sampleAnswers[name] ?? sampleAnswers.Temp_Updater_x64;
+  const a = lang === "it" ? set.it : set.en;
+  return {
+    path,
+    what: a.what,
+    madeBy: a.madeBy,
+    verdict: a.verdict,
+    confidence: a.confidence,
+    reason: a.reason,
+    label: a.label,
+    overridden: a.overridden,
+    facts: { installedApp: a.installedApp ?? null, modified: nowS() - 420 * DAY_S },
+    service,
+    model,
+    askedAt: nowS(),
+  };
+}

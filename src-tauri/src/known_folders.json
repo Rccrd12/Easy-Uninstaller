@@ -1,5 +1,5 @@
 {
-  "comment": "Folders the app can explain without AI. Texts live in src/lib/i18n/*.json under explain.folders.<id> (label, what, ifRemoved). verdict: safe (can go), check (look first), keep (better keep it). hidden: never listed among the unknown folders (Windows itself, or already in another group). madeBy is a product name and is not translated. A path matches a folder and everything inside it; * stands for any one folder name.",
+  "comment": "Folders the app can explain without AI. Texts live in src/lib/i18n/*.json under explain.folders.<id> (label, what, ifRemoved). verdict: safe (can go), check (look first), keep (better keep it). hidden: never listed among the unknown folders (Windows itself, or already in another group). madeBy is a product name and is not translated. noMove: never offered for quarantine (the app's own folder; Rust refuses it too). A path matches a folder and everything inside it; * stands for any one folder name.",
   "folders": [
     { "id": "temp", "icon": "delete", "verdict": "safe", "hidden": true, "madeBy": "Windows", "paths": ["%TEMP%", "%LOCALAPPDATA%\\Temp", "%SystemRoot%\\Temp"] },
     { "id": "inetCache", "icon": "globe", "verdict": "safe", "madeBy": "Windows", "paths": ["%LOCALAPPDATA%\\Microsoft\\Windows\\INetCache"] },
@@ -31,6 +31,7 @@
     { "id": "iphoneBackup", "icon": "phone", "verdict": "keep", "madeBy": "Apple iTunes / Apple Devices", "paths": ["%APPDATA%\\Apple Computer", "%APPDATA%\\Apple", "%PROGRAMDATA%\\Apple"] },
     { "id": "adobe", "icon": "paint", "verdict": "check", "madeBy": "Adobe (Photoshop, Premiere, Acrobat…)", "paths": ["%APPDATA%\\Adobe", "%LOCALAPPDATA%\\Adobe", "%PROGRAMDATA%\\Adobe"] },
     { "id": "updaterLeftovers", "icon": "broom", "verdict": "safe", "madeBy": "Squirrel (Discord, Teams, Slack…)", "paths": ["%LOCALAPPDATA%\\SquirrelTemp"] },
-    { "id": "packageManagers", "icon": "box", "verdict": "keep", "madeBy": "Chocolatey, Scoop", "paths": ["%PROGRAMDATA%\\chocolatey", "%PROGRAMDATA%\\scoop"] }
+    { "id": "packageManagers", "icon": "box", "verdict": "keep", "madeBy": "Chocolatey, Scoop", "paths": ["%PROGRAMDATA%\\chocolatey", "%PROGRAMDATA%\\scoop"] },
+    { "id": "easyUninstaller", "icon": "shield", "verdict": "keep", "noMove": true, "madeBy": "Easy Uninstaller", "paths": ["%LOCALAPPDATA%\\com.rccrd12.easyuninstaller", "%APPDATA%\\com.rccrd12.easyuninstaller"] }
   ]
 }

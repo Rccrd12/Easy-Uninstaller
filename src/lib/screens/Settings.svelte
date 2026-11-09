@@ -1,12 +1,14 @@
 <script lang="ts">
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
   import Icon from "../components/Icon.svelte";
-  import { createRestorePoint, KEEP_DAYS_CHOICES, listExclusions } from "../api";
+  import AiServicePicker from "../components/AiServicePicker.svelte";
+  import { AI_PARALLEL_CHOICES, aiStats, createRestorePoint, KEEP_DAYS_CHOICES, listExclusions } from "../api";
+  import { forgetAnswers, serviceInfo } from "../ai.svelte";
   import { formatBytes } from "../format";
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
   import { quarantine, saveQuarantine, saveSettings, settings } from "../settings.svelte";
   import type { Screen } from "../screens";
-  import type { RestorePointOutcome } from "../types";
+  import type { AiMode, AiStats, RestorePointOutcome } from "../types";
   import { getTheme, setTheme, themes } from "../theme.svelte";
   // Only this field ends up in the bundle; the release workflow keeps it in sync with the tag.
   import { version } from "../../../package.json";
@@ -39,6 +41,30 @@
       saving = false;
     }
   }
+
+  // ── AI help ──
+  const modes: AiMode[] = ["off", "online", "local"];
+  let aiTab = $state<"cli" | "api">(serviceInfo(settings.ai.service)?.kind === "api" ? "api" : "cli");
+  let stats = $state<AiStats | null>(null);
+  const loadStats = () =>
+    aiStats()
+      .then((s) => (stats = s))
+      .catch(() => {});
+  $effect(() => {
+    loadStats();
+  });
+
+  function setMode(mode: AiMode) {
+    settings.ai.mode = mode;
+    saveSettings();
+  }
+
+  async function clearAnswers() {
+    await forgetAnswers();
+    loadStats();
+  }
+
+  const aiKind = $derived(serviceInfo(settings.ai.service)?.kind);
 
   async function makeRestorePoint() {
     restorePoint = "creating";
@@ -127,6 +153,76 @@
   </div>
 </div>
 
+<h2 class="section">{t("ai.settings.title")} <span class="new">{t("ai.settings.new")}</span></h2>
+<div class="card list ai">
+  <div class="row theme">
+    <span id="ai-mode-label">
+      {t("ai.settings.mode")}
+      <span class="muted hint">{t(`ai.settings.modeHint.${settings.ai.mode}`)}</span>
+    </span>
+    <div class="segmented" role="radiogroup" aria-labelledby="ai-mode-label">
+      {#each modes as mode (mode)}
+        <button role="radio" aria-checked={settings.ai.mode === mode} class:on={settings.ai.mode === mode} onclick={() => setMode(mode)}>
+          {t(`ai.settings.modes.${mode}`)}
+        </button>
+      {/each}
+    </div>
+  </div>
+  {#if settings.ai.mode !== "off"}
+    <div class="row block">
+      {#if settings.ai.mode === "online"}
+        <div class="segmented tabs" role="tablist">
+          <button role="tab" aria-selected={aiTab === "cli"} class:on={aiTab === "cli"} onclick={() => (aiTab = "cli")}>🎟️ {t("ai.setup.tabCli")}</button>
+          <button role="tab" aria-selected={aiTab === "api"} class:on={aiTab === "api"} onclick={() => (aiTab = "api")}>🔑 {t("ai.setup.tabApi")}</button>
+        </div>
+      {/if}
+      {#key settings.ai.mode === "local" ? "local" : aiTab}
+        <AiServicePicker kind={settings.ai.mode === "local" ? "local" : aiTab} />
+      {/key}
+    </div>
+    <label class="row">
+      <span>
+        {t("ai.settings.confirm")}
+        <span class="muted hint">{t("ai.settings.confirmHint")}</span>
+      </span>
+      <input type="checkbox" bind:checked={settings.ai.confirm} onchange={saveSettings} />
+    </label>
+    <label class="row">
+      <span>
+        {t("ai.settings.parallel")}
+        <span class="muted hint">{t("ai.settings.parallelHint")}</span>
+      </span>
+      <select value={settings.ai.parallel} onchange={(e) => { settings.ai.parallel = Number(e.currentTarget.value); saveSettings(); }}>
+        {#each AI_PARALLEL_CHOICES as n (n)}<option value={n}>{n}</option>{/each}
+      </select>
+    </label>
+  {/if}
+  <div class="row">
+    <span>
+      {t("ai.settings.month")}
+      <span class="muted hint">
+        {[
+          t((stats?.askedThisMonth ?? 0) === 1 ? "ai.settings.monthOne" : "ai.settings.monthCount", { count: stats?.askedThisMonth ?? 0 }),
+          ...(aiKind ? [t(aiKind === "cli" ? "ai.settings.costCli" : aiKind === "local" ? "ai.settings.costLocal" : "ai.settings.costApi")] : []),
+        ].join(" · ")}
+      </span>
+    </span>
+  </div>
+  <div class="row">
+    <span>
+      {t("ai.settings.saved")}
+      <span class="muted hint">{t((stats?.answers ?? 0) === 1 ? "ai.settings.savedOne" : "ai.settings.savedCount", { count: stats?.answers ?? 0 })}</span>
+    </span>
+    <button class="btn btn-ghost" disabled={!stats?.answers} onclick={clearAnswers}>{t("ai.settings.clear")}</button>
+  </div>
+  <div class="row block">
+    <span>{t("ai.settings.never")}</span>
+    <div class="never">
+      {#each ["contents", "username", "apps", "personal"] as item (item)}<span>✅ {t(`ai.settings.neverItems.${item}`)}</span>{/each}
+    </div>
+  </div>
+</div>
+
 <p class="muted about">{t("settings.about", { version })}</p>
 
 <style>
@@ -160,4 +256,11 @@
   .count { flex: none; font-size: 12px; font-weight: 600; background: var(--track); border-radius: 10px; padding: 1px 8px; }
   .manage { display: inline-flex; align-items: center; gap: 2px; flex: none; color: var(--accent); font-weight: 600; font-size: 13px; }
   .about { margin-top: 14px; font-size: 12px; }
+  .section { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.3px; text-transform: uppercase; margin: 22px 0 0; }
+  .new { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; background: var(--ai); color: var(--on-ai); }
+  .ai { border-color: var(--tip-border); }
+  .block { flex-direction: column; align-items: stretch; gap: 10px; }
+  .tabs { align-self: flex-start; }
+  .never { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; }
+  .row .btn:disabled { opacity: 0.5; cursor: default; }
 </style>

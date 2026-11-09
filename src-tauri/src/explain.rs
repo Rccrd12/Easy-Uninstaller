@@ -177,6 +177,11 @@ mod tests {
             Some("discord"),
             "either separator"
         );
+        assert_eq!(
+            id(&k, &format!(r"{local}\com.rccrd12.easyuninstaller")).as_deref(),
+            Some("easyUninstaller"),
+            "the app's own folder is explained, not unknown"
+        );
         assert_eq!(id(&k, &format!(r"{local}\ABX_7731")), None);
         assert_eq!(id(&k, &format!(r"{local}\Goog")), None, "whole names only");
         assert_eq!(
