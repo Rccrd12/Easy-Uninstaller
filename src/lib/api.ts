@@ -25,6 +25,7 @@ import {
   sampleQuarantineSettings,
   sampleSpaceUsage,
   sampleStartup,
+  sampleUninstalledApps,
   type SampleFile,
   type SampleRecord,
 } from "./mock";
@@ -67,6 +68,7 @@ import type {
   StartupChange,
   StartupReport,
   UninstallOutcome,
+  UninstalledApp,
   UpdateInfo,
   UpdateProgress,
 } from "./types";
@@ -293,6 +295,39 @@ export async function uninstallApp(app: Pick<InstalledApp, "id" | "name" | "size
 export async function isAppInstalled(id: string): Promise<boolean> {
   if (isTauri()) return invoke<boolean>("is_app_installed", { id });
   return !sampleRemoved.has(id);
+}
+
+// ---------------------------------------------------------------------------
+// Apps uninstalled here, to reinstall them. Real: src-tauri/src/reinstall.rs.
+
+let sampleUninstalled: UninstalledApp[] | null = null;
+const sampleUninstalledList = () => (sampleUninstalled ??= sampleUninstalledApps(Math.floor(Date.now() / 1000)));
+
+/** The apps uninstalled with Easy Uninstaller, most recent first. */
+export async function listUninstalledApps(): Promise<UninstalledApp[]> {
+  if (isTauri()) return invoke<UninstalledApp[]>("list_uninstalled_apps");
+  return [...sampleUninstalledList()];
+}
+
+/** Adds an app to that list once it is gone. Best effort: the uninstall itself already worked. */
+export async function rememberUninstalled(app: InstalledApp): Promise<void> {
+  const removed = { id: app.id, name: app.name, publisher: app.publisher, source: app.source, sizeBytes: app.sizeBytes, iconColor: app.iconColor, icon: app.icon };
+  if (isTauri()) return invoke("remember_uninstalled", { removed });
+  const list = sampleUninstalledList().filter((e) => e.id !== app.id && e.name.toLowerCase() !== app.name.toLowerCase());
+  const way = app.source === "store" ? "store" : "search";
+  sampleUninstalled = [{ ...removed, uninstalledAt: Math.floor(Date.now() / 1000), way, site: "", link: "" }, ...list];
+}
+
+/** Takes apps off the list; nothing is installed or removed. */
+export async function forgetUninstalled(ids: string[]): Promise<void> {
+  if (isTauri()) return invoke("forget_uninstalled", { ids });
+  sampleUninstalled = sampleUninstalledList().filter((e) => !ids.includes(e.id));
+}
+
+/** Opens the way back to an app: its Store page, Steam, its website or a web search. */
+export async function reinstallApp(id: string): Promise<void> {
+  if (isTauri()) return invoke("reinstall_app", { id });
+  await sleep(300);
 }
 
 /** What an app just uninstalled left behind. Only after it is gone from the app list. */

@@ -15,6 +15,7 @@ mod leftovers;
 mod quarantine;
 mod regkey;
 mod reminders;
+mod reinstall;
 mod restore_point;
 mod review;
 mod space;
@@ -41,6 +42,7 @@ pub fn run() {
         .manage(app_cache::LastAppCaches::default())
         .manage(files::LastScan::default())
         .manage(leftovers::LastLeftovers::default())
+        .manage(reinstall::Prepared::default())
         .manage(uninstall::Pending::default())
         .manage(updater::PendingUpdate::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -82,6 +84,10 @@ pub fn run() {
             reminders::set_reminders,
             reminders::reminders_opened,
             reminders::preview_reminder,
+            reinstall::list_uninstalled_apps,
+            reinstall::remember_uninstalled,
+            reinstall::forget_uninstalled,
+            reinstall::reinstall_app,
             restore_point::create_restore_point,
             review::current_file_groups,
             review::review_file_group,

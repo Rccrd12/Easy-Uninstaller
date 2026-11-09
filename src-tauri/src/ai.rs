@@ -473,8 +473,9 @@ pub fn ai_open_page(page: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Opens a link with Windows (the default browser, or the app that handles it).
 #[cfg(windows)]
-fn open_url(url: &str) {
+pub(crate) fn open_url(url: &str) {
     use windows::core::{w, HSTRING, PCWSTR};
     use windows::Win32::UI::Shell::ShellExecuteW;
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
@@ -492,7 +493,7 @@ fn open_url(url: &str) {
 }
 
 #[cfg(not(windows))]
-fn open_url(_url: &str) {}
+pub(crate) fn open_url(_url: &str) {}
 
 #[cfg(test)]
 mod tests {

@@ -309,6 +309,11 @@ fn entry_present(key: &RegKeyPath) -> bool {
         && !registry::read_raw(key).is_some_and(|r| registry::launcher_gone(&r, &|p| p.exists()))
 }
 
+/// Whether the app with this id is still installed (false for an id that is not valid).
+pub fn still_installed(id: &str) -> bool {
+    parse_id(id).is_some_and(|a| installed(&a))
+}
+
 fn installed(id: &AppId) -> bool {
     match id {
         AppId::Registry(key) => entry_present(key),
@@ -419,6 +424,7 @@ fn uninstall(
     };
     pending.note(id, note);
     pending.set(id, hints);
+    crate::reinstall::prepare(app, id, &raw);
 
     // Launchers (steam://uninstall/...) run as the user and ask for rights themselves.
     let via_launcher = raw
@@ -474,7 +480,7 @@ fn gone_soon(key: &RegKeyPath) -> bool {
 #[tauri::command]
 pub async fn is_app_installed(app: AppHandle, id: String) -> bool {
     tauri::async_runtime::spawn_blocking(move || {
-        let present = parse_id(&id).is_some_and(|a| installed(&a));
+        let present = still_installed(&id);
         if !present {
             // Its uninstaller finished after `uninstall_app` returned.
             note_gone(&app, &id);

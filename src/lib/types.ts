@@ -25,8 +25,12 @@ export interface InstalledApp {
   lastUsed: string | null;
   /** True only when we know the app was never opened. */
   neverUsed: boolean;
+  /** Came with Windows or the PC (src-tauri/src/apps/preinstalled.rs). */
   preinstalled: boolean;
+  /** Preinstalled and usually not needed. */
   bloatware: boolean;
+  /** What the "New PC" cleanup says about it; null when it is not suggested. */
+  newPc: NewPcAdvice | null;
   /** Background of the letter tile shown when there is no icon. */
   iconColor: string;
   /** PNG data URL, or null to show the letter tile. */
@@ -55,6 +59,40 @@ export interface ClearCacheOutcome {
   report: MoveReport;
   /** The cache measured again afterwards. */
   cache: AppCache | null;
+}
+
+/** "remove": selected by default in the New PC cleanup; "choose": shown, not selected. */
+export type NewPcAdviceKind = "remove" | "choose";
+/** Why an app is suggested: the UI shows `newPc.reasons.<reason>`. */
+export type NewPcReason =
+  | "game" | "trial" | "promo" | "rarely" | "retired" | "xbox"
+  | "phone" | "social" | "streaming" | "office" | "video" | "tool";
+
+/** Mirrors `NewPcAdvice` in src-tauri/src/apps/preinstalled.rs. */
+export interface NewPcAdvice {
+  advice: NewPcAdviceKind;
+  reason: NewPcReason;
+}
+
+/** How an uninstalled app can be installed again. */
+export type ReinstallWay = "store" | "steam" | "website" | "search";
+
+/** An app uninstalled with Easy Uninstaller. Mirrors `UninstalledApp` in src-tauri/src/reinstall.rs. */
+export interface UninstalledApp {
+  /** The id it had when installed. */
+  id: string;
+  name: string;
+  publisher: string;
+  source: AppSource;
+  sizeBytes: number;
+  /** Seconds since 1970. */
+  uninstalledAt: number;
+  way: ReinstallWay;
+  /** For "website": the address shown on the button, like "videolan.org". */
+  site: string;
+  link: string;
+  iconColor: string;
+  icon: string | null;
 }
 
 /** How safe it is to remove something. */

@@ -71,7 +71,7 @@
     "filterStore": "Microsoft Store",
     "lastUsed": "usata {when}",
     "neverUsed": "Mai usata",
-    "bloatware": "Bloatware",
+    "bloatware": "Di solito non serve",
     "selected": "{count} selezionate",
     "willFree": "libererai circa {size} (app + avanzi)",
     "uninstallSelected": "Disinstalla selezionate",
@@ -82,6 +82,7 @@
     "retry": "Riprova",
     "tabInstalled": "Installate",
     "tabStartup": "All'avvio",
+    "tabUninstalled": "Disinstallate",
     "filterCache": "Cache da svuotare",
     "cacheHint": "{size} di cache da svuotare",
     "detail": {
@@ -164,6 +165,55 @@
     "declined": "I programmi di tutti gli utenti sono rimasti com'erano: Windows non ha avuto il permesso.",
     "empty": "Nessun programma parte da solo con Windows.",
     "offTitle": "Spenti ({count})"
+  },
+  "newPc": {
+    "bannerTitle": "PC nuovo? Togli le app che non hai scelto tu",
+    "bannerText": "{count} app sono arrivate con Windows o con il PC ({size}). Ti dico quali di solito non servono.",
+    "start": "Inizia",
+    "later": "Non ora",
+    "title": "Pulizia del PC nuovo",
+    "intro": "Queste app sono arrivate con Windows o con il PC. Ho già scelto quelle che di solito non servono: controlla e cambia quello che vuoi.",
+    "stepChoose": "Scegli",
+    "stepUninstall": "Disinstalla",
+    "stepDone": "Fatto",
+    "groupRemove": "Di solito non servono",
+    "groupRemoveNote": "già selezionate",
+    "groupChoose": "Decidi tu",
+    "groupChooseNote": "alcuni le usano: selezionale solo se non ti servono",
+    "safeNote": "Windows, i driver e le app del produttore che servono per gli aggiornamenti non sono mai in questo elenco. Se cambi idea, ritrovi tutto in App › Disinstallate.",
+    "uninstall": "Disinstalla {count} app",
+    "doneTitle": "Fatto: niente più app superflue",
+    "doneText": "Le app che hai tolto sono in App › Disinstallate, se un giorno ti servono.",
+    "backToApps": "Torna alle app",
+    "seeUninstalled": "Vedi le disinstallate",
+    "reasons": {
+      "game": "Gioco preinstallato",
+      "trial": "Antivirus in prova: Windows Security protegge già il PC",
+      "promo": "Pubblicità di un servizio, installata con il PC",
+      "rarely": "App di Microsoft che pochi usano",
+      "retired": "Microsoft l'ha chiusa o sostituita con un'app nuova",
+      "xbox": "Serve solo per i giochi Xbox e la Game Bar",
+      "phone": "Collega il telefono al PC",
+      "social": "Social o chat: tienila se la usi",
+      "streaming": "Film, serie o musica: tienila se hai l'abbonamento",
+      "office": "Solo un collegamento a Microsoft 365 online",
+      "video": "Programma per montare i video",
+      "tool": "Piccola app di Microsoft: tienila se la usi"
+    }
+  },
+  "uninstalled": {
+    "intro": "Le app che hai disinstallato con Easy Uninstaller. Se te ne serve di nuovo una, la reinstalli da qui.",
+    "when": "disinstallata il {date}",
+    "store": "Apri nel Microsoft Store",
+    "steam": "Apri in Steam",
+    "website": "Scarica da {site}",
+    "search": "Cerca su internet",
+    "again": "Di nuovo installata",
+    "forget": "Togli dall'elenco",
+    "note": "Si apre la pagina da cui scaricarla: l'installazione la fai tu, come la prima volta.",
+    "empty": "Nessuna app disinstallata finora. Quando ne disinstalli una, la ritrovi qui se cambi idea.",
+    "error": "Impossibile leggere l'elenco delle app disinstallate.",
+    "openError": "Impossibile aprire la pagina."
   },
   "files": {
     "title": "File",
@@ -637,7 +687,8 @@
       "stillInstalled": "L'app è ancora installata, quindi non ho cercato nulla.",
       "declined": "Il permesso non è stato dato, quindi non è cambiato nulla.",
       "other": "Qualcosa è andato storto: {error}"
-    }
+    },
+    "reinstallNote": "Se cambi idea, le app tolte sono in App › Disinstallate."
   },
   "explain": {
     "title": "Cos'è questo?",

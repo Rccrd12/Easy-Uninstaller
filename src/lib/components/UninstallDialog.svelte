@@ -7,6 +7,7 @@
     findAppLeftovers,
     isAppInstalled,
     quarantineLeftovers,
+    rememberUninstalled,
     restoreQuarantine,
     uninstallApp,
   } from "../api";
@@ -124,6 +125,8 @@
   }
 
   async function afterRemoved() {
+    // Listed in Apps › Uninstalled, to reinstall it later. Best effort.
+    await rememberUninstalled(app).catch(() => {});
     if (app.source !== "store") {
       step = { kind: "searching" };
       try {
@@ -342,6 +345,7 @@
         {:else if removedApps.some((a) => a.source !== "store") && !step.cleanupError}
           <p>{t("uninstall.noLeftovers")}</p>
         {/if}
+        {#if removedApps.length}<p>{t("uninstall.reinstallNote")}</p>{/if}
         {#if step.cleanupError}<p class="warn-text" role="alert"><Icon name="warning" />{step.cleanupError}</p>{/if}
       </div>
       {#if showItems && movedItems.length}

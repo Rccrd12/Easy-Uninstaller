@@ -4,15 +4,17 @@
 //! Read only: this module never changes or removes anything.
 
 pub(crate) mod icon;
+pub mod preinstalled;
 pub mod registry;
 mod store;
 
 pub use store::Entry as StoreEntry;
 
-use serde::Serialize;
+use preinstalled::{Advice, NewPcAdvice};
+use serde::{Deserialize, Serialize};
 use std::path::{Component, Path, PathBuf};
 
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum AppSource {
     Win32,
@@ -39,8 +41,12 @@ pub struct InstalledApp {
     /// Windows has no reliable "last used" value: always `None` for now.
     pub last_used: Option<String>,
     pub never_used: bool,
+    /// Came with Windows or the PC, as far as `preinstalled.rs` knows.
     pub preinstalled: bool,
+    /// Preinstalled and usually not needed.
     pub bloatware: bool,
+    /// What the "New PC" cleanup says about it; `None` when it is not suggested.
+    pub new_pc: Option<NewPcAdvice>,
     pub icon_color: String,
     /// `data:image/png;base64,...`, or `None` to draw the colored letter instead.
     pub icon: Option<String>,
@@ -94,7 +100,16 @@ pub fn store_remove(full_name: &str) -> Result<(), String> {
     store::remove(full_name)
 }
 
+/// Sets `new_pc`, `preinstalled` and `bloatware` together.
+fn with_advice(mut app: InstalledApp, advice: Option<NewPcAdvice>) -> InstalledApp {
+    app.preinstalled = advice.is_some();
+    app.bloatware = advice.is_some_and(|a| a.advice == Advice::Remove);
+    app.new_pc = advice;
+    app
+}
+
 fn from_registry(e: registry::Entry) -> InstalledApp {
+    let advice = preinstalled::for_program(&e.name, &e.publisher);
     let size_bytes = match e.size_kb {
         Some(kb) => kb * 1024,
         None => e
@@ -104,7 +119,7 @@ fn from_registry(e: registry::Entry) -> InstalledApp {
             .map(|dir| dir_size(&dir))
             .unwrap_or(0),
     };
-    InstalledApp {
+    let app = InstalledApp {
         cache_id: crate::app_cache::cache_id_for(&e.name).map(String::from),
         icon_color: icon_color(&e.name),
         icon: e.display_icon.as_deref().and_then(icon::from_icon_location),
@@ -120,11 +135,15 @@ fn from_registry(e: registry::Entry) -> InstalledApp {
         never_used: false,
         preinstalled: false,
         bloatware: false,
-    }
+        new_pc: None,
+    };
+    with_advice(app, advice)
 }
 
 fn from_store(e: store::Entry) -> InstalledApp {
-    InstalledApp {
+    let full_name = e.id.strip_prefix("store:").unwrap_or(&e.id);
+    let advice = preinstalled::for_store(preinstalled::package_name(full_name));
+    let app = InstalledApp {
         cache_id: crate::app_cache::cache_id_for(&e.name).map(String::from),
         icon_color: icon_color(&e.name),
         icon: e.logo.as_deref().and_then(icon::from_png_file),
@@ -140,7 +159,9 @@ fn from_store(e: store::Entry) -> InstalledApp {
         never_used: false,
         preinstalled: false,
         bloatware: false,
-    }
+        new_pc: None,
+    };
+    with_advice(app, advice)
 }
 
 /// Background colors for the letter tile shown when an app has no icon.
@@ -337,6 +358,7 @@ mod tests {
             never_used: false,
             preinstalled: false,
             bloatware: false,
+            new_pc: None,
             icon_color: "#000".into(),
             icon: None,
             cache_id: Some("spotify".into()),
@@ -350,5 +372,32 @@ mod tests {
         assert!(json.contains("\"neverUsed\":false"));
         assert!(json.contains("\"iconColor\":\"#000\""));
         assert!(json.contains("\"cacheId\":\"spotify\""));
+        assert!(json.contains("\"newPc\":null"));
+    }
+
+    #[test]
+    fn preinstalled_apps_get_advice() {
+        let entry = store::Entry {
+            id: "store:king.com.CandyCrushSaga_1.0_x86__kgqvnymyfvs32".into(),
+            name: "Candy Crush Saga".into(),
+            publisher: "king.com".into(),
+            installed_on: None,
+            dirs: Vec::new(),
+            logo: None,
+        };
+        let app = from_store(entry);
+        assert!(app.preinstalled && app.bloatware);
+        assert_eq!(app.new_pc.map(|a| a.advice), Some(Advice::Remove));
+
+        let entry = store::Entry {
+            id: "store:Microsoft.YourPhone_1.0_x64__8wekyb3d8bbwe".into(),
+            name: "Collegamento al telefono".into(),
+            publisher: "Microsoft Corporation".into(),
+            installed_on: None,
+            dirs: Vec::new(),
+            logo: None,
+        };
+        let app = from_store(entry);
+        assert!(app.preinstalled && !app.bloatware);
     }
 }

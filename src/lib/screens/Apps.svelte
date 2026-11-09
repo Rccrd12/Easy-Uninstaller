@@ -1,14 +1,16 @@
 <script lang="ts">
   import Icon from "../components/Icon.svelte";
+  import NewPcGuide from "../components/NewPcGuide.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
   import StartupApps from "../components/StartupApps.svelte";
   import UninstallDialog from "../components/UninstallDialog.svelte";
+  import UninstalledApps from "../components/UninstalledApps.svelte";
   import AppDetail, { appSpace } from "../components/AppDetail.svelte";
-  import { listAppCaches, listInstalledApps, usesSampleData } from "../api";
+  import { forgetUninstalled, listAppCaches, listInstalledApps, listUninstalledApps, usesSampleData } from "../api";
   import { formatBytes, formatDate } from "../format";
   import { t } from "../i18n/index.svelte";
-  import { settings } from "../settings.svelte";
-  import type { AppCache, InstalledApp } from "../types";
+  import { saveSettings, settings } from "../settings.svelte";
+  import type { AppCache, InstalledApp, UninstalledApp } from "../types";
 
   type Filter = "all" | "cache" | "unused" | "preinstalled" | "recent" | "store";
   const filters: { id: Filter; label: string }[] = [
@@ -20,7 +22,7 @@
     { id: "store", label: "apps.filterStore" },
   ];
 
-  type Tab = "installed" | "startup";
+  type Tab = "installed" | "startup" | "uninstalled";
   let tab = $state<Tab>("installed");
   /** Programs that start with Windows, once the tab has counted them. */
   let startupCount = $state<number | null>(null);
@@ -90,6 +92,39 @@
     load();
     loadCaches();
   });
+
+  /** The "New PC" guided cleanup is open. */
+  let guide = $state(false);
+
+  let uninstalled = $state<UninstalledApp[]>([]);
+  const loadUninstalled = () => listUninstalledApps().then((l) => (uninstalled = l), () => {});
+  $effect(() => {
+    loadUninstalled();
+  });
+  const installedNames = $derived(new Set(apps.map((a) => a.name.toLowerCase())));
+
+  function forget(id: string) {
+    uninstalled = uninstalled.filter((u) => u.id !== id);
+    forgetUninstalled([id]).catch(loadUninstalled);
+  }
+
+  /** Apps that came with Windows or the PC and that the New PC cleanup suggests. */
+  const newPcApps = $derived(apps.filter((a) => a.newPc));
+  const newPcBytes = $derived(newPcApps.reduce((s, a) => s + a.sizeBytes, 0));
+  const showNewPc = $derived(status === "ready" && newPcApps.length > 0 && (!settings.newPcDismissed || filter === "preinstalled"));
+
+  function notNow() {
+    settings.newPcDismissed = true;
+    saveSettings();
+  }
+
+  /** Apps removed by the New PC cleanup: off the list at once, then read again. */
+  function removedByGuide(removed: string[]) {
+    apps = apps.filter((a) => !removed.includes(a.id));
+    selected = new Set([...selected].filter((id) => !removed.includes(id)));
+    listInstalledApps(true).then((a) => (apps = a), () => {});
+    loadUninstalled();
+  }
 
   const RECENT_DAYS = 90;
   const recentSince = new Date(Date.now() - RECENT_DAYS * 86_400_000).toISOString().slice(0, 10);
@@ -164,6 +199,7 @@
     apps = apps.filter((a) => !removed.includes(a.id));
     listInstalledApps(true).then((a) => (apps = a), () => {});
     loadCaches(true);
+    loadUninstalled();
   }
 
   function toggle(id: string) {
@@ -174,6 +210,9 @@
   }
 </script>
 
+{#if guide}
+  <NewPcGuide {apps} onBack={() => (guide = false)} onShowUninstalled={() => { guide = false; tab = "uninstalled"; }} onRemoved={removedByGuide} />
+{:else}
 <h1>{t("apps.title")}</h1>
 <p class="muted sub">{status === "ready" ? t("apps.summary", { count: apps.length, size: formatBytes(total) }) : "\u00a0"}</p>
 {#if usesSampleData()}<SampleBanner />{/if}
@@ -187,14 +226,32 @@
     <Icon name="rocket" filled={tab === "startup"} /> {t("apps.tabStartup")}
     {#if startupCount !== null}<span class="count">{startupCount}</span>{/if}
   </button>
+  <button role="tab" class="tab" class:on={tab === "uninstalled"} aria-selected={tab === "uninstalled"} onclick={() => (tab = "uninstalled")}>
+    <Icon name="history" filled={tab === "uninstalled"} /> {t("apps.tabUninstalled")}
+    {#if uninstalled.length}<span class="count">{uninstalled.length}</span>{/if}
+  </button>
 </div>
 
 {#if tab === "startup"}
   <StartupApps bind:count={startupCount} />
+{:else if tab === "uninstalled"}
+  <UninstalledApps list={uninstalled} {installedNames} onForget={forget} />
 {:else}
 
 <div class="layout">
 <div class="list">
+{#if showNewPc}
+  <div class="card newpc">
+    <span class="tile"><Icon name="laptop" size={24} /></span>
+    <div class="grow">
+      <b>{t("newPc.bannerTitle")}</b>
+      <div class="muted">{t("newPc.bannerText", { count: newPcApps.length, size: formatBytes(newPcBytes) })}</div>
+    </div>
+    {#if !settings.newPcDismissed}<button class="btn btn-ghost" onclick={notNow}>{t("newPc.later")}</button>{/if}
+    <button class="btn btn-primary" onclick={() => (guide = true)}>{t("newPc.start")}</button>
+  </div>
+{/if}
+
 <input class="search" type="search" placeholder={t("apps.search")} bind:value={query} />
 
 <div class="chips">
@@ -229,7 +286,7 @@
       {#if settings.technical}{@const tech = technical(app)}<div class="muted meta tech" title={tech.replaceAll(" · ", "\n")}>{tech}</div>{/if}
     </div>
     {#if opened}<!-- No room for tags next to the panel. -->
-    {:else if app.bloatware}<span class="tag tag-keep">{t("apps.bloatware")}</span>
+    {:else if app.bloatware}<span class="tag tag-check">{t("apps.bloatware")}</span>
     {:else if app.neverUsed}<span class="tag tag-check">{t("apps.neverUsed")}</span>{/if}
     <div class="size">
       {#if size > 0}
@@ -246,7 +303,7 @@
 {/each}
 {/if}
 
-{#if selected.size > 0}
+{#if selected.size > 0 && tab === "installed"}
   <div class="card footer">
     <b>{t("apps.selected", { count: selected.size })}</b>
     <span class="muted">· {t("apps.willFree", { size: formatBytes(selectedBytes) })}</span>
@@ -263,6 +320,7 @@
 </div>
 
 {/if}
+{/if}
 
 {#if uninstalling}
   <UninstallDialog apps={uninstalling} onClose={finished} />
@@ -276,6 +334,9 @@
   .tab.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
   .count { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 9px; background: var(--track); color: var(--text-muted); }
   .tab.on .count { background: var(--accent-soft); color: var(--accent); }
+  .newpc { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 12px; border-color: var(--accent); background: var(--accent-soft); }
+  .newpc .muted { font-size: 13px; margin-top: 2px; }
+  .tile { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--surface); color: var(--accent); flex: none; }
   .search { width: 100%; font-size: 14px; padding: 11px 16px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); }
   .chips { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
   .chip { padding: 5px 13px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border-strong); font-size: 12.5px; }

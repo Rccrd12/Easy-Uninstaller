@@ -34,6 +34,8 @@ interface Settings {
   largeText: boolean;
   /** Show full paths, registry keys, versions and install folders instead of plain names. */
   technical: boolean;
+  /** The "New PC" suggestion on the Apps screen was put away with "Not now". */
+  newPcDismissed: boolean;
   ai: AiSettings;
 }
 
@@ -44,6 +46,7 @@ const defaults: Settings = {
   checkUpdates: true,
   largeText: false,
   technical: false,
+  newPcDismissed: false,
   ai: { mode: "off", service: "", model: "", modelLabel: "", urls: {}, confirm: true, autoStart: true, parallel: 4 },
 };
 
