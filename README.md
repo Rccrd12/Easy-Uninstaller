@@ -26,6 +26,10 @@ old Recycle Bin items, which nobody needs back: those are deleted right away.
 - **Clear about risk.** Every group of files is labelled *Safe*, *Check* or *Personal*,
   so you know what you are removing before you remove it. Unknown folders come with a
   plain *What is this?* explanation, built in: no AI, nothing sent anywhere.
+- **Good for a new PC.** *Apps* offers a guided cleanup of the apps that came with
+  Windows or the PC, the ones usually not needed already ticked, each with a one-line
+  reason. Every app you uninstall stays listed under *Apps > Uninstalled*, with a link to
+  get it back from the Microsoft Store, Steam or its maker's website.
 - **AI only if you want it.** Off by default. When you turn it on, it explains folders the
   built-in list does not know, from their names and sizes only, and its answer is advice in
   its own purple tag: it never ticks or moves anything. See [AI help](#ai-help).

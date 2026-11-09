@@ -1,16 +1,49 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage } from "./types";
+import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, InstalledApp, LeftoverItem, NewPcAdvice, NewPcReason, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage, UninstalledApp } from "./types";
+
+const remove = (reason: NewPcReason): NewPcAdvice => ({ advice: "remove", reason });
+const choose = (reason: NewPcReason): NewPcAdvice => ({ advice: "choose", reason });
+const app = (a: Omit<InstalledApp, "preinstalled" | "bloatware" | "newPc" | "lastUsed" | "neverUsed" | "icon"> & Partial<InstalledApp>): InstalledApp => ({
+  lastUsed: null,
+  neverUsed: false,
+  icon: null,
+  ...a,
+  newPc: a.newPc ?? null,
+  preinstalled: !!a.newPc,
+  bloatware: a.newPc?.advice === "remove",
+});
 
 export const sampleApps: InstalledApp[] = [
-  { id: "photoshop", name: "Adobe Photoshop 2025", publisher: "Adobe", sizeBytes: 6.8 * GB, source: "win32", installedOn: "2025-01-14", lastUsed: "3 months ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#e3008c", icon: null },
-  { id: "xbox-bar", name: "Xbox Game Bar", publisher: "Microsoft", sizeBytes: 1.2 * GB, source: "store", installedOn: null, lastUsed: null, preinstalled: true, bloatware: false, neverUsed: true, iconColor: "#107c10", icon: null },
-  { id: "spotify", name: "Spotify", publisher: "Spotify AB", sizeBytes: 740 * MB, source: "win32", installedOn: "2024-06-02", lastUsed: "today", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#1db954", icon: null },
-  { id: "discord", name: "Discord", publisher: "Discord Inc.", sizeBytes: 520 * MB, source: "win32", installedOn: "2024-09-21", lastUsed: "2 weeks ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#5865f2", icon: null },
-  { id: "mcafee", name: "McAfee LiveSafe", publisher: "McAfee", sizeBytes: 410 * MB, source: "win32", installedOn: "2024-03-01", lastUsed: null, preinstalled: true, bloatware: true, neverUsed: true, iconColor: "#ff6a00", icon: null },
-  { id: "vlc", name: "VLC media player", publisher: "VideoLAN", sizeBytes: 160 * MB, source: "win32", installedOn: "2023-11-10", lastUsed: "1 month ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#f18a00", icon: null },
+  app({ id: "photoshop", name: "Adobe Photoshop 2025", publisher: "Adobe", sizeBytes: 6.8 * GB, source: "win32", installedOn: "2025-01-14", lastUsed: "3 months ago", iconColor: "#e3008c" }),
+  app({ id: "xbox-bar", name: "Xbox Game Bar", publisher: "Microsoft", sizeBytes: 1.2 * GB, source: "store", installedOn: null, neverUsed: true, iconColor: "#107c10", newPc: choose("xbox") }),
+  app({ id: "spotify", name: "Spotify", publisher: "Spotify AB", sizeBytes: 740 * MB, source: "win32", installedOn: "2024-06-02", lastUsed: "today", iconColor: "#1db954" }),
+  app({ id: "discord", name: "Discord", publisher: "Discord Inc.", sizeBytes: 520 * MB, source: "win32", installedOn: "2024-09-21", lastUsed: "2 weeks ago", iconColor: "#5865f2" }),
+  app({ id: "mcafee", name: "McAfee LiveSafe", publisher: "McAfee", sizeBytes: 410 * MB, source: "win32", installedOn: "2024-03-01", neverUsed: true, iconColor: "#c8102e", newPc: remove("trial") }),
+  app({ id: "clipchamp", name: "Clipchamp", publisher: "Microsoft", sizeBytes: 310 * MB, source: "store", installedOn: "2024-03-01", iconColor: "#8764b8", newPc: choose("video") }),
+  app({ id: "candy", name: "Candy Crush Saga", publisher: "king.com", sizeBytes: 280 * MB, source: "store", installedOn: "2024-03-01", iconColor: "#e3008c", newPc: remove("game") }),
+  app({ id: "solitaire", name: "Microsoft Solitaire Collection", publisher: "Microsoft Studios", sizeBytes: 210 * MB, source: "store", installedOn: "2024-03-01", iconColor: "#0067c0", newPc: choose("game") }),
+  app({ id: "vlc", name: "VLC media player", publisher: "VideoLAN", sizeBytes: 160 * MB, source: "win32", installedOn: "2023-11-10", lastUsed: "1 month ago", iconColor: "#f18a00" }),
+  app({ id: "tiktok", name: "TikTok", publisher: "TikTok Pte. Ltd.", sizeBytes: 140 * MB, source: "store", installedOn: "2024-03-01", iconColor: "#486860", newPc: choose("social") }),
+  app({ id: "news", name: "Microsoft News", publisher: "Microsoft Corporation", sizeBytes: 64 * MB, source: "store", installedOn: "2024-03-01", iconColor: "#ca5010", newPc: remove("rarely") }),
+  app({ id: "gethelp", name: "Get Help", publisher: "Microsoft Corporation", sizeBytes: 38 * MB, source: "store", installedOn: "2024-03-01", iconColor: "#038387", newPc: remove("rarely") }),
+  app({ id: "jumpstart", name: "HP JumpStart", publisher: "HP Inc.", sizeBytes: 26 * MB, source: "store", installedOn: "2024-03-01", iconColor: "#0067c0", newPc: remove("promo") }),
+  app({ id: "skype", name: "Skype", publisher: "Skype", sizeBytes: 190 * MB, source: "store", installedOn: "2024-03-01", iconColor: "#0078d4", newPc: remove("retired") }),
 ];
+
+/** Apps "uninstalled earlier" in the browser fallback. Times are relative to now. */
+export function sampleUninstalledApps(now: number): UninstalledApp[] {
+  const day = 86_400;
+  return [
+    { id: "teams", name: "Microsoft Teams (personal)", publisher: "Microsoft", source: "store", sizeBytes: 2.4 * GB, uninstalledAt: now - 2 * day, way: "store", site: "", link: "", iconColor: "#5b5fc7", icon: null },
+    { id: "zoom", name: "Zoom Workplace", publisher: "Zoom Video Communications", source: "win32", sizeBytes: 380 * MB, uninstalledAt: now - 5 * day, way: "website", site: "zoom.us", link: "", iconColor: "#0b5cff", icon: null },
+    { id: "dota", name: "Dota 2", publisher: "Valve", source: "win32", sizeBytes: 38 * GB, uninstalledAt: now - 9 * day, way: "steam", site: "", link: "", iconColor: "#a3241a", icon: null },
+    { id: "7zip", name: "7-Zip 24.08 (x64)", publisher: "Igor Pavlov", source: "win32", sizeBytes: 6 * MB, uninstalledAt: now - 21 * day, way: "website", site: "7-zip.org", link: "", iconColor: "#486860", icon: null },
+    { id: "discord-old", name: "Discord", publisher: "Discord Inc.", source: "win32", sizeBytes: 480 * MB, uninstalledAt: now - 30 * day, way: "website", site: "discord.com", link: "", iconColor: "#5865f2", icon: null },
+    { id: "foxit", name: "Foxit PDF Reader", publisher: "Foxit Software Inc.", source: "win32", sizeBytes: 520 * MB, uninstalledAt: now - 40 * day, way: "search", site: "", link: "", iconColor: "#ca5010", icon: null },
+  ];
+}
 
 const U = "C:\\Users\\you";
 const D = `${U}\\Downloads`;

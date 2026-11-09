@@ -61,7 +61,7 @@
     "filterStore": "Microsoft Store",
     "lastUsed": "used {when}",
     "neverUsed": "Never used",
-    "bloatware": "Bloatware",
+    "bloatware": "Usually not needed",
     "selected": "{count} selected",
     "willFree": "you will free about {size} (app + leftovers)",
     "uninstallSelected": "Uninstall selected",
@@ -69,7 +69,58 @@
     "installedOn": "installed {date}",
     "loading": "Reading the apps installed on this PC…",
     "error": "Could not read the installed apps.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "tabInstalled": "Installed ({count})",
+    "tabUninstalled": "Uninstalled ({count})"
+  },
+  "newPc": {
+    "bannerTitle": "New PC? Remove the apps you didn't choose",
+    "bannerText": "{count} apps came with Windows or with the PC ({size}). I'll tell you which ones are usually not needed.",
+    "start": "Start",
+    "later": "Not now",
+    "title": "New PC cleanup",
+    "intro": "These apps came with Windows or with the PC. I've already picked the ones usually not needed: check them and change anything you like.",
+    "stepChoose": "Choose",
+    "stepUninstall": "Uninstall",
+    "stepDone": "Done",
+    "groupRemove": "Usually not needed",
+    "groupRemoveNote": "already selected",
+    "groupChoose": "Your choice",
+    "groupChooseNote": "some people use these: select them only if you don't",
+    "safeNote": "Windows, drivers and the PC maker's update tools are never on this list. If you change your mind, everything is in Apps › Uninstalled.",
+    "uninstall": "Uninstall {count} apps",
+    "doneTitle": "Done: no more unneeded apps",
+    "doneText": "The apps you removed are in Apps › Uninstalled, if you ever need them.",
+    "backToApps": "Back to apps",
+    "seeUninstalled": "See uninstalled apps",
+    "reasons": {
+      "game": "Pre-installed game",
+      "trial": "Antivirus trial: Windows Security already protects the PC",
+      "promo": "Advert for a service, installed with the PC",
+      "rarely": "Microsoft app few people use",
+      "retired": "Microsoft has closed it or replaced it with a newer app",
+      "xbox": "Only needed for Xbox games and the Game Bar",
+      "phone": "Links your phone to the PC",
+      "social": "Social network or chat: keep it if you use it",
+      "streaming": "Films, series or music: keep it if you subscribe",
+      "office": "Only a link to Microsoft 365 online",
+      "video": "Video editor",
+      "tool": "Small Microsoft app: keep it if you use it"
+    }
+  },
+  "uninstalled": {
+    "intro": "Apps you uninstalled with Easy Uninstaller. If you need one again, reinstall it from here.",
+    "when": "uninstalled on {date}",
+    "store": "Open in Microsoft Store",
+    "steam": "Open in Steam",
+    "website": "Download from {site}",
+    "search": "Search the web",
+    "again": "Installed again",
+    "forget": "Remove from list",
+    "note": "This opens the page to download it: you install it yourself, like the first time.",
+    "empty": "No apps uninstalled yet. When you uninstall one, you'll find it here if you change your mind.",
+    "error": "Could not read the list of uninstalled apps.",
+    "openError": "Could not open the page."
   },
   "files": {
     "title": "Files",
@@ -498,7 +549,8 @@
       "stillInstalled": "The app is still installed, so nothing was searched.",
       "declined": "Permission was not given, so nothing was changed.",
       "other": "Something went wrong: {error}"
-    }
+    },
+    "reinstallNote": "If you change your mind, removed apps are in Apps › Uninstalled."
   },
   "explain": {
     "title": "What is this?",

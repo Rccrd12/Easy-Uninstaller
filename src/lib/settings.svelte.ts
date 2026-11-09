@@ -30,6 +30,8 @@ interface Settings {
   restorePoint: boolean;
   /** Ask GitHub whether a newer version exists each time the app opens. */
   checkUpdates: boolean;
+  /** The "New PC" suggestion on the Apps screen was put away with "Not now". */
+  newPcDismissed: boolean;
   ai: AiSettings;
 }
 
@@ -38,6 +40,7 @@ interface Settings {
 const defaults: Settings = {
   restorePoint: false,
   checkUpdates: true,
+  newPcDismissed: false,
   ai: { mode: "off", service: "", model: "", modelLabel: "", urls: {}, confirm: true, autoStart: true, parallel: 4 },
 };
 
