@@ -33,8 +33,9 @@ impl Entry {
 
     /// How close the file is to `query` (unit length): the best of its pictures, from -1 to 1.
     pub fn score(&self, query: &[f32]) -> Option<f32> {
-        self.vectors
-            .chunks_exact(DIM)
+        let (pictures, _) = self.vectors.as_chunks::<DIM>();
+        pictures
+            .iter()
             .map(|v| v.iter().zip(query).map(|(a, b)| *a as f32 * b).sum::<f32>() / 127.0)
             .reduce(f32::max)
     }
