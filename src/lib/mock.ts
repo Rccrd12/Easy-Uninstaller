@@ -1,7 +1,7 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage } from "./types";
+import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, HistoryKind, HistoryName, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage } from "./types";
 
 export const sampleApps: InstalledApp[] = [
   { id: "reg:hklm:{8F2B6C1E-4A0D-4C55-9E2F-7B1D3A5C9E01}", version: "26.2.0", location: "C:\\Program Files\\Adobe\\Adobe Photoshop 2025", name: "Adobe Photoshop 2025", publisher: "Adobe", sizeBytes: 6.8 * GB, source: "win32", installedOn: "2025-01-14", lastUsed: "3 months ago", preinstalled: false, bloatware: false, neverUsed: false, iconColor: "#e3008c", icon: null },
@@ -275,6 +275,51 @@ export const sampleQuarantine: QuarantineEntry[] = [
     ],
     needsAdmin: false,
   },
+];
+
+/** A history record as src-tauri/src/history.rs saves it (`Record`). */
+export interface SampleRecord {
+  id: string;
+  at: number;
+  kind: HistoryKind;
+  names: HistoryName[];
+  itemCount: number;
+  deletedBytes: number;
+  crossedBytes: number;
+  entries: { id: string; bytes: number }[];
+  estimatedBytes: number;
+  restored: string[];
+  restoredAt: number | null;
+}
+
+const record = (at: number, kind: HistoryKind, names: HistoryName[], itemCount: number, deletedBytes: number, rest: Partial<SampleRecord> = {}): SampleRecord => ({
+  id: `${at}-${kind}`,
+  at,
+  kind,
+  names,
+  itemCount,
+  deletedBytes,
+  crossedBytes: 0,
+  entries: [],
+  estimatedBytes: 0,
+  restored: [],
+  restoredAt: null,
+  ...rest,
+});
+const group = (key: string): HistoryName => ({ key: `files.groups.${key}.title` });
+const hours = (h: number) => h * 60 * 60;
+
+/** What the browser fallback shows in History, oldest first. q1 and q2 are still in Quarantine. */
+export const sampleHistory: SampleRecord[] = [
+  record(daysAgo(41), "appFolder", [{ text: "OldGameLauncher" }], 1, 0, { entries: [{ id: "old-1", bytes: 2.2 * GB }] }),
+  record(daysAgo(40), "uninstall", [{ text: "Candy Crush Saga" }], 1, 0, { estimatedBytes: 380 * MB }),
+  record(daysAgo(23), "quickClean", [group("temp"), group("recycleBin"), group("thumbnails")], 6214, 4.1 * GB, { entries: [{ id: "old-2", bytes: 2.7 * GB }] }),
+  record(daysAgo(16), "files", [group("installers")], 9, 0, { entries: [{ id: "old-3", bytes: 1.2 * GB }], restored: ["old-3"], restoredAt: daysAgo(15) }),
+  record(daysAgo(9), "files", [group("oldDownloads")], 46, 0, { entries: [{ id: "old-4", bytes: 3.4 * GB }] }),
+  record(daysAgo(2), "files", [group("temp")], 1312, 0, { entries: [{ id: "q1", bytes: 2.9 * GB }] }),
+  record(daysAgo(1) - hours(1), "uninstall", [{ text: "Skype" }], 1, 0, { estimatedBytes: 1.1 * GB }),
+  record(daysAgo(1), "leftovers", [{ text: "Discord" }], 3, 0, { entries: [{ id: "q2", bytes: 406 * MB }] }),
+  record(daysAgo(0) - hours(3), "quickClean", [group("temp"), group("crashReports"), group("thumbnails")], 4210, 5.3 * GB),
 ];
 
 /** Changed by `setQuarantineSettings` in the browser fallback. */

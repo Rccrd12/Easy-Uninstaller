@@ -17,12 +17,14 @@ import {
   sampleDrives,
   sampleDuplicateSets,
   sampleFiles,
+  sampleHistory,
   sampleLeftovers,
   samplePreview,
   sampleQuarantine,
   sampleQuarantineSettings,
   sampleSpaceUsage,
   type SampleFile,
+  type SampleRecord,
 } from "./mock";
 import type {
   AiAnswer,
@@ -39,6 +41,10 @@ import type {
   FileSelection,
   GroupReview,
   HiddenKind,
+  HistoryItem,
+  HistoryKind,
+  HistoryName,
+  HistorySummary,
   InstalledApp,
   LeftoverItem,
   MoveReport,
@@ -187,10 +193,12 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Runs the app's own uninstaller (or removes a Store app) and waits for it.
  * Rejects with "notInstalled", "noUninstaller", "itself", or another error text.
  */
-export async function uninstallApp(id: string): Promise<UninstallOutcome> {
-  if (isTauri()) return invoke<UninstallOutcome>("uninstall_app", { id });
+export async function uninstallApp(app: Pick<InstalledApp, "id" | "name" | "sizeBytes">): Promise<UninstallOutcome> {
+  // Name and size are only for the history: Rust finds the app by its id.
+  if (isTauri()) return invoke<UninstallOutcome>("uninstall_app", { id: app.id, name: app.name, sizeBytes: app.sizeBytes });
   await sleep(1800);
-  sampleRemoved.add(id);
+  sampleRemoved.add(app.id);
+  sampleRecord("uninstall", [{ text: app.name }], { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 }, app.sizeBytes);
   return "removed";
 }
 
@@ -249,6 +257,7 @@ export async function quarantineLeftovers(ids: string[], found: LeftoverItem[]):
     report.movedCount += items.length;
     report.movedBytes += size;
   }
+  sampleRecord("leftovers", [...byApp.keys()].map((app) => (app ? { text: app } : { key: "leftovers.title" })), report);
   return report;
 }
 
@@ -300,12 +309,14 @@ export async function listQuarantine(): Promise<QuarantineEntry[]> {
  * Only group ids are sent: Rust removes exactly the files its own scan found.
  * Real: src-tauri/src/cleanup.rs.
  */
-export async function removeFileGroups(groupIds: string[]): Promise<MoveReport> {
-  if (isTauri()) return invoke<MoveReport>("remove_file_groups", { groupIds });
+export async function removeFileGroups(groupIds: string[], opts: { quick?: boolean } = {}): Promise<MoveReport> {
+  // `quick` only says how the history names it.
+  if (isTauri()) return invoke<MoveReport>("remove_file_groups", { groupIds, quick: opts.quick ?? false });
   await new Promise((r) => setTimeout(r, 900));
   const now = Math.floor(Date.now() / 1000);
   const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
-  for (const g of sampleGroups().filter((x) => groupIds.includes(x.id) && !x.reviewOnly)) {
+  const picked = sampleGroups().filter((x) => groupIds.includes(x.id) && !x.reviewOnly);
+  for (const g of picked) {
     if (DELETE_NOW_GROUPS.includes(g.id)) {
       report.deletedCount += g.itemCount;
       report.deletedBytes += g.sizeBytes;
@@ -316,6 +327,7 @@ export async function removeFileGroups(groupIds: string[]): Promise<MoveReport> 
     sampleMove(report, g, g.items.map((i) => ({ path: i.path, sizeBytes: i.sizeBytes })), g.itemCount, now);
   }
   sampleFreeBytes += report.freedBytes;
+  sampleRecord(opts.quick ? "quickClean" : "files", picked.map((g) => ({ key: g.titleKey })), report);
   return report;
 }
 
@@ -363,6 +375,7 @@ export async function quarantineFileSelection(selections: FileSelection[]): Prom
   const now = Math.floor(Date.now() / 1000);
   const report: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
   const groups = sampleGroups();
+  const names: HistoryName[] = [];
   for (const sel of selections) {
     const g = groups.find((x) => x.id === sel.groupId);
     if (!g) continue;
@@ -378,6 +391,7 @@ export async function quarantineFileSelection(selections: FileSelection[]): Prom
       picked = sampleFiles.filter((f) => f.group === g.id && wanted.has(f.path) && samplePresent(f.path));
     }
     if (!picked.length) continue;
+    names.push({ key: g.titleKey });
     if (DELETE_NOW_GROUPS.includes(g.id)) {
       const size = picked.reduce((s, f) => s + f.sizeBytes, 0);
       report.deletedCount += picked.length;
@@ -389,6 +403,7 @@ export async function quarantineFileSelection(selections: FileSelection[]): Prom
     sampleMove(report, g, picked, picked.length, now);
   }
   sampleFreeBytes += report.freedBytes;
+  sampleRecord("files", names, report);
   return report;
 }
 
@@ -523,16 +538,23 @@ export async function quarantineAppFolder(item: FileItem): Promise<MoveReport> {
     needsAdmin: !/\\AppData\\/i.test(item.path),
   });
   sampleGone.add(item.path);
-  return { entryIds: [id], movedCount: 1, movedBytes: item.sizeBytes, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  const report: MoveReport = { entryIds: [id], movedCount: 1, movedBytes: item.sizeBytes, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
+  sampleRecord("appFolder", [{ text: name }], report);
+  return report;
 }
 
 /** Puts the files of these entries back where they were. */
 export async function restoreQuarantine(ids: string[]): Promise<RestoreReport> {
   if (isTauri()) return invoke<RestoreReport>("restore_quarantine", { ids });
   const report: RestoreReport = { restoredCount: 0, renamedCount: 0, failedCount: 0 };
+  const now = Math.floor(Date.now() / 1000);
   for (const id of ids) {
     const i = sampleQuarantine.findIndex((e) => e.id === id);
     if (i < 0) continue;
+    for (const r of sampleHistory.filter((r) => r.entries.some((e) => e.id === id))) {
+      r.restored.push(id);
+      r.restoredAt = now;
+    }
     const [entry] = sampleQuarantine.splice(i, 1);
     entry.items.forEach((item) => sampleGone.delete(item.originalPath));
     report.restoredCount += entry.itemCount;
@@ -582,6 +604,82 @@ export async function remindersOpened(texts: ReminderTexts): Promise<void> {
 export async function previewReminder(title: string, body: string): Promise<void> {
   if (isTauri()) return invoke("preview_reminder", { title, body });
   await sleep(300);
+}
+
+// ---------------------------------------------------------------------------
+// History. Real: src-tauri/src/history.rs.
+
+/**
+ * Everything Easy Uninstaller did, newest first, with the space it gave back. Files in
+ * Quarantine on the same drive count as freed only once they are deleted for good.
+ */
+export async function getHistory(): Promise<HistorySummary> {
+  if (isTauri()) return invoke<HistorySummary>("get_history");
+  const items = sampleHistory.map(sampleHistoryItem).reverse();
+  return {
+    freedBytes: items.reduce((s, i) => s + i.freedBytes, 0),
+    pendingBytes: items.reduce((s, i) => s + i.pendingBytes, 0),
+    since: sampleHistory[0]?.at ?? null,
+    actionCount: items.length,
+    items,
+  };
+}
+
+/** Forgets every action: the total starts again from zero. No file is touched. */
+export async function clearHistory(): Promise<void> {
+  if (isTauri()) return invoke("clear_history");
+  sampleHistory.length = 0;
+}
+
+/** Browser fallback: the same rules as `Record::item` in history.rs. */
+function sampleHistoryItem(r: SampleRecord): HistoryItem {
+  let inQuarantine = 0;
+  let restored = 0;
+  let ended = 0;
+  let until: number | null = null;
+  for (const e of r.entries) {
+    const live = sampleQuarantine.find((q) => q.id === e.id);
+    if (live) {
+      inQuarantine += Math.min(e.bytes, live.sizeBytes);
+      until = Math.max(until ?? 0, live.expiresAt);
+    } else if (r.restored.includes(e.id)) restored += e.bytes;
+    else ended += e.bytes;
+  }
+  const crossed = Math.min(r.crossedBytes, inQuarantine);
+  const pending = inQuarantine - crossed;
+  return {
+    id: r.id,
+    at: r.at,
+    kind: r.kind,
+    names: r.names,
+    itemCount: r.itemCount,
+    freedBytes: r.deletedBytes + r.estimatedBytes + ended + crossed,
+    pendingBytes: pending,
+    pendingUntil: pending > 0 ? until : null,
+    restoredBytes: restored,
+    restoredAt: r.restoredAt,
+    estimated: r.estimatedBytes > 0,
+  };
+}
+
+/** Browser fallback: records an action like history.rs does. */
+function sampleRecord(kind: HistoryKind, names: HistoryName[], report: MoveReport, estimatedBytes = 0) {
+  const itemCount = report.movedCount + report.deletedCount + (estimatedBytes ? 1 : 0);
+  if (!itemCount) return;
+  const at = Math.floor(Date.now() / 1000);
+  sampleHistory.push({
+    id: `${at}-${sampleHistory.length}`,
+    at,
+    kind,
+    names,
+    itemCount,
+    deletedBytes: report.deletedBytes,
+    crossedBytes: Math.max(report.freedBytes - report.deletedBytes, 0),
+    entries: report.entryIds.map((id) => ({ id, bytes: sampleQuarantine.find((q) => q.id === id)?.sizeBytes ?? 0 })),
+    estimatedBytes,
+    restored: [],
+    restoredAt: null,
+  });
 }
 
 /** Real: src-tauri/src/restore_point.rs. Windows asks the user for permission. */

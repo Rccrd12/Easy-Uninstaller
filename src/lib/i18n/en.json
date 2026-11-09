@@ -5,6 +5,7 @@
     "files": "Files",
     "leftovers": "Leftovers",
     "map": "Space map",
+    "history": "History",
     "quarantine": "Quarantine",
     "settings": "Settings"
   },
@@ -48,7 +49,16 @@
     "quickCleanHint": "Only what is safe, in one click.",
     "calculating": "Calculating…",
     "calculatingNote": "I'm looking at your files: it takes a minute or two.",
-    "appsInstalled": "{count} apps · {size}"
+    "appsInstalled": "{count} apps · {size}",
+    "results": "Your results",
+    "historyLink": "History",
+    "resultsFreed": "freed since you started using Easy Uninstaller",
+    "resultsPending": "+ {size} in Quarantine",
+    "resultsEmpty": "Here you will see what was done and how much space it gave back. Quick clean is a good place to start.",
+    "quarantineTitle": "Quarantine",
+    "quarantineHolds": "{count} · {size} you can still restore",
+    "quarantineEmpty": "Empty right now.",
+    "quarantineLink": "Open Quarantine"
   },
   "apps": {
     "title": "Apps",
@@ -380,6 +390,38 @@
     "deleted": "Deleted for good. {size} freed.",
     "permission": "Windows asks for permission to restore or delete these.",
     "declined": "Not done: permission was not given."
+  },
+  "history": {
+    "title": "History",
+    "subtitle": "Everything Easy Uninstaller did on this PC, newest first.",
+    "freed": "freed since you started using Easy Uninstaller",
+    "since": "{count} since {date}",
+    "actions": "{count} actions",
+    "actionsOne": "1 action",
+    "pending": "Another {size} is in Quarantine: that space frees up when Quarantine deletes it for good, or right away with “Delete now”.",
+    "openQuarantine": "Open Quarantine",
+    "kind": {
+      "quickClean": "Quick clean",
+      "files": "Removed: {names}",
+      "filesNoName": "Files removed",
+      "leftovers": "Leftovers cleaned up: {names}",
+      "leftoversNoName": "Leftovers cleaned up",
+      "appFolder": "Folder removed: {names}",
+      "uninstall": "Uninstalled {names}"
+    },
+    "moreNames": "{names} and {count} more",
+    "uninstallDetail": "Removed with its own uninstaller",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "pendingUntil": "In Quarantine until {date}",
+    "restored": "Put back on {date}",
+    "partRestored": "{size} put back on {date}",
+    "about": "about {size}",
+    "empty": "Nothing here yet. Every cleanup, uninstall and leftover removal will be listed here, with the space it gave back.",
+    "privacy": "The history stays on this PC. It lists what was done, never the contents of your files.",
+    "clear": "Clear history",
+    "clearConfirm": "Clear the history? The total starts again from zero. No file is touched.",
+    "failed": "Could not read the history: {error}"
   },
   "settings": {
     "title": "Settings",

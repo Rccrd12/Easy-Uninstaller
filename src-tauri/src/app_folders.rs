@@ -9,6 +9,7 @@
 
 use crate::elevated::{self, Job};
 use crate::explain::KnownFolders;
+use crate::history::{self, Kind};
 use crate::leftovers::inside;
 use crate::quarantine::{self, now_secs, Item, MoveReport, Quarantine, Target, Title};
 use std::fs;
@@ -104,6 +105,7 @@ pub async fn quarantine_app_folder(app: AppHandle, path: String) -> Result<MoveR
             modified: None,
         };
         let title = Title::Text(name);
+        let names = vec![title.clone()];
         let needs_admin = env("USERPROFILE").is_none_or(|home| !inside(&path, &home));
         let mut report = MoveReport::default();
         if needs_admin {
@@ -120,6 +122,7 @@ pub async fn quarantine_app_folder(app: AppHandle, path: String) -> Result<MoveR
                 .add(title, &[item], now_secs(), false, &mut report)
                 .map_err(|e| e.to_string())?;
         }
+        history::record_move(&app, Kind::AppFolder, names, &report);
         Ok(report)
     })
     .await

@@ -14,6 +14,7 @@
     { id: "map", icon: "map" },
   ];
   const bottom: { id: Screen; icon: IconName }[] = [
+    { id: "history", icon: "history" },
     { id: "quarantine", icon: "quarantine" },
     { id: "settings", icon: "settings" },
   ];
