@@ -243,7 +243,10 @@ hidden items and AI answers stay on your PC. The app goes online only in these c
 16. ✅ AI help, phases 2 and 3: search your files by writing a sentence (only the sentence is
     sent, the search runs on this PC), and tidy up Downloads into proposed folders, with undo
 17. ✅ Search by content: a local index of photos and videos (EmbeddingGemma 2 on llama.cpp)
-18. ⬜ A stable 1.0
+18. ✅ Release 0.3.0: app caches, history and a new Home, uninstalled apps and new-PC setup,
+    reminders, similar photos, OneDrive "online only" and moving files to another drive,
+    larger text, beta updates, a simpler app-like wording, and the local index on the graphics card
+19. ⬜ A stable 1.0
 
 ## Development
 

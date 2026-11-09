@@ -1,6 +1,6 @@
 [package]
 name = "easy-uninstaller"
-version = "0.2.0"
+version = "0.3.0"
 description = "A lightweight, simple app to uninstall apps and free up space on Windows"
 edition = "2021"
 rust-version = "1.90"
