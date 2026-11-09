@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use store::Index;
@@ -42,6 +42,8 @@ const MIN_PHOTO_BYTES: u64 = 30 * 1024;
 const MAX_WALK: u64 = 3_000_000;
 /// The index is written at least this often while it grows.
 const SAVE_EVERY: Duration = Duration::from_secs(60);
+/// Threads preparing pictures while the model works on a graphics card.
+const PREPARERS_GPU: usize = 4;
 /// Files in a row the model cannot read before a round stops.
 const MAX_FAILURES: u32 = 5;
 /// The index starts this long after the app, so opening it stays quick.
@@ -730,78 +732,107 @@ fn index_round(app: &AppHandle, generation: u64) -> Result<(), String> {
     let mut saved = Instant::now();
     let mut result = Ok(());
     let mut failures = 0;
-    for (n, item) in todo.iter().enumerate() {
-        if !current() {
-            break;
+    // Pictures are prepared (previews, frames of videos) on other threads while the
+    // model works: with a graphics card the model is quick and preparing is the slow part.
+    let preparers = if hardware::get().gpu {
+        PREPARERS_GPU
+    } else {
+        1
+    };
+    let next = AtomicUsize::new(0);
+    std::thread::scope(|scope| {
+        let (tx, rx) = std::sync::mpsc::sync_channel::<(usize, Vec<Vec<u8>>)>(preparers * 2);
+        for _ in 0..preparers {
+            let tx = tx.clone();
+            let (next, todo, settings, current) = (&next, &todo, &settings, &current);
+            scope.spawn(move || loop {
+                let n = next.fetch_add(1, Ordering::SeqCst);
+                let Some(item) = todo.get(n) else { break };
+                if !current() {
+                    break;
+                }
+                let pictures = frames::pictures(&item.path, item.kind, settings.depth);
+                // The round stopped: nobody takes them any more.
+                if tx.send((n, pictures)).is_err() {
+                    break;
+                }
+            });
         }
-        state.update(|i| {
-            i.current = item
-                .path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned());
-            i.pending = (todo.len() - n) as u64;
-        });
-        emit(app, false);
-        let pictures = frames::pictures(&item.path, item.kind, settings.depth);
-        let mut each: Vec<Vec<i8>> = Vec::new();
-        let mut failed = None;
-        for png in &pictures {
+        drop(tx);
+        for (done, (n, pictures)) in rx.iter().enumerate() {
+            let item = &todo[n];
             if !current() {
                 break;
             }
-            match engine::embed(&engine, &engine::Input::Picture(png)) {
-                Ok(v) => each.extend(store::quantize(&v)),
-                Err(e) => {
-                    failed = Some(e);
+            state.update(|i| {
+                i.current = item
+                    .path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned());
+                i.pending = (todo.len() - done) as u64;
+            });
+            emit(app, false);
+            let mut each: Vec<Vec<i8>> = Vec::new();
+            let mut failed = None;
+            for png in &pictures {
+                if !current() {
                     break;
                 }
+                match engine::embed(&engine, &engine::Input::Picture(png)) {
+                    Ok(v) => each.extend(store::quantize(&v)),
+                    Err(e) => {
+                        failed = Some(e);
+                        break;
+                    }
+                }
             }
-        }
-        if let Some(e) = failed {
-            // One file the model cannot read is skipped (and tried again next round);
-            // many in a row, or a model that is not running, stop the round.
-            failures += 1;
-            let answered = e.starts_with("index.error.engine:");
-            if !answered || failures >= MAX_FAILURES {
-                result = Err(e);
+            if let Some(e) = failed {
+                // One file the model cannot read is skipped (and tried again next round);
+                // many in a row, or a model that is not running, stop the round.
+                failures += 1;
+                let answered = e.starts_with("index.error.engine:");
+                if !answered || failures >= MAX_FAILURES {
+                    result = Err(e);
+                    break;
+                }
+                continue;
+            }
+            failures = 0;
+            if !current() {
                 break;
             }
-            continue;
-        }
-        failures = 0;
-        if !current() {
-            break;
-        }
-        if let Ok(mut slot) = state.index.lock() {
-            if let Some(index) = slot.as_mut() {
-                // The first vector sets the size; a model that changes it is not trusted.
-                let dim = each.first().map_or(index.dim, Vec::len);
-                if (index.dim != 0 && dim != index.dim) || each.iter().any(|v| v.len() != dim) {
-                    result = Err("index.error.engine:size".into());
-                    break;
-                }
-                index.dim = dim;
-                let vectors = each.concat();
-                index.entries.insert(
-                    item.path.clone(),
-                    store::Entry {
-                        size: item.size,
-                        modified: item.modified,
-                        depth: if item.kind == FileKind::Video {
-                            settings.depth.code()
-                        } else {
-                            0
+            if let Ok(mut slot) = state.index.lock() {
+                if let Some(index) = slot.as_mut() {
+                    // The first vector sets the size; a model that changes it is not trusted.
+                    let dim = each.first().map_or(index.dim, Vec::len);
+                    if (index.dim != 0 && dim != index.dim) || each.iter().any(|v| v.len() != dim) {
+                        result = Err("index.error.engine:size".into());
+                        break;
+                    }
+                    index.dim = dim;
+                    let vectors = each.concat();
+                    index.entries.insert(
+                        item.path.clone(),
+                        store::Entry {
+                            size: item.size,
+                            modified: item.modified,
+                            depth: if item.kind == FileKind::Video {
+                                settings.depth.code()
+                            } else {
+                                0
+                            },
+                            vectors,
                         },
-                        vectors,
-                    },
-                );
+                    );
+                }
+            }
+            if saved.elapsed() > SAVE_EVERY {
+                save_index(app, &h);
+                saved = Instant::now();
             }
         }
-        if saved.elapsed() > SAVE_EVERY {
-            save_index(app, &h);
-            saved = Instant::now();
-        }
-    }
+        // Leaving drops `rx`: the preparers stop at their next picture.
+    });
     save_index(app, &h);
     state.update(|i| {
         i.indexing = false;
