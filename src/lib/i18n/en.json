@@ -211,7 +211,7 @@
     "again": "Installed again",
     "forget": "Remove from list",
     "note": "This opens the page to download it: you install it yourself, like the first time.",
-    "empty": "No apps uninstalled yet. When you uninstall one, you'll find it here if you change your mind.",
+    "empty": "No apps uninstalled yet.",
     "error": "Could not read the list of uninstalled apps.",
     "openError": "Could not open the page."
   },
@@ -254,7 +254,7 @@
         "title": "Similar photos",
         "description": "Photos that look almost the same: you choose which to keep",
         "what": "Photos in your folders that look almost the same without being identical files: several shots of the same moment, a retake, or a smaller copy saved from a chat app. In each set the largest photo, which usually has the most detail, is suggested to keep.",
-        "ifRemoved": "The photo you keep stays where it is, so the moment is not lost. The others go to Quarantine first, where you can restore them."
+        "ifRemoved": "One photo of each set always stays. The others go to Quarantine."
       },
       "largeFiles": {
         "title": "Large files",
@@ -313,7 +313,7 @@
     "failed": "The scan could not finish: {error}",
     "retry": "Try again",
     "moving": "Moving to quarantine…",
-    "moved": "Moved to Quarantine: {count}, {size}. You can restore everything for {days} days.",
+    "moved": "Moved to Quarantine: {count}, {size}.",
     "movedSkipped": "Left in place because in use or changed: {count}.",
     "moveFailed": "The files could not be moved: {error}",
     "nothingMoved": "Nothing was moved: the files were in use or had changed since the scan. Try scanning again.",
@@ -362,7 +362,7 @@
       "more": "More actions",
       "selected": "Selected {files} · {size}",
       "oneCopyStays": "One copy of every file always stays where it is.",
-      "restorable": "Nothing is deleted: you can restore everything for {days} days.",
+      "restorable": "Goes to Quarantine for {days} days.",
       "selectAll": "Select all",
       "selectNone": "Select none",
       "open": "Open",
@@ -388,7 +388,7 @@
       "similarSet": "{count} similar photos",
       "onePhotoStays": "One photo of every set always stays where it is."
     },
-    "folderMoved": "“{name}” is in Quarantine ({size}). You can restore it for {days} days.",
+    "folderMoved": "“{name}” is in Quarantine ({size}).",
     "folderSkipped": "“{name}” could not be moved: an app may be using it. Close the app and try again.",
     "folderDeclined": "Windows did not give permission: “{name}” stayed where it was.",
     "showAll": "Show all ({count})",
@@ -423,8 +423,8 @@
     "disk": "Drive {drive} now has {free} free (before: {before}).",
     "diskNow": "Drive {drive} now has {free} free.",
     "undo": "Undo",
-    "undoDeleted": "Temporary files, caches and the like stay deleted: nothing there is needed back.",
-    "empty": "Nothing to clean up right now: nothing safe to remove was found.",
+    "undoDeleted": "Temporary files and caches stay deleted.",
+    "empty": "Nothing to clean up right now.",
     "seeFiles": "Check files",
     "failed": "The cleanup could not finish: {error}"
   },
@@ -450,7 +450,7 @@
     },
     "selected": "Selected {size}",
     "moving": "Moving to quarantine…",
-    "moved": "Moved to Quarantine: {count}. You can restore everything for {days} days.",
+    "moved": "Moved to Quarantine: {count}.",
     "nothingMoved": "Nothing was moved: these items are in use or have changed. Try searching again.",
     "declined": "Left in place because permission was not given: {count}.",
     "moveFailed": "The leftovers could not be moved: {error}",
@@ -688,8 +688,8 @@
     "allRemoved": "{count} apps removed",
     "someRemoved": "{n} of {total} apps removed",
     "freed": "freed",
-    "movedNote": "I also removed {count}: they are in Quarantine and you can restore them for {days} days.",
-    "movedNoteSettings": "I also removed {count}, the app's settings included: they are in Quarantine and you can restore them for {days} days.",
+    "movedNote": "I also removed {count}: they are in Quarantine.",
+    "movedNoteSettings": "I also removed {count}, the app's settings included: they are in Quarantine.",
     "declinedNote": "Left in place because permission was not given: {count}.",
     "skippedNote": "Left in place because in use or changed: {count}.",
     "noLeftovers": "It left nothing behind.",
@@ -705,7 +705,7 @@
       "declined": "Permission was not given, so nothing was changed.",
       "other": "Something went wrong: {error}"
     },
-    "reinstallNote": "If you change your mind, removed apps are in Apps › Uninstalled."
+    "reinstallNote": "Removed apps are in Apps › Uninstalled."
   },
   "explain": {
     "title": "What is this?",
@@ -895,7 +895,7 @@
       "unknownTitle": "I don't know what “{name}” is",
       "keepText": "Move it only if you are sure.",
       "unknownText": "If it belongs to an app you still use, that app may stop working or lose its settings.",
-      "restore": "You can restore it from Quarantine for {days} days.",
+      "restore": "It stays in Quarantine for {days} days.",
       "admin": "Windows will ask for permission.",
       "confirm": "Move to Quarantine",
       "confirmAnyway": "Move it anyway"
@@ -1142,7 +1142,7 @@
       "step": "Step {step} of 2",
       "lead": "The AI explains the folders the app does not know and tells you whether they look useful.",
       "leadBold": "It never moves anything by itself",
-      "leadEnd": ": you always decide, and everything goes through Quarantine.",
+      "leadEnd": ": you always decide.",
       "online": {
         "title": "Online",
         "a": "Better and faster answers",
@@ -1373,7 +1373,7 @@
     "saveFailed": "The reminder could not be set up: {error}",
     "notice": {
       "lowSpaceTitle": "Disk {drive} is almost full",
-      "lowSpaceBody": "Only {free} free ({percent}%). Open Easy Uninstaller to free up space safely.",
+      "lowSpaceBody": "Only {free} free ({percent}%). Open Easy Uninstaller to free up space.",
       "monthlyTitle": "Time for a cleanup",
       "monthlyBody": "A month has passed since the last check. A Quick clean takes about a minute.",
       "testTitle": "Easy Uninstaller notices are on",
@@ -1391,7 +1391,7 @@
       "tag": "Stays in the cloud",
       "freeingTag": "In progress",
       "freeingNote": "OneDrive is freeing {size} on this PC",
-      "about": "These files are already safe in your OneDrive. I can remove the copy on this PC: you still see them in their folders, and they download on their own when you open them.",
+      "about": "These files are already in your OneDrive. I can remove the copy on this PC: you still see them in their folders, and they download when you open them.",
       "before": "Always on this PC",
       "after": "Online only, downloads when you open it",
       "freeing": "OneDrive is freeing {size} on this PC ({count}). It takes a few minutes, while OneDrive is running.",
@@ -1413,7 +1413,7 @@
       "tag": "Move",
       "movedTag": "Moved",
       "movedNote": "On another drive: {count}. You can move them back.",
-      "about": "Big videos, archives and disk images can live on another drive. I move them to the folder “{folder}” on {drive}: they stay yours, you open them from there, and you can move them back whenever you want.",
+      "about": "Big videos, archives and disk images can live on another drive. I move them to “{folder}” on {drive}, and you can move them back whenever you want.",
       "drive": "Move to",
       "folderName": "Moved from {letter}",
       "note": "Each file is copied to {drive}, then removed from {system}. Apps and games are not moved.",

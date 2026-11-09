@@ -211,7 +211,7 @@
     "again": "Di nuovo installata",
     "forget": "Togli dall'elenco",
     "note": "Si apre la pagina da cui scaricarla: l'installazione la fai tu, come la prima volta.",
-    "empty": "Nessuna app disinstallata finora. Quando ne disinstalli una, la ritrovi qui se cambi idea.",
+    "empty": "Nessuna app disinstallata finora.",
     "error": "Impossibile leggere l'elenco delle app disinstallate.",
     "openError": "Impossibile aprire la pagina."
   },
@@ -254,7 +254,7 @@
         "title": "Foto simili",
         "description": "Foto quasi uguali: scegli tu quali tenere",
         "what": "Foto nelle tue cartelle che sembrano quasi uguali senza essere file identici: più scatti dello stesso momento, una foto rifatta o una copia più piccola salvata da un'app di chat. In ogni gruppo l'app suggerisce di tenere la foto più grande, che di solito ha più dettagli.",
-        "ifRemoved": "La foto che tieni resta dov'è, quindi il momento non va perso. Le altre vanno prima in Quarantena, da dove puoi ripristinarle."
+        "ifRemoved": "Resta sempre una foto per gruppo. Le altre vanno in Quarantena."
       },
       "largeFiles": {
         "title": "File grandi",
@@ -313,7 +313,7 @@
     "failed": "La ricerca non è riuscita a finire: {error}",
     "retry": "Riprova",
     "moving": "Spostamento in quarantena…",
-    "moved": "Messo in Quarantena: {count}, {size}. Puoi ripristinare tutto per {days} giorni.",
+    "moved": "In Quarantena: {count}, {size}.",
     "movedSkipped": "Lasciati al loro posto perché in uso o modificati: {count}.",
     "moveFailed": "Non è stato possibile spostare i file: {error}",
     "nothingMoved": "Non è stato spostato nulla: i file erano in uso o modificati dopo la scansione. Prova a scansionare di nuovo.",
@@ -362,7 +362,7 @@
       "more": "Altre azioni",
       "selected": "Selezionati {files} · {size}",
       "oneCopyStays": "Una copia di ogni file resta sempre dov'è.",
-      "restorable": "Non si cancella niente: puoi ripristinare tutto per {days} giorni.",
+      "restorable": "Va in Quarantena per {days} giorni.",
       "selectAll": "Seleziona tutto",
       "selectNone": "Deseleziona tutto",
       "open": "Apri",
@@ -388,7 +388,7 @@
       "similarSet": "{count} foto simili",
       "onePhotoStays": "Una foto di ogni gruppo resta sempre dov'è."
     },
-    "folderMoved": "“{name}” è in Quarantena ({size}). Puoi ripristinarla per {days} giorni.",
+    "folderMoved": "“{name}” è in Quarantena ({size}).",
     "folderSkipped": "Non ho potuto spostare “{name}”: forse un'app la sta usando. Chiudi l'app e riprova.",
     "folderDeclined": "Windows non ha dato il permesso: “{name}” è rimasta dov'era.",
     "showAll": "Mostra tutti ({count})",
@@ -423,8 +423,8 @@
     "disk": "Il disco {drive} ora ha {free} liberi (prima: {before}).",
     "diskNow": "Il disco {drive} ora ha {free} liberi.",
     "undo": "Annulla",
-    "undoDeleted": "File temporanei, cache e simili restano eliminati: non servono più.",
-    "empty": "Niente da pulire adesso: non ho trovato niente da togliere in sicurezza.",
+    "undoDeleted": "File temporanei e cache restano eliminati.",
+    "empty": "Niente da pulire adesso.",
     "seeFiles": "Controlla i file",
     "failed": "La pulizia non è riuscita a finire: {error}"
   },
@@ -450,7 +450,7 @@
     },
     "selected": "Selezionati {size}",
     "moving": "Sposto in quarantena…",
-    "moved": "Spostati in Quarantena: {count}. Puoi ripristinare tutto per {days} giorni.",
+    "moved": "In Quarantena: {count}.",
     "nothingMoved": "Non è stato spostato nulla: questi elementi sono in uso o sono cambiati. Prova a cercare di nuovo.",
     "declined": "Lasciati al loro posto perché il permesso non è stato dato: {count}.",
     "moveFailed": "Non è stato possibile spostare gli avanzi: {error}",
@@ -688,8 +688,8 @@
     "allRemoved": "{count} app rimosse",
     "someRemoved": "{n} app su {total} rimosse",
     "freed": "liberati",
-    "movedNote": "Ho tolto anche {count}: sono in Quarantena e puoi ripristinarli per {days} giorni.",
-    "movedNoteSettings": "Ho tolto anche {count}, comprese le impostazioni dell'app: sono in Quarantena e puoi ripristinarli per {days} giorni.",
+    "movedNote": "Ho tolto anche {count}: sono in Quarantena.",
+    "movedNoteSettings": "Ho tolto anche {count}, comprese le impostazioni dell'app: sono in Quarantena.",
     "declinedNote": "Lasciati al loro posto perché il permesso non è stato dato: {count}.",
     "skippedNote": "Lasciati al loro posto perché in uso o cambiati: {count}.",
     "noLeftovers": "Non ha lasciato nulla.",
@@ -705,7 +705,7 @@
       "declined": "Il permesso non è stato dato, quindi non è cambiato nulla.",
       "other": "Qualcosa è andato storto: {error}"
     },
-    "reinstallNote": "Se cambi idea, le app tolte sono in App › Disinstallate."
+    "reinstallNote": "Le app tolte sono in App › Disinstallate."
   },
   "explain": {
     "title": "Cos'è questo?",
@@ -895,7 +895,7 @@
       "unknownTitle": "Non so cosa sia “{name}”",
       "keepText": "Spostala solo se sei sicuro.",
       "unknownText": "Se è di un'app che usi ancora, quell'app potrebbe smettere di funzionare o perdere le impostazioni.",
-      "restore": "Potrai ripristinarla dalla Quarantena per {days} giorni.",
+      "restore": "Resta in Quarantena per {days} giorni.",
       "admin": "Windows ti chiederà il permesso.",
       "confirm": "Sposta in Quarantena",
       "confirmAnyway": "Spostala comunque"
@@ -1142,7 +1142,7 @@
       "step": "Passo {step} di 2",
       "lead": "L'AI ti spiega le cartelle che l'app non conosce e ti dice se sembrano utili o no.",
       "leadBold": "Non sposta niente da sola",
-      "leadEnd": ": decidi sempre tu, e tutto passa dalla Quarantena.",
+      "leadEnd": ": decidi sempre tu.",
       "online": {
         "title": "Online",
         "a": "Risposte migliori e veloci",
@@ -1373,7 +1373,7 @@
     "saveFailed": "Non è stato possibile attivare il promemoria: {error}",
     "notice": {
       "lowSpaceTitle": "Il disco {drive} è quasi pieno",
-      "lowSpaceBody": "Restano solo {free} liberi ({percent}%). Apri Easy Uninstaller per liberare spazio in sicurezza.",
+      "lowSpaceBody": "Restano solo {free} liberi ({percent}%). Apri Easy Uninstaller per liberare spazio.",
       "monthlyTitle": "È ora di una pulizia",
       "monthlyBody": "È passato un mese dall'ultimo controllo. Una Pulizia rapida richiede circa un minuto.",
       "testTitle": "Gli avvisi di Easy Uninstaller sono attivi",
@@ -1391,7 +1391,7 @@
       "tag": "Restano nel cloud",
       "freeingTag": "In corso",
       "freeingNote": "OneDrive sta liberando {size} dal PC",
-      "about": "Questi file sono già al sicuro sul tuo OneDrive. Posso togliere la copia dal PC: continui a vederli nelle cartelle e si scaricano da soli quando li apri.",
+      "about": "Questi file sono già su OneDrive. Posso togliere la copia dal PC: li vedi ancora nelle cartelle e si scaricano quando li apri.",
       "before": "Sempre disponibile sul PC",
       "after": "Solo online, si scarica quando lo apri",
       "freeing": "OneDrive sta liberando {size} dal PC ({count}). Ci vuole qualche minuto, mentre OneDrive è acceso.",
@@ -1413,7 +1413,7 @@
       "tag": "Sposta",
       "movedTag": "Spostati",
       "movedNote": "Su un altro disco: {count}. Puoi riportarli indietro.",
-      "about": "Video, archivi e immagini disco grandi possono stare su un altro disco. Li sposto nella cartella “{folder}” su {drive}: restano tuoi, li apri da lì e puoi riportarli indietro quando vuoi.",
+      "about": "Video, archivi e immagini disco grandi possono stare su un altro disco. Li sposto in “{folder}” su {drive} e puoi riportarli indietro quando vuoi.",
       "drive": "Sposta su",
       "folderName": "Spostati da {letter}",
       "note": "Ogni file viene copiato su {drive} e poi tolto da {system}. App e giochi non vengono spostati.",
