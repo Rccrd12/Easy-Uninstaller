@@ -755,9 +755,10 @@ export interface OwnModel {
   bytes: number;
 }
 
-// ── Tidying Downloads (src-tauri/src/tidy.rs) ──────────────────────────────
+// ── Tidying a folder (src-tauri/src/tidy.rs) ───────────────────────────────
 
-export type TidyDest = "downloads" | "documents" | "pictures" | "videos" | "music";
+/** `here` is inside the folder being tidied. */
+export type TidyDest = "here" | "documents" | "pictures" | "videos" | "music";
 
 export interface TidyFile {
   path: string;
@@ -795,12 +796,24 @@ export interface TidyRunInfo {
   id: string;
   /** Unix seconds. */
   at: number;
+  /** The folder that was tidied. */
+  folder: string;
   movedCount: number;
   folderCount: number;
 }
 
+/** A folder offered with one click. */
+export interface TidyPlace {
+  id: "downloads" | "desktop" | "documents";
+  path: string;
+}
+
 export interface TidyOverview {
-  downloads: string | null;
+  /** The folder to tidy; null when Downloads was asked for and there is none. */
+  folder: string | null;
+  places: TidyPlace[];
+  /** Files may also go to Documents, Pictures, Videos and Music (Downloads and the Desktop), unless tidied inside. */
+  canGoOut: boolean;
   fileCount: number;
   sizeBytes: number;
   /** The last tidy, which can still be undone. */

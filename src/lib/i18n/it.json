@@ -1152,7 +1152,7 @@
   "search": {
     "placeholderContent": "Descrivi cosa mostrano i file, ad es. «vacanze al mare»",
     "button": "Cerca",
-    "tidy": "Riordina i Download",
+    "tidy": "Riordina una cartella",
     "title": "Cerca file",
     "understanding": "Analisi della frase…",
     "searching": "Ricerca…",
@@ -1308,13 +1308,16 @@
     "retry": "Riprova"
   },
   "tidy": {
-    "title": "Riordina i Download",
-    "loose": "{files} sparsi in Download · {size}",
-    "none": "Nessun file sparso in Download.",
+    "title": "Riordina una cartella",
+    "folder": "Cartella",
+    "other": "Altra cartella…",
+    "pickTitle": "Cartella da riordinare",
+    "loose": "{files} sparsi · {size}",
+    "none": "Nessun file sparso in questa cartella.",
     "noDownloads": "Cartella Download non trovata.",
     "askAi": "Proponi le cartelle con l'AI",
     "byType": "Ordina per tipo",
-    "lastRun": "Ultimo riordino ({date}): {files} in {folders}.",
+    "lastRun": "Ultimo riordino di {folder} ({date}): {files} in {folders}.",
     "undoLast": "Annulla riordino",
     "folderOne": "1 cartella",
     "folders": "{count} cartelle",
@@ -1341,7 +1344,8 @@
       "hideFiles": "Nascondi i file",
       "empty": "Nessuna cartella proposta.",
       "again": "Proponi di nuovo",
-      "pick": "Sposta {name}"
+      "pick": "Sposta {name}",
+      "inside": "Riordina dentro la cartella"
     },
     "installers": {
       "title": "Installer già usati"
@@ -1359,15 +1363,18 @@
       "quarantine": "{files} spostati in quarantena.",
       "undo": "Annulla riordino",
       "undoing": "Ripristino…",
-      "undone": "{files} ripristinati in Download.",
-      "undoFailed": "{files} non ripristinati: modificati o con un nome già presente in Download.",
+      "undone": "{files} ripristinati in {folder}.",
+      "undoFailed": "{files} non ripristinati: modificati o con un nome già presente in {folder}.",
       "back": "Torna a File",
-      "open": "Apri Download"
+      "open": "Apri cartella"
     },
     "failed": "Operazione non riuscita: {error}",
     "error": {
       "noDownloads": "Cartella Download non trovata.",
-      "noRun": "Riordino non più annullabile."
+      "noRun": "Riordino non più annullabile.",
+      "notFound": "Cartella non trovata.",
+      "system": "Cartella di sistema: non riordinabile.",
+      "program": "Cartella di un programma o di un progetto: non riordinabile."
     }
   },
   "updateNotice": {

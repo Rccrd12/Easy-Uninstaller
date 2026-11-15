@@ -129,6 +129,7 @@ pub fn run() {
             startup::list_startup_apps,
             startup::set_startup_apps,
             tidy::tidy_overview,
+            tidy::tidy_pick_folder,
             tidy::tidy_preview,
             tidy::tidy_ask,
             tidy::tidy_by_type,

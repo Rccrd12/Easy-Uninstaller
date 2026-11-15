@@ -1152,7 +1152,7 @@
   "search": {
     "placeholderContent": "Describe what the files show, e.g. “holidays at the sea”",
     "button": "Search",
-    "tidy": "Tidy up Downloads",
+    "tidy": "Tidy up a folder",
     "title": "Search files",
     "understanding": "Reading the sentence…",
     "searching": "Searching…",
@@ -1308,13 +1308,16 @@
     "retry": "Retry"
   },
   "tidy": {
-    "title": "Tidy up Downloads",
-    "loose": "{files} lying loose in Downloads · {size}",
-    "none": "No loose files in Downloads.",
+    "title": "Tidy up a folder",
+    "folder": "Folder",
+    "other": "Other folder…",
+    "pickTitle": "Folder to tidy up",
+    "loose": "{files} lying loose · {size}",
+    "none": "No loose files in this folder.",
     "noDownloads": "Downloads folder not found.",
     "askAi": "Propose folders with AI",
     "byType": "Sort by type",
-    "lastRun": "Last tidy ({date}): {files} into {folders}.",
+    "lastRun": "Last tidy of {folder} ({date}): {files} into {folders}.",
     "undoLast": "Undo tidy",
     "folderOne": "1 folder",
     "folders": "{count} folders",
@@ -1341,7 +1344,8 @@
       "hideFiles": "Hide files",
       "empty": "No folders proposed.",
       "again": "Propose again",
-      "pick": "Move {name}"
+      "pick": "Move {name}",
+      "inside": "Tidy up inside the folder"
     },
     "installers": {
       "title": "Installers already used"
@@ -1359,15 +1363,18 @@
       "quarantine": "{files} moved to Quarantine.",
       "undo": "Undo tidy",
       "undoing": "Restoring…",
-      "undone": "{files} restored to Downloads.",
-      "undoFailed": "{files} not restored: changed or name already in Downloads.",
+      "undone": "{files} restored to {folder}.",
+      "undoFailed": "{files} not restored: changed or name already in {folder}.",
       "back": "Back to Files",
-      "open": "Open Downloads"
+      "open": "Open folder"
     },
     "failed": "Operation failed: {error}",
     "error": {
       "noDownloads": "Downloads folder not found.",
-      "noRun": "Tidy can no longer be undone."
+      "noRun": "Tidy can no longer be undone.",
+      "notFound": "Folder not found.",
+      "system": "System folder: it cannot be tidied.",
+      "program": "Folder of a program or project: it cannot be tidied."
     }
   },
   "updateNotice": {
