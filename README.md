@@ -229,7 +229,7 @@ and no network port is used. Every tool is **read only**, nothing is removed, mo
 | `list_startup_apps` | Programs that start with Windows, their impact and the app's advice |
 | `list_app_caches` | Caches of well-known apps and what emptying them would free |
 | `scan_files` | The file groups of a scan (temp files, duplicates, large files...) with progress |
-| `get_file_group` | Every file of one group of the last scan |
+| `get_file_group` | The files of one group of the last scan, page by page |
 | `list_leftovers` | What uninstalled programs left behind |
 | `scan_space_map` | Where the space on the Windows drive goes |
 | `scan_offload` | OneDrive files that could be online only, files that could move to another drive |
@@ -240,6 +240,8 @@ and no network port is used. Every tool is **read only**, nothing is removed, mo
 | `get_downloads_overview` | Loose files in Downloads and the last tidy-up |
 | `explain_folder` | What a Windows or app folder is, from the built-in list |
 
+Long lists come one page at a time (`offset`, `limit`, and `nextOffset` in the answer), with
+totals and paging fields before the lists, and times in Unix seconds also come as `YYYY-MM-DD`.
 Turning the server off takes effect at the client's next request. Settings shows the last
 client that connected.
 

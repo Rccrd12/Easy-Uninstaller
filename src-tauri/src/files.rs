@@ -712,6 +712,11 @@ pub(crate) fn skip_personal_dir(path: &Path) -> bool {
     name.starts_with('.')
         || name.eq_ignore_ascii_case("AppData")
         || name.eq_ignore_ascii_case("node_modules")
+        // An app's own library, not the user's files: Apple Music keeps its
+        // database and album artwork inside "Music Library.musiclibrary".
+        || name.to_ascii_lowercase().ends_with(".musiclibrary")
+        // Build output of a Rust project, which Cargo recreates.
+        || (name.eq_ignore_ascii_case("target") && path.with_file_name("Cargo.toml").is_file())
 }
 
 fn is_installer(path: &Path) -> bool {
@@ -1152,6 +1157,22 @@ mod platform {
 mod tests {
     use super::*;
     use std::fs::FileTimes;
+
+    #[test]
+    fn skips_app_libraries_and_build_output() {
+        let tmp = TempDir::new("skip-dirs");
+        let project = tmp.0.join("code").join("tool");
+        fs::create_dir_all(project.join("target")).unwrap();
+        fs::write(project.join("Cargo.toml"), "[package]").unwrap();
+        fs::create_dir_all(tmp.0.join("Games").join("target")).unwrap();
+        assert!(skip_personal_dir(&project.join("target")));
+        // A folder called "target" outside a Rust project is the user's.
+        assert!(!skip_personal_dir(&tmp.0.join("Games").join("target")));
+        let music = tmp.0.join("Music").join("Apple Music");
+        assert!(skip_personal_dir(&music.join("Music Library.musiclibrary")));
+        assert!(!skip_personal_dir(&music.join("Media")));
+        assert!(skip_personal_dir(&tmp.0.join(".cargo")));
+    }
 
     /// A fresh, empty folder under the system temp dir, removed when dropped.
     struct TempDir(PathBuf);

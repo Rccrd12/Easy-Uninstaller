@@ -125,8 +125,9 @@ pub trait Tools: Sync {
     fn enabled(&self) -> bool;
     /// The tool definitions for `tools/list`.
     fn list(&self) -> Value;
-    /// Runs a tool. `progress` takes a short message while a long scan runs.
-    fn call(&self, name: &str, args: &Value, progress: &dyn Fn(&str)) -> Result<Value, CallError>;
+    /// Runs a tool and returns its answer as JSON text. `progress` takes a short
+    /// message while a long scan runs.
+    fn call(&self, name: &str, args: &Value, progress: &dyn Fn(&str)) -> Result<String, CallError>;
     /// Notes the client and how many tools it called, for Settings.
     fn seen(&self, client: &str, calls: u64);
 }
@@ -243,10 +244,7 @@ impl<T: Tools, W: Write + Send> Session<'_, T, W> {
             }));
         };
         match self.tools.call(name, &args, &progress) {
-            Ok(value) => self.reply(
-                id,
-                json!({ "content": [{ "type": "text", "text": value.to_string() }] }),
-            ),
+            Ok(text) => self.reply(id, json!({ "content": [{ "type": "text", "text": text }] })),
             Err(CallError::Failed(e)) => self.reply(id, tool_error(&e)),
             Err(CallError::Unknown) => self.fail(id, -32602, &format!("Unknown tool: {name}")),
         }
@@ -297,6 +295,10 @@ pub fn serve(tools: &impl Tools, input: impl BufRead, out: impl Write + Send) {
 // The tools.
 
 fn tool(name: &str, title: &str, description: &str, properties: Value, required: &[&str]) -> Value {
+    let mut description = description.to_string();
+    if properties.get("offset").is_some() && !description.contains("nextOffset") {
+        description.push_str(PAGED);
+    }
     json!({
         "name": name,
         "title": title,
@@ -310,6 +312,21 @@ fn count(description: &str, default: u64, max: u64) -> Value {
     json!({ "type": "integer", "minimum": 0, "maximum": max, "default": default, "description": description })
 }
 
+/// `offset` and `limit` for a tool whose answer is a list, plus `extra` properties.
+fn paging(what: &str, default: u64, extra: Value) -> Value {
+    let mut properties = json!({
+        "offset": { "type": "integer", "minimum": 0, "default": 0, "description": format!("{what} to skip: nextOffset of the previous page.") },
+        "limit": count(&format!("{what} in this page."), default, MAX_PAGE),
+    });
+    if let (Some(p), Value::Object(extra)) = (properties.as_object_mut(), extra) {
+        p.extend(extra);
+    }
+    properties
+}
+
+/// Said once in every paged tool's description.
+const PAGED: &str = " One page at a time: total, offset, returned and nextOffset (null on the last page) come first.";
+
 /// The tool definitions, in the order a client lists them.
 pub fn definitions() -> Value {
     let none = json!({});
@@ -319,34 +336,36 @@ pub fn definitions() -> Value {
             none.clone(), &[]),
         tool("list_installed_apps", "Installed apps",
             "Apps installed on this PC (desktop programs and Microsoft Store apps), biggest first: name, publisher, \
-             size, version, install date, last use when known, whether it came with the PC and whether it is usually \
-             unneeded (bloatware). cacheId matches list_app_caches. Takes a few seconds.",
-            none.clone(), &[]),
+             size, version, install date, whether it came with the PC and whether it is usually unneeded (bloatware). \
+             sizeShared is true when several apps report the size of the same folder (Office and other suites): \
+             do not add those up. cacheId matches list_app_caches. Takes a few seconds.",
+            paging("Apps", 50, json!({})), &[]),
         tool("list_startup_apps", "Startup apps",
             "Programs that start with Windows: on or off, impact on startup time (high, medium, low) and the app's \
              advice (turnOff, keep, system: part of Windows).",
-            none.clone(), &[]),
+            paging("Programs", 100, json!({})), &[]),
         tool("list_app_caches", "App caches",
             "Caches of well-known apps (Teams, Spotify, Discord, browsers...) on this PC: what emptying the cache \
              would free, the app's other data, and whether the app is open. Ids match cacheId in list_installed_apps.",
-            none.clone(), &[]),
+            paging("Caches", 100, json!({})), &[]),
         tool("scan_files", "Scan files",
             "Scans the PC for space that can be freed and returns the groups (temporary files, Recycle Bin, crash \
              reports, thumbnails, old installers, large files, duplicates, similar photos, big app folders...) with \
-             size, file count, safety (safe, check, personal) and the largest files of each. Takes one minute or more \
-             and sends progress. get_file_group lists every file of a group afterwards.",
+             size, itemCount (all the files of the group), safety (safe, check, personal) and the largest files of \
+             each. Takes one minute or more and sends progress. get_file_group lists the rest of a group, page by page.",
             json!({ "maxItems": count("Largest files listed per group.", 10, 200) }), &[]),
         tool("get_file_group", "Files of a group",
-            "Every file of one group of the last scan_files in this session, largest first; for duplicates and \
-             similar photos, the sets (the first file of each set is the one kept by default).",
-            json!({
+            "The files of one group of the last scan_files in this session, largest first; for duplicates and \
+             similar photos, the sets (the first file of each set is the one kept by default). totalCount and \
+             totalBytes cover the whole group; listed is how many files (or sets) the app lists, at most a few \
+             thousand. One page at a time: offset, returned and nextOffset (null on the last page) come first.",
+            paging("Files (or sets)", 50, json!({
                 "groupId": { "type": "string", "description": "A group id from scan_files, e.g. \"large-files\"." },
-                "limit": count("Files (or sets) listed.", 100, 2000),
-            }), &["groupId"]),
+            })), &["groupId"]),
         tool("list_leftovers", "Leftovers",
             "What uninstalled programs left behind: folders, registry keys, broken shortcuts and app-list entries, \
              with size, reason, and safety (check: the user's own settings of the app).",
-            none.clone(), &[]),
+            paging("Leftovers", 100, json!({})), &[]),
         tool("scan_space_map", "Space map",
             "Where the space on the Windows drive goes: the biggest folders, each in a category (apps, personal, \
              reclaimable). Takes up to a minute and sends progress.",
@@ -358,18 +377,20 @@ pub fn definitions() -> Value {
         tool("list_quarantine", "Quarantine",
             "What is in Easy Uninstaller's Quarantine: removed items kept for a few days so they can be restored, \
              with removal and expiry times and sizes.",
-            json!({ "maxItems": count("Items listed per entry.", 10, 50) }), &[]),
+            paging("Entries", 50, json!({ "maxItems": count("Items listed per entry.", 10, 50) })), &[]),
         tool("get_history", "History",
-            "What Easy Uninstaller did on this PC (cleanups, uninstalls, restores) and how much space it gave back.",
-            none.clone(), &[]),
+            "What Easy Uninstaller did on this PC (cleanups, uninstalls, restores), newest first, and how much space \
+             it gave back. The actions come one page at a time: listed, offset, returned and nextOffset come first.",
+            paging("Actions", 50, json!({})), &[]),
         tool("list_uninstalled_apps", "Uninstalled apps",
             "Apps uninstalled with Easy Uninstaller, newest first, with the way to get each one back (Store, \
              website, Steam, web search).",
-            none.clone(), &[]),
+            paging("Apps", 100, json!({})), &[]),
         tool("search_files", "Search files",
-            "Searches the user's folders by kind, size, age and words in the name. Returns the first matches in the \
-             chosen order and the totals.",
-            json!({
+            "Searches the user's folders by kind, size, age and words in the name. totalCount and totalBytes cover \
+             every match; listed is how many the app keeps in the chosen order (the first 200). One page at a time: \
+             offset, returned and nextOffset (null on the last page) come first.",
+            paging("Files", 50, json!({
                 "kinds": { "type": "array", "items": { "type": "string", "enum": ["image", "video", "audio", "document", "archive", "program", "disc"] }, "description": "Any of these kinds; empty for any file." },
                 "minBytes": { "type": "integer", "minimum": 0 },
                 "maxBytes": { "type": "integer", "minimum": 0 },
@@ -378,8 +399,7 @@ pub fn definitions() -> Value {
                 "places": { "type": "array", "items": { "type": "string", "enum": ["desktop", "documents", "downloads", "pictures", "videos", "music"] }, "description": "Empty for all the user's folders." },
                 "words": { "type": "array", "items": { "type": "string" }, "description": "Words that must all be in the file or folder names." },
                 "sort": { "type": "string", "enum": ["size", "oldest", "newest"], "default": "size" },
-                "limit": count("Files listed.", 50, 200),
-            }), &[]),
+            })), &[]),
         tool("get_downloads_overview", "Downloads",
             "How many loose files the Downloads folder has and their size, and the last tidy-up that can still be undone.",
             none, &[]),
@@ -464,7 +484,7 @@ impl Tools for AppTools {
         let _ = write_json(&self.dir.join(CLIENT_FILE), &client);
     }
 
-    fn call(&self, name: &str, args: &Value, progress: &dyn Fn(&str)) -> Result<Value, CallError> {
+    fn call(&self, name: &str, args: &Value, progress: &dyn Fn(&str)) -> Result<String, CallError> {
         use tauri::async_runtime::block_on;
         let app = self.app.clone();
         let value = match name {
@@ -473,17 +493,22 @@ impl Tools for AppTools {
                 "otherDrives": to_value(crate::disk::other_drives())?,
             }),
             "list_installed_apps" => {
-                to_value(block_on(crate::apps::list_installed_apps()).map_err(failed)?)?
+                let mut v =
+                    to_value(block_on(crate::apps::list_installed_apps()).map_err(failed)?)?;
+                mark_shared_sizes(&mut v);
+                paged(v, "apps", window(args, 50))
             }
             "list_startup_apps" => {
                 let mut v =
                     to_value(block_on(crate::startup::list_startup_apps()).map_err(failed)?)?;
                 prefix_keys(&mut v, "note", "startup.notes.");
-                v
+                paged(v, "apps", window(args, 100))
             }
-            "list_app_caches" => {
-                to_value(block_on(crate::app_cache::list_app_caches(app)).map_err(failed)?)?
-            }
+            "list_app_caches" => paged(
+                to_value(block_on(crate::app_cache::list_app_caches(app)).map_err(failed)?)?,
+                "caches",
+                window(args, 100),
+            ),
             "scan_files" => {
                 let max = arg_count(args, "maxItems", 10, 200);
                 let groups = with_progress(
@@ -512,7 +537,6 @@ impl Tools for AppTools {
                     .and_then(Value::as_str)
                     .unwrap_or("")
                     .to_string();
-                let limit = arg_count(args, "limit", 100, 2000);
                 let review =
                     block_on(crate::review::review_file_group(app, id.clone())).map_err(failed)?;
                 let Some(review) = review else {
@@ -521,15 +545,21 @@ impl Tools for AppTools {
                     )));
                 };
                 let mut v = to_value(review)?;
-                truncate(&mut v, "files", limit);
-                truncate(&mut v, "duplicateSets", limit);
+                let sets = v["duplicateSets"].as_array().is_some_and(|s| !s.is_empty());
+                if sets {
+                    v.as_object_mut().map(|o| o.remove("files"));
+                    paged_field(&mut v, "duplicateSets", window(args, 50));
+                } else {
+                    v.as_object_mut().map(|o| o.remove("duplicateSets"));
+                    paged_field(&mut v, "files", window(args, 50));
+                }
                 v
             }
             "list_leftovers" => {
                 let mut v =
                     to_value(block_on(crate::leftovers::list_leftovers(app)).map_err(failed)?)?;
                 prefix_keys(&mut v, "reason", "leftovers.reasons.");
-                v
+                paged(v, "leftovers", window(args, 100))
             }
             "scan_space_map" => to_value(
                 with_progress(
@@ -556,23 +586,28 @@ impl Tools for AppTools {
                 for entry in v.as_array_mut().into_iter().flatten() {
                     truncate(entry, "items", max);
                 }
-                v
+                paged(v, "entries", window(args, 50))
             }
             "get_history" => {
                 let entries = self.app.state::<crate::quarantine::Quarantine>().list();
                 let live = crate::history::live_entries(&entries);
-                to_value(self.app.state::<crate::history::History>().summary(&live))?
+                let mut v = to_value(self.app.state::<crate::history::History>().summary(&live))?;
+                paged_field(&mut v, "items", window(args, 50));
+                v
             }
-            "list_uninstalled_apps" => to_value(crate::reinstall::list_uninstalled_apps(app))?,
+            "list_uninstalled_apps" => paged(
+                to_value(crate::reinstall::list_uninstalled_apps(app))?,
+                "apps",
+                window(args, 100),
+            ),
             "search_files" => {
-                let limit = arg_count(args, "limit", 50, 200);
                 let mut filter: crate::search::SearchFilter = serde_json::from_value(args.clone())
                     .map_err(|e| CallError::Failed(format!("Invalid filter: {e}")))?;
                 // Searching by content needs the local model, which only the window runs.
                 filter.topic = None;
                 let mut v =
                     to_value(block_on(crate::search::search_files(app, filter)).map_err(failed)?)?;
-                truncate(&mut v, "files", limit);
+                paged_field(&mut v, "files", window(args, 50));
                 v
             }
             "get_downloads_overview" => {
@@ -588,7 +623,7 @@ impl Tools for AppTools {
             }
             _ => return Err(CallError::Unknown),
         };
-        Ok(readable(value))
+        Ok(to_text(&readable(value)))
     }
 }
 
@@ -658,10 +693,30 @@ fn translate(value: &mut Value) {
                     }
                 }
             }
+            let dates: Vec<(String, String)> = map
+                .iter()
+                .filter(|(k, _)| is_time_field(k))
+                .filter_map(|(k, v)| {
+                    let secs = v.as_u64().filter(|&s| s >= YEAR_2000)?;
+                    let at = UNIX_EPOCH + Duration::from_secs(secs);
+                    Some((format!("{k}Date"), crate::files::iso_date(at)))
+                })
+                .collect();
+            for (k, date) in dates {
+                map.insert(k, Value::String(date));
+            }
             map.values_mut().for_each(translate);
         }
         _ => {}
     }
+}
+
+/// Unix seconds of 2000-01-01: smaller numbers in a time field are not dates.
+const YEAR_2000: u64 = 946_684_800;
+
+/// Fields holding Unix seconds, which also get a `YYYY-MM-DD` (UTC) copy.
+fn is_time_field(name: &str) -> bool {
+    name.ends_with("At") || matches!(name, "since" | "pendingUntil" | "lastSeen")
 }
 
 /// Turns a short key such as a leftover's `"programFolder"` into words, in every item of a list.
@@ -674,17 +729,139 @@ fn prefix_keys(value: &mut Value, field: &str, prefix: &str) {
     }
 }
 
-/// Keeps the first `max` items of `value[field]`, noting how many were left out.
+/// Keeps the first `max` items of `value[field]`. The totals stay in their own
+/// fields (`itemCount`, `fileCount`, `totalCount`): the app itself lists only the
+/// largest few hundred, so a count of what was cut here would be wrong.
 fn truncate(value: &mut Value, field: &str, max: usize) {
+    if let Some(Value::Array(list)) = value.get_mut(field) {
+        list.truncate(max);
+    }
+}
+
+/// The largest page a client can ask for.
+const MAX_PAGE: u64 = 500;
+
+/// `offset` and `limit` from a tool's arguments.
+#[derive(Debug, Clone, Copy)]
+struct Window {
+    offset: usize,
+    limit: usize,
+}
+
+fn window(args: &Value, default_limit: u64) -> Window {
+    Window {
+        offset: arg_count(args, "offset", 0, u64::from(u32::MAX)),
+        limit: arg_count(args, "limit", default_limit, MAX_PAGE),
+    }
+}
+
+/// Cuts `list` to the window and says where the next page starts: `total`, `offset`,
+/// `returned`, `nextOffset` (null on the last page).
+fn page_of(list: Vec<Value>, w: Window) -> (Vec<Value>, Value) {
+    let total = list.len();
+    let items: Vec<Value> = list.into_iter().skip(w.offset).take(w.limit).collect();
+    let next = w.offset.saturating_add(items.len());
+    let info = json!({
+        "total": total,
+        "offset": w.offset,
+        "returned": items.len(),
+        "nextOffset": (next < total).then_some(next),
+    });
+    (items, info)
+}
+
+/// A whole list as one page: `{ total, offset, returned, nextOffset, <name>: [...] }`.
+fn paged(list: Value, name: &str, w: Window) -> Value {
+    let list = match list {
+        Value::Array(a) => a,
+        other => vec![other],
+    };
+    let (items, mut info) = page_of(list, w);
+    info[name] = Value::Array(items);
+    info
+}
+
+/// A list inside an answer as one page; the paging fields go next to it, with
+/// `total` renamed `listed` (the answer's own totals may count more than the app lists).
+fn paged_field(value: &mut Value, field: &str, w: Window) {
     let Some(Value::Array(list)) = value.get_mut(field) else {
         return;
     };
-    if list.len() > max {
-        let left_out = list.len() - max;
-        list.truncate(max);
-        let note = format!("{field}LeftOut");
-        value[note] = json!(left_out);
+    let (items, info) = page_of(std::mem::take(list), w);
+    value[field] = Value::Array(items);
+    value["listed"] = info["total"].clone();
+    for k in ["offset", "returned", "nextOffset"] {
+        value[k] = info[k].clone();
     }
+}
+
+/// Office and other suites register each of their apps with the size of the whole
+/// suite: `sizeShared` marks apps whose folder and size another app has too, so the
+/// sizes are not added up. `lastUsed` and `neverUsed` go: Windows records neither.
+fn mark_shared_sizes(apps: &mut Value) {
+    let Some(list) = apps.as_array_mut() else {
+        return;
+    };
+    let key = |a: &Value| {
+        let location = a["location"]
+            .as_str()?
+            .trim_end_matches('\\')
+            .to_lowercase();
+        let size = a["sizeBytes"].as_u64().filter(|&s| s > 0)?;
+        Some((location, size))
+    };
+    let mut seen = std::collections::HashMap::new();
+    for a in list.iter() {
+        if let Some(k) = key(a) {
+            *seen.entry(k).or_insert(0) += 1;
+        }
+    }
+    for a in list.iter_mut() {
+        let shared = key(a).is_some_and(|k| seen[&k] > 1);
+        if let Some(o) = a.as_object_mut() {
+            o.remove("lastUsed");
+            o.remove("neverUsed");
+            o.insert("sizeShared".into(), Value::Bool(shared));
+        }
+    }
+}
+
+/// JSON text with each object's plain values first and its lists and objects last:
+/// a client that cuts a long answer short still has the totals and paging fields.
+fn to_text(value: &Value) -> String {
+    fn write(value: &Value, out: &mut String) {
+        match value {
+            Value::Object(map) => {
+                let mut fields: Vec<_> = map.iter().collect();
+                // Stable: the keys keep their order within each kind.
+                fields.sort_by_key(|(_, v)| v.is_array() || v.is_object());
+                out.push('{');
+                for (i, (k, v)) in fields.into_iter().enumerate() {
+                    if i > 0 {
+                        out.push(',');
+                    }
+                    out.push_str(&Value::String(k.clone()).to_string());
+                    out.push(':');
+                    write(v, out);
+                }
+                out.push('}');
+            }
+            Value::Array(items) => {
+                out.push('[');
+                for (i, v) in items.iter().enumerate() {
+                    if i > 0 {
+                        out.push(',');
+                    }
+                    write(v, out);
+                }
+                out.push(']');
+            }
+            other => out.push_str(&other.to_string()),
+        }
+    }
+    let mut out = String::new();
+    write(value, &mut out);
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -759,8 +936,8 @@ mod tests {
             name: &str,
             args: &Value,
             progress: &dyn Fn(&str),
-        ) -> Result<Value, CallError> {
-            match name {
+        ) -> Result<String, CallError> {
+            let answer = match name {
                 "get_disk_space" => {
                     progress("half way");
                     Ok(json!({ "free": 5 }))
@@ -770,7 +947,8 @@ mod tests {
                 }
                 "explain_folder" => Ok(json!({ "known": false })),
                 _ => Err(CallError::Unknown),
-            }
+            };
+            answer.map(|v| v.to_string())
         }
         fn seen(&self, client: &str, calls: u64) {
             self.seen.lock().unwrap().push((client.to_string(), calls));
@@ -938,9 +1116,86 @@ mod tests {
         assert_eq!(v[1]["reason"], 3);
         truncate(&mut v[0], "items", 2);
         assert_eq!(v[0]["items"], json!([1, 2]));
-        assert_eq!(v[0]["itemsLeftOut"], 1);
+        assert!(v[0].get("itemsLeftOut").is_none());
         truncate(&mut v[0], "items", 5);
-        assert_eq!(v[0]["itemsLeftOut"], 1);
+        assert_eq!(v[0]["items"], json!([1, 2]));
+    }
+
+    fn review_file(n: u64) -> crate::review::ReviewFile {
+        crate::review::ReviewFile {
+            path: format!("C:\\f{n}"),
+            size_bytes: n,
+            last_used: "2026-01-01".into(),
+            modified: "2026-01-01".into(),
+            can_open: false,
+        }
+    }
+
+    #[test]
+    fn pages_put_the_totals_first() {
+        let review = |files: Vec<_>, sets: Vec<_>| crate::review::GroupReview {
+            group_id: "large-files".into(),
+            total_count: 5,
+            total_bytes: 15,
+            files,
+            duplicate_sets: sets,
+        };
+        let w = |offset, limit| Window { offset, limit };
+        let files: Vec<_> = (1..=5).map(review_file).collect();
+        let mut v = to_value(review(files.clone(), vec![])).unwrap();
+        paged_field(&mut v, "files", w(0, 2));
+        let text = to_text(&v);
+        // Plain values first (in key order), lists last.
+        assert!(
+            text.starts_with(
+                r#"{"groupId":"large-files","listed":5,"nextOffset":2,"offset":0,"returned":2,"totalBytes":15,"totalCount":5,"#
+            ),
+            "{text}"
+        );
+        assert_eq!(serde_json::from_str::<Value>(&text).unwrap(), v);
+
+        let mut last = to_value(review(files, vec![])).unwrap();
+        paged_field(&mut last, "files", w(4, 2));
+        assert_eq!(last["returned"], 1);
+        assert_eq!(last["nextOffset"], Value::Null);
+        assert_eq!(last["files"][0]["path"], "C:\\f5");
+
+        let apps = json!([{ "n": 1 }, { "n": 2 }, { "n": 3 }]);
+        let p = paged(apps, "apps", w(1, 1));
+        assert_eq!(
+            p,
+            json!({ "total": 3, "offset": 1, "returned": 1, "nextOffset": 2, "apps": [{ "n": 2 }] })
+        );
+        let p = paged(json!([]), "apps", w(10, 5));
+        assert_eq!(p["returned"], 0);
+        assert_eq!(p["nextOffset"], Value::Null);
+    }
+
+    #[test]
+    fn marks_suites_and_dates() {
+        let mut apps = json!([
+            { "name": "Word", "location": "C:\\Program Files\\Microsoft Office", "sizeBytes": 7, "lastUsed": null, "neverUsed": false },
+            { "name": "Excel", "location": "c:\\program files\\microsoft office\\", "sizeBytes": 7 },
+            { "name": "VLC", "location": "C:\\Program Files\\VLC", "sizeBytes": 7 },
+            { "name": "Tool", "location": null, "sizeBytes": 0 },
+        ]);
+        mark_shared_sizes(&mut apps);
+        let shared: Vec<bool> = apps
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|a| a["sizeShared"].as_bool().unwrap())
+            .collect();
+        assert_eq!(shared, [true, true, false, false]);
+        assert!(apps[0].get("lastUsed").is_none());
+
+        let v = readable(
+            json!({ "removedAt": 1_794_763_278u64, "itemCount": 1_794_763_278u64, "since": null, "modifiedAt": 5 }),
+        );
+        assert_eq!(v["removedAtDate"], "2026-11-15");
+        assert!(v.get("itemCountDate").is_none());
+        assert!(v.get("sinceDate").is_none());
+        assert!(v.get("modifiedAtDate").is_none());
     }
 
     #[test]
