@@ -832,3 +832,22 @@ export interface TidyUndoReport {
   restoredCount: number;
   failedCount: number;
 }
+
+/** The MCP server (src-tauri/src/mcp.rs): other programs read what the app finds. */
+export interface McpStatus {
+  /** Off until the user turns it on; `--mcp` refuses to start while off. */
+  enabled: boolean;
+  /** This app's full path, for the client's configuration. */
+  command: string;
+  /** The last program that connected, if any. */
+  lastClient: McpClient | null;
+}
+
+export interface McpClient {
+  /** The name the client gave itself ("Claude Desktop", "my-tool"). */
+  name: string;
+  /** Unix seconds of its last request. */
+  lastSeen: number;
+  /** Tool calls in that session. */
+  calls: number;
+}

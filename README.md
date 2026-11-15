@@ -201,6 +201,50 @@ a "can be removed" answer is turned into "keep it".
 Found a problem that could put someone's files at risk? Please open an issue, or contact the
 maintainer privately for anything sensitive.
 
+## MCP server
+
+Other programs can read what Easy Uninstaller finds through the
+[Model Context Protocol](https://modelcontextprotocol.io): Claude Desktop, Claude Code, Cursor
+or your own scripts. It is **off by default**: turn on *Settings > MCP server > Allow MCP clients*
+and copy the configuration shown there into your client, for example `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "easy-uninstaller": {
+      "command": "C:\\Users\\you\\AppData\\Local\\Easy Uninstaller\\easy-uninstaller.exe",
+      "args": ["--mcp"]
+    }
+  }
+}
+```
+
+The client starts the app with `--mcp` and talks to it over stdin and stdout: no window opens
+and no network port is used. Every tool is **read only**, nothing is removed, moved or turned off:
+
+| Tool | What it returns |
+| --- | --- |
+| `get_disk_space` | Free and total space of each fixed drive |
+| `list_installed_apps` | Installed programs and Store apps: size, version, install date, bloatware |
+| `list_startup_apps` | Programs that start with Windows, their impact and the app's advice |
+| `list_app_caches` | Caches of well-known apps and what emptying them would free |
+| `scan_files` | The file groups of a scan (temp files, duplicates, large files...) with progress |
+| `get_file_group` | The files of one group of the last scan, page by page |
+| `list_leftovers` | What uninstalled programs left behind |
+| `scan_space_map` | Where the space on the Windows drive goes |
+| `scan_offload` | OneDrive files that could be online only, files that could move to another drive |
+| `list_quarantine` | What is in Quarantine and when it expires |
+| `get_history` | What the app did and how much space it gave back |
+| `list_uninstalled_apps` | Apps uninstalled here and how to get them back |
+| `search_files` | Files by kind, size, age and name |
+| `get_downloads_overview` | Loose files in Downloads and the last tidy-up |
+| `explain_folder` | What a Windows or app folder is, from the built-in list |
+
+Long lists come one page at a time (`offset`, `limit`, and `nextOffset` in the answer), with
+totals and paging fields before the lists, and times in Unix seconds also come as `YYYY-MM-DD`.
+Turning the server off takes effect at the client's next request. Settings shows the last
+client that connected.
+
 ## Privacy
 
 Easy Uninstaller has no telemetry, no accounts and no ads. Your settings, the quarantine,
@@ -214,6 +258,8 @@ hidden items and AI answers stay on your PC. The app goes online only in these c
   A new version is downloaded only when you press *Update now*.
 - **AI help**, only if you turn it on, and only to the service you choose. What is sent is
   described in [AI help](#ai-help); that service's own privacy policy applies.
+- **MCP server**, only if you turn it on: connected clients receive names, paths and sizes
+  of apps and files. If the client uses an online AI service, that data leaves the PC.
 - **The installer** downloads the Microsoft WebView2 runtime if Windows does not have it.
 
 ## Roadmap
@@ -246,7 +292,8 @@ hidden items and AI answers stay on your PC. The app goes online only in these c
 18. ✅ Release 0.3.0: app caches, history and a new Home, uninstalled apps and new-PC setup,
     reminders, similar photos, OneDrive "online only" and moving files to another drive,
     larger text, beta updates, a simpler app-like wording, and the local index on the graphics card
-19. ⬜ A stable 1.0
+19. ✅ MCP server, off by default: other programs read what the app finds (read only)
+20. ⬜ A stable 1.0
 
 ## Development
 
@@ -311,6 +358,7 @@ src-tauri/              backend (Rust)
   src/restore_point.rs  Windows restore points
   src/ai.rs             AI help: services, prompt, answers kept on this PC (ai/ for the parts)
   src/updater.rs        in-app updates from GitHub Releases
+  src/mcp.rs            MCP server (`--mcp`): read-only tools for other programs
 docs/                   screenshots, design mockups, code signing and update notes
 ```
 

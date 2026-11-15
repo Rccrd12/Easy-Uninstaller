@@ -8,5 +8,8 @@ fn main() {
     if let Some(code) = easy_uninstaller_lib::run_reminders_check() {
         std::process::exit(code);
     }
+    if let Some(code) = easy_uninstaller_lib::run_mcp_server() {
+        std::process::exit(code);
+    }
     easy_uninstaller_lib::run()
 }

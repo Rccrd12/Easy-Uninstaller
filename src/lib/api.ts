@@ -74,6 +74,7 @@ import type {
   QuarantineEntry,
   QuarantineOptions,
   QuarantineSettings,
+  McpStatus,
   ReminderSettings,
   ReminderTexts,
   RestorePointOutcome,
@@ -1434,4 +1435,38 @@ export async function moveBackFiles(ids: string[]): Promise<MoveBackReport> {
 /** Opens the folder of a moved file in Explorer, with the file selected. */
 export async function showMovedFile(id: string): Promise<void> {
   if (isTauri()) return invoke("show_moved_file", { id });
+}
+
+// ---------------------------------------------------------------------------
+// MCP server. Real: src-tauri/src/mcp.rs. The server itself is this app started
+// with `--mcp` by the client; the window only turns it on or off.
+
+let sampleMcp: McpStatus = {
+  enabled: false,
+  command: "C:\\Users\\Mario\\AppData\\Local\\Easy Uninstaller\\easy-uninstaller.exe",
+  lastClient: null,
+};
+
+/** Whether other programs may connect, and how to configure them. */
+export async function getMcpStatus(): Promise<McpStatus> {
+  if (isTauri()) return invoke<McpStatus>("mcp_status");
+  return { ...sampleMcp };
+}
+
+/** Turns the MCP server on or off. Off takes effect at the client's next request. */
+export async function setMcpEnabled(enabled: boolean): Promise<McpStatus> {
+  if (isTauri()) return invoke<McpStatus>("mcp_set_enabled", { enabled });
+  sampleMcp = {
+    ...sampleMcp,
+    enabled,
+    lastClient: enabled ? { name: "Claude Desktop", lastSeen: Math.floor(Date.now() / 1000) - 240, calls: 12 } : sampleMcp.lastClient,
+  };
+  return { ...sampleMcp };
+}
+
+/** The `mcpServers` entry a client such as Claude Desktop needs. */
+export function mcpClientConfig(command: string): string {
+  const pretty = JSON.stringify({ mcpServers: { "easy-uninstaller": { command, args: ["--mcp"] } } }, null, 2);
+  // `"args": ["--mcp"]` on one line, as client docs show it.
+  return pretty.replace(/\[\s+"--mcp"\s+\]/, '["--mcp"]');
 }

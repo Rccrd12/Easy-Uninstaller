@@ -5,12 +5,12 @@
 //! are i18n keys (`explain.folders.<id>.*` in `src/lib/i18n`), so the UI translates them.
 //! Nothing is sent anywhere: matching is a plain path comparison.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 const KNOWN_FOLDERS: &str = include_str!("known_folders.json");
 
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum Verdict {
     /// Apps or Windows recreate it: it can go.
@@ -25,8 +25,7 @@ pub enum Verdict {
 #[serde(rename_all = "camelCase")]
 pub struct KnownFolder {
     pub id: String,
-    /// The UI reads it from the same JSON; parsing it here makes a typo fail the tests.
-    #[allow(dead_code)]
+    /// The UI reads it from the same JSON; the MCP server passes it on.
     pub verdict: Verdict,
     /// Never listed among the unknown folders: Windows itself, or already in another group.
     #[serde(default)]
