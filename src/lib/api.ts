@@ -28,7 +28,10 @@ import {
   samplePreview,
   sampleQuarantine,
   sampleQuarantineSettings,
-  sampleLooseDownloads,
+  sampleLooseFiles,
+  sampleRefusedFolder,
+  SAMPLE_PICKED_FOLDER,
+  SAMPLE_TIDY_PLACES,
   sampleSearch,
   sampleSearchPool,
   sampleSpaceUsage,
@@ -1186,48 +1189,59 @@ export async function indexFindModels(): Promise<OwnModel[]> {
   ];
 }
 
-// ── Tidying Downloads (src-tauri/src/tidy.rs) ──────────────────────────────
+// ── Tidying a folder (src-tauri/src/tidy.rs) ───────────────────────────────
+// `folder` null is Downloads.
 
 /** Sample tidies, newest last, so undo can be tried in the browser. */
-const sampleTidyRuns: { id: string; at: number; moves: SampleFile[]; folderCount: number }[] = [];
+const sampleTidyRuns: { id: string; at: number; folder: string; moves: SampleFile[]; folderCount: number }[] = [];
 const sampleTidied = new Set<string>();
-const sampleLoose = () => sampleLooseDownloads.filter((f) => samplePresent(f.path) && !sampleTidied.has(f.path));
+const sampleLoose = (folder: string | null) =>
+  sampleLooseFiles(folder ?? SAMPLE_TIDY_PLACES[0].path).filter((f) => samplePresent(f.path) && !sampleTidied.has(f.path));
 
-/** How many loose files Downloads has, and the last tidy that can be undone. */
-export async function tidyOverview(): Promise<TidyOverview> {
-  if (isTauri()) return invoke<TidyOverview>("tidy_overview");
+/** How many loose files the folder has, the folders offered with one click, and the last tidy that can be undone. */
+export async function tidyOverview(folder: string | null): Promise<TidyOverview> {
+  if (isTauri()) return invoke<TidyOverview>("tidy_overview", { folder });
   await sleep(300);
-  const loose = sampleLoose();
+  if (folder && sampleRefusedFolder(folder)) throw sampleRefusedFolder(folder);
+  const loose = sampleLoose(folder);
   const last = sampleTidyRuns.at(-1);
   return {
-    downloads: `C:\\Users\\you\\Downloads`,
+    folder: folder ?? SAMPLE_TIDY_PLACES[0].path,
+    places: SAMPLE_TIDY_PLACES,
     fileCount: loose.length,
     sizeBytes: loose.reduce((s, f) => s + f.sizeBytes, 0),
-    lastRun: last ? { id: last.id, at: last.at, movedCount: last.moves.length, folderCount: last.folderCount } : null,
+    lastRun: last ? { id: last.id, at: last.at, folder: last.folder, movedCount: last.moves.length, folderCount: last.folderCount } : null,
   };
 }
 
+/** Opens Windows' folder picker; null when cancelled. The browser picks a sample folder. */
+export async function tidyPickFolder(title: string, start: string | null): Promise<string | null> {
+  if (isTauri()) return invoke<string | null>("tidy_pick_folder", { title, start });
+  await sleep(300);
+  return SAMPLE_PICKED_FOLDER;
+}
+
 /** What would be sent to the AI: one line per file (name, size, month). */
-export async function tidyPreview(lang: string): Promise<TidyPreview> {
-  if (isTauri()) return invoke<TidyPreview>("tidy_preview", { lang });
+export async function tidyPreview(folder: string | null, lang: string): Promise<TidyPreview> {
+  if (isTauri()) return invoke<TidyPreview>("tidy_preview", { folder, lang });
   await sleep(200);
-  const lines = sampleTidyLines(sampleLoose());
+  const lines = sampleTidyLines(sampleLoose(folder));
   return { lines, question: lines.join("\n"), notSentCount: 0 };
 }
 
 /** Asks the AI to propose folders. Nothing moves until `tidyApply`. */
-export async function tidyAsk(config: AiConfig, lang: string): Promise<TidyPlan> {
-  if (isTauri()) return invoke<TidyPlan>("tidy_ask", { config, lang });
+export async function tidyAsk(folder: string | null, config: AiConfig, lang: string): Promise<TidyPlan> {
+  if (isTauri()) return invoke<TidyPlan>("tidy_ask", { folder, config, lang });
   await sampleEnsure(config);
   await sleep(2200);
-  return sampleTidyPlan(sampleLoose(), lang, true);
+  return sampleTidyPlan(sampleLoose(folder), folder ?? SAMPLE_TIDY_PLACES[0].path, lang, true);
 }
 
 /** One folder per kind of file, without the AI. */
-export async function tidyByType(lang: string): Promise<TidyPlan> {
-  if (isTauri()) return invoke<TidyPlan>("tidy_by_type", { lang });
+export async function tidyByType(folder: string | null, lang: string): Promise<TidyPlan> {
+  if (isTauri()) return invoke<TidyPlan>("tidy_by_type", { folder, lang });
   await sleep(400);
-  return sampleTidyPlan(sampleLoose(), lang, false);
+  return sampleTidyPlan(sampleLoose(folder), folder ?? SAMPLE_TIDY_PLACES[0].path, lang, false);
 }
 
 /**
@@ -1239,17 +1253,18 @@ export async function tidyApply(choices: TidyChoice[], installers: string[], pla
   await sleep(900);
   const quarantine: MoveReport = { entryIds: [], movedCount: 0, movedBytes: 0, deletedCount: 0, deletedBytes: 0, freedBytes: 0, skippedCount: 0, declinedCount: 0 };
   const paths = new Set(choices.flatMap((c) => c.paths));
-  const moves = sampleLooseDownloads.filter((f) => paths.has(f.path));
+  const moves = plan.folders.flatMap((f) => f.files).filter((f) => paths.has(f.path)).map((f) => ({ path: f.path, sizeBytes: f.sizeBytes, modified: f.modified }) as SampleFile);
   moves.forEach((f) => sampleTidied.add(f.path));
   const folderCount = choices.filter((c) => c.paths.length).length;
   const id = String(Date.now());
-  if (moves.length) sampleTidyRuns.push({ id, at: Math.floor(Date.now() / 1000), moves, folderCount });
+  const folder = moves[0]?.path.slice(0, moves[0].path.lastIndexOf("\\")) ?? "";
+  if (moves.length) sampleTidyRuns.push({ id, at: Math.floor(Date.now() / 1000), folder, moves, folderCount });
   const picked = plan.installers.filter((f) => installers.includes(f.path));
   if (picked.length) sampleMove(quarantine, { id: "installers", titleKey: "files.groups.installers.title" } as FileGroup, picked, picked.length, Math.floor(Date.now() / 1000));
   return { movedCount: moves.length, movedBytes: moves.reduce((s, f) => s + f.sizeBytes, 0), skippedCount: 0, folderCount, runId: moves.length ? id : null, quarantine };
 }
 
-/** Puts the files of a tidy back in Downloads; the folders it made go away when empty. */
+/** Puts the files of a tidy back where they were; the folders it made go away when empty. */
 export async function tidyUndo(runId: string): Promise<TidyUndoReport> {
   if (isTauri()) return invoke<TidyUndoReport>("tidy_undo", { runId });
   await sleep(500);

@@ -1,7 +1,7 @@
 // Sample data used until each scanner is implemented in Rust.
 // Every function in api.ts that still returns from here is marked "sample".
 import { GB, MB } from "./format";
-import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, HistoryKind, HistoryName, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage, StartupApp, AppCache, NewPcAdvice, NewPcReason, UninstalledApp, OffloadFile, SearchFilter, SearchKind, SearchPlace, SearchResult, SearchSort, TidyDest, TidyFile, TidyFolder, TidyPlan } from "./types";
+import type { AiAnswer, AiModel, AiServiceStatus, DriveInfo, FileGroup, FolderSummary, FileItem, HistoryKind, HistoryName, InstalledApp, LeftoverItem, QuarantineEntry, QuarantineSettings, SpaceFolder, SpaceUsage, StartupApp, AppCache, NewPcAdvice, NewPcReason, UninstalledApp, OffloadFile, SearchFilter, SearchKind, SearchPlace, SearchResult, SearchSort, TidyDest, TidyFile, TidyFolder, TidyPlace, TidyPlan } from "./types";
 
 const remove = (reason: NewPcReason): NewPcAdvice => ({ advice: "remove", reason });
 const choose = (reason: NewPcReason): NewPcAdvice => ({ advice: "choose", reason });
@@ -715,14 +715,68 @@ export const sampleLooseDownloads: SampleFile[] = [
   file("", `${D}\\doc12345.pdf`, 0.9 * MB, "2025-03-01"),
 ];
 
+/** Folders offered with one click in "Tidy up a folder". */
+export const SAMPLE_TIDY_PLACES: TidyPlace[] = [
+  { id: "downloads", path: D },
+  { id: "desktop", path: `${U}\\Desktop` },
+  { id: "documents", path: `${U}\\Documents` },
+];
+
+/** What the browser's pretend folder picker returns. */
+export const SAMPLE_PICKED_FOLDER = "D:\\Backup 2024";
+
+/** Files lying loose on the pretend Desktop. */
+const sampleLooseDesktop: SampleFile[] = [
+  file("", `${U}\\Desktop\\Screenshot 2025-07-01 101233.png`, 0.8 * MB, "2025-07-01"),
+  file("", `${U}\\Desktop\\Screenshot 2025-07-03 184510.png`, 0.6 * MB, "2025-07-03"),
+  file("", `${U}\\Desktop\\Gym timetable.pdf`, 0.2 * MB, "2025-05-20"),
+  file("", `${U}\\Desktop\\Car insurance 2025.pdf`, 0.4 * MB, "2025-02-14"),
+  file("", `${U}\\Desktop\\Shopping notes.txt`, 0.01 * MB, "2025-07-10"),
+];
+
+/** Files lying loose in the pretend picked folder. */
+const sampleLoosePicked: SampleFile[] = [
+  file("", `${SAMPLE_PICKED_FOLDER}\\IMG_20240312_101522.jpg`, 3.8 * MB, "2024-03-12"),
+  file("", `${SAMPLE_PICKED_FOLDER}\\IMG_20240312_101544.jpg`, 3.6 * MB, "2024-03-12"),
+  file("", `${SAMPLE_PICKED_FOLDER}\\IMG_20240313_172010.jpg`, 4.1 * MB, "2024-03-13"),
+  file("", `${SAMPLE_PICKED_FOLDER}\\WhatsApp Image 2024-05-02.jpeg`, 0.3 * MB, "2024-05-02"),
+  file("", `${SAMPLE_PICKED_FOLDER}\\WhatsApp Image 2024-05-04.jpeg`, 0.2 * MB, "2024-05-04"),
+  file("", `${SAMPLE_PICKED_FOLDER}\\VID_20240313_172200.mp4`, 148 * MB, "2024-03-13"),
+  file("", `${SAMPLE_PICKED_FOLDER}\\ID card scan.pdf`, 1.2 * MB, "2024-01-09"),
+  file("", `${SAMPLE_PICKED_FOLDER}\\Passport scan.pdf`, 1.4 * MB, "2024-01-09"),
+  file("", `${SAMPLE_PICKED_FOLDER}\\Car insurance 2024.pdf`, 0.4 * MB, "2024-02-14"),
+  file("", `${SAMPLE_PICKED_FOLDER}\\Car service invoice.pdf`, 0.2 * MB, "2024-06-21"),
+  file("", `${SAMPLE_PICKED_FOLDER}\\Bank statement Dec 2024.pdf`, 0.3 * MB, "2024-12-31"),
+  file("", `${SAMPLE_PICKED_FOLDER}\\Mortgage statement 2024.pdf`, 0.5 * MB, "2024-12-31"),
+  file("", `${SAMPLE_PICKED_FOLDER}\\Recording 2024-04-18.m4a`, 6.2 * MB, "2024-04-18"),
+  file("", `${SAMPLE_PICKED_FOLDER}\\Old phone contacts.vcf`, 0.05 * MB, "2024-01-02"),
+];
+
+/** The loose files of a pretend folder. */
+export function sampleLooseFiles(folder: string): SampleFile[] {
+  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+  if (same(folder, D)) return sampleLooseDownloads;
+  if (same(folder, `${U}\\Desktop`)) return sampleLooseDesktop;
+  if (same(folder, SAMPLE_PICKED_FOLDER)) return sampleLoosePicked;
+  return [];
+}
+
+/** Why a pretend folder cannot be tidied (an i18n key), or null. */
+export function sampleRefusedFolder(folder: string): string | null {
+  const f = folder.toLowerCase();
+  if (f.startsWith("c:\\windows") || f.startsWith("c:\\program files") || f === U.toLowerCase()) return "tidy.error.system";
+  return null;
+}
+
 /** Setup files of programs the sample PC has installed. */
 const SAMPLE_USED_INSTALLERS = /SpotifyFullSetup|vlc-/;
 
 const tidyFile = (f: SampleFile): TidyFile => ({ path: f.path, sizeBytes: f.sizeBytes, modified: f.modified });
 
-/** What the sample AI proposes for the loose downloads still there. */
-export function sampleTidyPlan(present: SampleFile[], lang: string, byAi: boolean): TidyPlan {
+/** What the sample AI proposes for the loose files of `folder` still there. */
+export function sampleTidyPlan(present: SampleFile[], folder: string, lang: string, byAi: boolean): TidyPlan {
   const it = lang === "it";
+  const inbox = folder.toLowerCase() === D.toLowerCase() || folder.toLowerCase() === `${U}\\Desktop`.toLowerCase();
   const installers = present.filter((f) => SAMPLE_USED_INSTALLERS.test(f.path));
   const rest = present.filter((f) => !installers.includes(f));
   const groups: [string, string, TidyDest, string, string, RegExp][] = byAi
@@ -732,28 +786,36 @@ export function sampleTidyPlan(present: SampleFile[], lang: string, byAi: boolea
         ["Lisbon photos", "Foto di Lisbona", "pictures", "Photos and a video from June 2025", "Foto e un video di giugno 2025", /(IMG_22|VID_2025)/],
         ["Manuals", "Manuali", "documents", "Instructions for home appliances", "Istruzioni degli elettrodomestici", /manual|guide/i],
         ["Work", "Lavoro", "documents", "Reports, notes and contracts", "Report, appunti e contratti", /report|meeting|contract/i],
+        ["Screenshots", "Screenshot", "pictures", "Screen captures from July 2025", "Catture dello schermo di luglio 2025", /^screenshot/i],
+        ["Photos March 2024", "Foto marzo 2024", "pictures", "Photos and a video from 12 and 13 March", "Foto e un video del 12 e 13 marzo", /(IMG_202403|VID_202403)/],
+        ["WhatsApp photos", "Foto WhatsApp", "pictures", "Pictures received in May 2024", "Immagini ricevute a maggio 2024", /whatsapp/i],
+        ["Personal documents", "Documenti personali", "documents", "Identity card and passport", "Carta d'identità e passaporto", /(id card|passport)/i],
+        ["Car", "Auto", "documents", "Insurance and service", "Assicurazione e tagliando", /car /i],
+        ["Bank", "Banca", "documents", "Statements of account and mortgage", "Estratti conto e mutuo", /(bank|mortgage)/i],
       ]
     : [
-        ["Documents", "Documenti", "downloads", "", "", /\.(pdf|docx|xlsx)$/i],
-        ["Pictures", "Immagini", "downloads", "", "", /\.(jpg|png)$/i],
-        ["Videos", "Video", "downloads", "", "", /\.mp4$/i],
-        ["Archives", "Archivi compressi", "downloads", "", "", /\.zip$/i],
+        ["Documents", "Documenti", "here", "", "", /\.(pdf|docx|xlsx|txt)$/i],
+        ["Pictures", "Immagini", "here", "", "", /\.(jpe?g|png)$/i],
+        ["Videos", "Video", "here", "", "", /\.mp4$/i],
+        ["Music", "Musica", "here", "", "", /\.m4a$/i],
+        ["Archives", "Archivi compressi", "here", "", "", /\.zip$/i],
       ];
-  const dirOf: Record<TidyDest, string> = { downloads: D, documents: `${U}\\Documents`, pictures: P, videos: `${U}\\Videos`, music: `${U}\\Music` };
+  const dirOf: Record<TidyDest, string> = { here: folder, documents: `${U}\\Documents`, pictures: P, videos: `${U}\\Videos`, music: `${U}\\Music` };
   const taken = new Set<string>();
   const folders: TidyFolder[] = [];
-  for (const [en, itName, dest, whyEn, whyIt, re] of groups) {
+  for (const [en, itName, wanted, whyEn, whyIt, re] of groups) {
     const files = rest.filter((f) => !taken.has(f.path) && re.test(f.path.split("\\").pop() ?? ""));
     if (!files.length) continue;
     files.forEach((f) => taken.add(f.path));
     const name = it ? itName : en;
+    const dest = inbox ? wanted : "here";
     folders.push({
       id: `f${folders.length + 1}`,
       name,
       dest,
       why: it ? whyIt : whyEn,
       target: `${dirOf[dest]}\\${name}`,
-      exists: name === "Manuals" || name === "Manuali",
+      exists: name === "Manuals" || name === "Manuali" || name === "Car" || name === "Auto",
       files: files.map(tidyFile),
       sizeBytes: files.reduce((s, f) => s + f.sizeBytes, 0),
     });

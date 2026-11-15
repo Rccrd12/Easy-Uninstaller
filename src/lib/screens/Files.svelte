@@ -9,7 +9,7 @@
   import OffloadPanel from "../components/OffloadPanel.svelte";
   import FileSearch from "../components/FileSearch.svelte";
   import SearchBar from "../components/SearchBar.svelte";
-  import TidyDownloads from "../components/TidyDownloads.svelte";
+  import TidyFolder from "../components/TidyFolder.svelte";
   import StatusIcon from "../components/StatusIcon.svelte";
   import SafetyTag from "../components/SafetyTag.svelte";
   import SampleBanner from "../components/SampleBanner.svelte";
@@ -72,7 +72,7 @@
   let hiddenCount = $state(0);
   /** The sentence of the search being shown ("Search your files"), or null. */
   let searching = $state<string | null>(null);
-  /** "Tidy up Downloads" is open. */
+  /** "Tidy up a folder" is open. */
   let tidying = $state(false);
   /** The ⋯ menu of a group card. */
   let menu = $state<{ group: FileGroup; x: number; y: number } | null>(null);
@@ -371,7 +371,7 @@
 {:else if searching !== null}
   <FileSearch sentence={searching} onBack={() => { searching = null; backFromTool(); }} onOptions={() => onNavigate("settings")} />
 {:else if tidying}
-  <TidyDownloads onBack={() => { tidying = false; backFromTool(); }} />
+  <TidyFolder onBack={() => { tidying = false; backFromTool(); }} />
 {:else}
 <div class="layout">
   <div class="col">

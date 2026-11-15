@@ -2,25 +2,30 @@
   import FileThumb from "./FileThumb.svelte";
   import Icon from "./Icon.svelte";
   import StatusIcon from "./StatusIcon.svelte";
-  import { tidyApply, tidyAsk, tidyByType, tidyOverview, tidyPreview, tidyUndo } from "../api";
+  import { tidyApply, tidyAsk, tidyByType, tidyOverview, tidyPickFolder, tidyPreview, tidyUndo } from "../api";
   import { aiConfig, aiErrorText, aiReady, openSetup, serviceLabel } from "../ai.svelte";
   import { fileCount, formatBytes } from "../format";
   import { getLanguage, locale, t } from "../i18n/index.svelte";
   import type { IconName } from "../icons";
   import { displayPath, nameOf } from "../paths";
   import { saveSettings, settings } from "../settings.svelte";
-  import type { TidyDest, TidyOverview, TidyPlan, TidyPreview, TidyReport, TidyUndoReport } from "../types";
+  import type { TidyDest, TidyOverview, TidyPlace, TidyPlan, TidyPreview, TidyReport, TidyUndoReport } from "../types";
 
   /**
-   * Tidying the Downloads folder (AI help, phase 3). The AI proposes folders from the
-   * file names; without it, files are grouped by type. Every file of the proposal can
-   * be unticked, nothing moves until "Tidy up", and a tidy can be undone.
+   * Tidying a folder (AI help, phase 3): Downloads, the Desktop, Documents or any folder
+   * picked with Windows' folder picker. The AI proposes folders from the file names;
+   * without it, files are grouped by type. Every file of the proposal can be unticked,
+   * nothing moves until "Tidy up", and a tidy can be undone.
    */
   let { onBack }: { onBack: () => void } = $props();
 
   type Phase = "loading" | "intro" | "confirm" | "asking" | "plan" | "applying" | "done";
   let phase = $state<Phase>("loading");
   let overview = $state<TidyOverview | null>(null);
+  /** Waiting for Windows' folder picker. */
+  let picking = $state(false);
+  /** The folder the last undo put files back in. */
+  let undoneFolder = $state("");
   let preview = $state<TidyPreview | null>(null);
   let plan = $state<TidyPlan | null>(null);
   /** Ticked files, by folder id. */
@@ -40,7 +45,7 @@
   const service = $derived(t(`ai.services.${settings.ai.service}.name`));
 
   $effect(() => {
-    load();
+    load(null);
   });
 
   function errorText(e: unknown): string {
@@ -50,16 +55,43 @@
     return t("tidy.failed", { error: key });
   }
 
-  async function load() {
+  /** Reads the folder (`null` is Downloads). A folder that cannot be tidied keeps the one shown. */
+  async function load(folder: string | null = overview?.folder ?? null) {
     phase = "loading";
     error = null;
     try {
-      overview = await tidyOverview();
+      overview = await tidyOverview(folder);
     } catch (e) {
       error = errorText(e);
     }
     phase = "intro";
   }
+
+  async function pickOther() {
+    error = null;
+    picking = true;
+    try {
+      const folder = await tidyPickFolder(t("tidy.pickTitle"), overview?.folder ?? null);
+      if (folder) {
+        undone = null;
+        await load(folder);
+      }
+    } catch (e) {
+      error = errorText(e);
+    } finally {
+      picking = false;
+    }
+  }
+
+  const samePath = (a: string, b: string) => a.replace(/[\\/]+$/, "").toLowerCase() === b.replace(/[\\/]+$/, "").toLowerCase();
+  const placeOf = (path: string) => overview?.places.find((p) => samePath(p.path, path));
+  /** "Download", "Desktop", "Documenti" for the folders offered, otherwise the folder's own name. */
+  const folderLabel = (path: string) => {
+    const place = placeOf(path);
+    return place ? t(`files.review.folders.${place.id}`) : nameOf(path.replace(/[\\/]+$/, "")) || path;
+  };
+  const placeIcon: Record<TidyPlace["id"], IconName> = { downloads: "download", desktop: "desktop", documents: "document" };
+  const current = $derived(overview?.folder ?? null);
 
   function startAi() {
     error = null;
@@ -68,7 +100,7 @@
       return;
     }
     if (settings.ai.confirm) {
-      tidyPreview(getLanguage())
+      tidyPreview(current, getLanguage())
         .then((p) => {
           preview = p;
           phase = "confirm";
@@ -88,7 +120,7 @@
     askingAi = true;
     error = null;
     try {
-      show(await tidyAsk(aiConfig(), getLanguage()));
+      show(await tidyAsk(current, aiConfig(), getLanguage()));
     } catch (e) {
       error = errorText(e);
       phase = "intro";
@@ -100,7 +132,7 @@
     phase = "asking";
     askingAi = false;
     try {
-      show(await tidyByType(getLanguage()));
+      show(await tidyByType(current, getLanguage()));
     } catch (e) {
       error = errorText(e);
       phase = "intro";
@@ -161,11 +193,12 @@
     }
   }
 
-  async function undo(runId: string) {
+  async function undo(runId: string, folder: string) {
     undoing = true;
     error = null;
     try {
       undone = await tidyUndo(runId);
+      undoneFolder = folder;
       if (phase !== "done") await load();
     } catch (e) {
       error = errorText(e);
@@ -174,8 +207,7 @@
     }
   }
 
-  const destIcon: Record<TidyDest, IconName> = { documents: "document", pictures: "image", videos: "video", music: "music", downloads: "download" };
-  const placeName = (d: TidyDest) => t(`files.review.folders.${d}`);
+  const destIcon: Record<TidyDest, IconName> = { documents: "document", pictures: "image", videos: "video", music: "music", here: "folder" };
   const dateOf = (secs: number) => new Date(secs * 1000).toLocaleDateString(locale(), { day: "numeric", month: "long" });
 </script>
 
@@ -190,18 +222,31 @@
   {#if phase === "loading"}
     <div class="card status" role="status"><span class="spinner" aria-hidden="true"></span>{t("files.review.loading")}</div>
   {:else if phase === "intro" && overview}
-    {#if !overview.downloads}
+    {@const folder = overview.folder}
+    <div class="places" role="group" aria-label={t("tidy.folder")}>
+      <span class="places-label">{t("tidy.folder")}</span>
+      {#each overview.places as place (place.id)}
+        {@const on = !!folder && samePath(place.path, folder)}
+        <button class="toggle" class:on aria-pressed={on} onclick={() => { undone = null; load(place.path); }}>{t(`files.review.folders.${place.id}`)}</button>
+      {/each}
+      {#if folder && !placeOf(folder)}
+        <button class="toggle on" aria-pressed="true" title={folder}>{folderLabel(folder)}</button>
+      {/if}
+      <button class="toggle other" disabled={picking} onclick={pickOther}><Icon name="folderOpen" size={14} />{t("tidy.other")}</button>
+    </div>
+    {#if !folder}
       <div class="card status"><Icon name="info" />{t("tidy.noDownloads")}</div>
     {:else}
+      {@const place = placeOf(folder)}
       <div class="card intro">
-        <span class="tile" aria-hidden="true"><Icon name="download" size={24} /></span>
+        <span class="tile" aria-hidden="true"><Icon name={place ? placeIcon[place.id] : "folder"} size={24} /></span>
         <div class="intro-text">
           {#if overview.fileCount}
             <b>{t("tidy.loose", { files: fileCount(overview.fileCount), size: formatBytes(overview.sizeBytes) })}</b>
           {:else}
             <b>{t("tidy.none")}</b>
           {/if}
-          <span class="muted small">{overview.downloads}</span>
+          <span class="muted small path" title={folder}>{displayPath(folder)}</span>
           {#if overview.fileCount}
             <div class="buttons">
               <button class="btn btn-ai" onclick={startAi}><Icon name="sparkle" />{t("tidy.askAi")}</button>
@@ -215,12 +260,13 @@
       {@const run = overview.lastRun}
       <div class="card last">
         <Icon name="undo" />
-        <span class="grow">{t("tidy.lastRun", { date: dateOf(run.at), files: fileCount(run.movedCount), folders: folders(run.folderCount) })}</span>
-        <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(run.id)}>{undoing ? t("tidy.done.undoing") : t("tidy.undoLast")}</button>
+        <span class="grow">{t("tidy.lastRun", { folder: folderLabel(run.folder), date: dateOf(run.at), files: fileCount(run.movedCount), folders: folders(run.folderCount) })}</span>
+        <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(run.id, run.folder)}>{undoing ? t("tidy.done.undoing") : t("tidy.undoLast")}</button>
       </div>
     {/if}
     {#if undone}
-      <p class="muted small undone">{t("tidy.done.undone", { files: fileCount(undone.restoredCount) })}{undone.failedCount ? ` ${t("tidy.done.undoFailed", { files: fileCount(undone.failedCount) })}` : ""}</p>
+      {@const where = folderLabel(undoneFolder)}
+      <p class="muted small undone">{t("tidy.done.undone", { files: fileCount(undone.restoredCount), folder: where })}{undone.failedCount ? ` ${t("tidy.done.undoFailed", { files: fileCount(undone.failedCount), folder: where })}` : ""}</p>
     {/if}
   {:else if phase === "confirm" && preview}
     <div class="card box">
@@ -323,8 +369,8 @@
       {#if undone}
         <StatusIcon kind={undone.failedCount ? "warn" : "ok"} />
         <div class="done-text">
-          <b>{t("tidy.done.undone", { files: fileCount(undone.restoredCount) })}</b>
-          {#if undone.failedCount}<p class="muted small">{t("tidy.done.undoFailed", { files: fileCount(undone.failedCount) })}</p>{/if}
+          <b>{t("tidy.done.undone", { files: fileCount(undone.restoredCount), folder: folderLabel(undoneFolder) })}</b>
+          {#if undone.failedCount}<p class="muted small">{t("tidy.done.undoFailed", { files: fileCount(undone.failedCount), folder: folderLabel(undoneFolder) })}</p>{/if}
         </div>
       {:else}
         <StatusIcon kind="ok" />
@@ -346,7 +392,7 @@
     <div class="buttons">
       {#if r.runId && !undone}
         {@const id = r.runId}
-        <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(id)}>{#if !undoing}<Icon name="undo" />{/if}{undoing ? t("tidy.done.undoing") : t("tidy.done.undo")}</button>
+        <button class="btn btn-ghost" disabled={undoing} onclick={() => undo(id, current ?? "")}>{#if !undoing}<Icon name="undo" />{/if}{undoing ? t("tidy.done.undoing") : t("tidy.done.undo")}</button>
       {/if}
       <button class="btn btn-primary" onclick={onBack}>{t("tidy.done.back")}</button>
     </div>
@@ -366,6 +412,13 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .btn:disabled { opacity: 0.5; cursor: default; }
 
+  .places { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0 14px; }
+  .places-label { font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-muted); margin-right: 4px; }
+  .toggle { border: 1px solid var(--border-strong); background: var(--surface); border-radius: 999px; padding: 4px 12px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 5px; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .toggle.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .toggle.other { color: var(--accent); }
+  .toggle:disabled { opacity: 0.5; cursor: default; }
+  .path { overflow-wrap: anywhere; }
   .intro { display: flex; gap: 16px; padding: 18px 20px; margin-bottom: 12px; }
   .tile { width: 48px; height: 48px; border-radius: var(--radius); background: var(--icon-tile-bg); color: var(--icon-tile-fg); display: flex; align-items: center; justify-content: center; flex: none; }
   .small-tile { width: 36px; height: 36px; border-radius: 8px; }

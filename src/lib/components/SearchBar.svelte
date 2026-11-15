@@ -9,7 +9,7 @@
    * ("videos of the holidays over 500 MB") is read on this PC and looked for in the index.
    * Until then it is locked, and below it is what makes the index: the model's download
    * (or `onOptions`, to use one's own) and how far indexing is.
-   * `onTidy` adds the "Tidy up Downloads" button beside it.
+   * `onTidy` adds the "Tidy up a folder" button beside it.
    */
   let {
     value = "",

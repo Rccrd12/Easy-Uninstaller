@@ -1,6 +1,6 @@
-//! Tidying the Downloads folder (AI help, phase 3).
+//! Tidying a folder (AI help, phase 3): Downloads unless the user picks another.
 //!
-//! The files lying loose in Downloads are grouped into a few folders with clear
+//! The files lying loose in the folder are grouped into a few folders with clear
 //! names. The AI proposes the folders from the file names (only names, sizes and
 //! months are sent, never contents); without the AI they are grouped by type.
 //! Either way it is only a proposal: the user sees every folder and every file,
@@ -8,9 +8,10 @@
 //!
 //! What keeps it safe:
 //! - only files listed in the proposal move, and only if unchanged since;
-//! - files are moved, not removed: they go into folders in Downloads, Documents,
-//!   Pictures, Videos or Music, never anywhere else, and a file of the same name
-//!   is never replaced;
+//! - files are moved, not removed: they go into new folders inside the folder
+//!   being tidied (from Downloads and the Desktop also into Documents, Pictures,
+//!   Videos or Music), never anywhere else, and a file of the same name is never replaced;
+//! - system and program folders cannot be picked (see [`refused`]);
 //! - every tidy is recorded, so it can be undone: files go back where they were
 //!   and the folders it made are removed when empty;
 //! - setup files of programs already installed are offered for the quarantine
@@ -20,7 +21,7 @@ use crate::ai::prompt;
 use crate::ai::AiConfig;
 use crate::cleanup;
 use crate::files::{self, iso_date, ScannedFile, Seen};
-use crate::quarantine::{move_file, unchanged_since_scan, MoveReport, Quarantine};
+use crate::quarantine::{move_file, unchanged_since_scan, MoveReport, Quarantine, DRIVE_FOLDER};
 use crate::search::{kind_of, FileKind, Place};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -36,6 +37,8 @@ const MAX_FOLDERS: usize = 12;
 const MAX_FOLDER_CHARS: usize = 50;
 /// A file changed this recently may still be downloading.
 const RECENT: Duration = Duration::from_secs(10 * 60);
+/// Shortcuts and links: they point elsewhere and are left where the user put them.
+const LINKS: [&str; 2] = ["lnk", "url"];
 /// Downloads in progress, by browser and program.
 const PARTIAL: [&str; 9] = [
     "crdownload",
@@ -57,7 +60,8 @@ const INSTALLERS_GROUP: &str = "installers";
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub enum Dest {
-    Downloads,
+    /// Inside the folder being tidied.
+    Here,
     Documents,
     Pictures,
     Videos,
@@ -71,7 +75,7 @@ impl Dest {
             "pictures" => Dest::Pictures,
             "videos" => Dest::Videos,
             "music" => Dest::Music,
-            _ => Dest::Downloads,
+            _ => Dest::Here,
         }
     }
 
@@ -81,15 +85,15 @@ impl Dest {
             Dest::Pictures => matches!(kind, Some(FileKind::Image | FileKind::Video)),
             Dest::Videos => kind == Some(FileKind::Video),
             Dest::Music => kind == Some(FileKind::Audio),
-            Dest::Documents | Dest::Downloads => true,
+            Dest::Documents | Dest::Here => true,
         }
     }
 }
 
-/// The folders a proposal may put files in.
+/// The folder being tidied and the folders a proposal may put files in.
 #[derive(Debug, Clone, Default)]
 pub struct Dirs {
-    pub downloads: PathBuf,
+    pub here: PathBuf,
     pub documents: Option<PathBuf>,
     pub pictures: Option<PathBuf>,
     pub videos: Option<PathBuf>,
@@ -97,20 +101,36 @@ pub struct Dirs {
 }
 
 impl Dirs {
-    fn of_this_pc() -> Option<Self> {
-        Some(Dirs {
-            downloads: Place::Downloads.dir()?,
+    /// `here` alone: every proposed folder is made inside it.
+    fn only(here: PathBuf) -> Self {
+        Dirs {
+            here,
+            ..Dirs::default()
+        }
+    }
+
+    /// `here` plus the user's Documents, Pictures, Videos and Music.
+    fn with_libraries(here: PathBuf) -> Self {
+        Dirs {
+            here,
             documents: Place::Documents.dir(),
             pictures: Place::Pictures.dir(),
             videos: Place::Videos.dir(),
             music: Place::Music.dir(),
-        })
+        }
     }
 
-    /// The folder for `dest`; Downloads when that folder is missing on this PC.
+    fn libraries(&self) -> bool {
+        self.documents.is_some()
+            || self.pictures.is_some()
+            || self.videos.is_some()
+            || self.music.is_some()
+    }
+
+    /// The folder for `dest`; the folder being tidied when that one is not offered.
     fn get(&self, dest: Dest) -> (Dest, &Path) {
         let other = match dest {
-            Dest::Downloads => None,
+            Dest::Here => None,
             Dest::Documents => self.documents.as_deref(),
             Dest::Pictures => self.pictures.as_deref(),
             Dest::Videos => self.videos.as_deref(),
@@ -118,7 +138,7 @@ impl Dirs {
         };
         match other {
             Some(dir) => (dest, dir),
-            None => (Dest::Downloads, &self.downloads),
+            None => (Dest::Here, &self.here),
         }
     }
 }
@@ -166,6 +186,8 @@ pub struct TidyPlan {
 pub struct TidyRunInfo {
     pub id: String,
     pub at: u64,
+    /// The folder that was tidied.
+    pub folder: String,
     pub moved_count: u64,
     pub folder_count: u64,
 }
@@ -173,13 +195,24 @@ pub struct TidyRunInfo {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct TidyOverview {
-    /// The Downloads folder; `None` when there is none.
-    pub downloads: Option<String>,
+    /// The folder to tidy; `None` when Downloads was asked for and there is none.
+    pub folder: Option<String>,
+    /// Folders offered with one click: Downloads, Desktop, Documents.
+    pub places: Vec<TidyPlace>,
     /// Loose files that can be tidied.
     pub file_count: u64,
     pub size_bytes: u64,
     /// The last tidy that can still be undone.
     pub last_run: Option<TidyRunInfo>,
+}
+
+/// A folder offered with one click.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct TidyPlace {
+    /// `downloads`, `desktop` or `documents`.
+    pub id: String,
+    pub path: String,
 }
 
 /// What would be sent to the AI, shown before sending.
@@ -217,7 +250,7 @@ pub struct TidyReport {
 #[serde(rename_all = "camelCase")]
 pub struct UndoReport {
     pub restored_count: u64,
-    /// Changed since, moved by the user, or a file of the same name is back in Downloads.
+    /// Changed since, moved by the user, or a file of the same name is back where it was.
     pub failed_count: u64,
 }
 
@@ -268,9 +301,16 @@ struct Run {
 impl Run {
     fn info(&self) -> TidyRunInfo {
         let folders: HashSet<&Path> = self.moves.iter().filter_map(|m| m.to.parent()).collect();
+        let folder = self
+            .moves
+            .first()
+            .and_then(|m| m.from.parent())
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default();
         TidyRunInfo {
             id: self.id.clone(),
             at: self.at,
+            folder,
             moved_count: self.moves.len() as u64,
             folder_count: folders.len() as u64,
         }
@@ -293,16 +333,16 @@ pub fn knows(app: &AppHandle, path: &Path) -> bool {
     })
 }
 
-fn is_partial(path: &Path) -> bool {
+fn has_extension(path: &Path, list: &[&str]) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
-        .is_some_and(|e| PARTIAL.iter().any(|x| e.eq_ignore_ascii_case(x)))
+        .is_some_and(|e| list.iter().any(|x| e.eq_ignore_ascii_case(x)))
 }
 
-/// The files lying loose in `downloads` (not in a subfolder) that can be tidied:
-/// no partial or very recent downloads, no hidden system files, no links.
-fn loose_files(downloads: &Path, now: SystemTime) -> Vec<Seen> {
-    let Ok(entries) = fs::read_dir(downloads) else {
+/// The files lying loose in `dir` (not in a subfolder) that can be tidied:
+/// no partial or very recent downloads, no hidden system files, no links or shortcuts.
+fn loose_files(dir: &Path, now: SystemTime) -> Vec<Seen> {
+    let Ok(entries) = fs::read_dir(dir) else {
         return Vec::new();
     };
     let mut out: Vec<Seen> = entries
@@ -319,7 +359,8 @@ fn loose_files(downloads: &Path, now: SystemTime) -> Vec<Seen> {
                 .duration_since(meta.modified().unwrap_or(UNIX_EPOCH))
                 .map_or(true, |age| age < RECENT);
             if files::skip_entry(&meta)
-                || is_partial(&path)
+                || has_extension(&path, &PARTIAL)
+                || has_extension(&path, &LINKS)
                 || recent
                 || name == "desktop.ini"
                 || name.starts_with("~$")
@@ -375,21 +416,34 @@ fn lines(files: &[Seen], user: &str) -> Vec<String> {
         .collect()
 }
 
-/// The whole text sent.
-fn question(lines: &[String], lang: &str) -> String {
+/// The whole text sent. The folder's own name is not sent: "Downloads", "Desktop" or "a folder".
+fn question(lines: &[String], lang: &str, dirs: &Dirs) -> String {
     let language = prompt::language_name(lang);
+    let what = match Place::ALL
+        .into_iter()
+        .find(|p| p.dir().is_some_and(|d| same_dir(&d, &dirs.here)))
+    {
+        Some(Place::Downloads) => "the Downloads folder",
+        Some(Place::Desktop) => "the Desktop",
+        _ => "a folder",
+    };
+    let places = if dirs.libraries() {
+        "- place: where the folder goes: \"documents\", \"pictures\" (photos and videos only), \"videos\" (videos only), \"music\" (audio only) or \"here\" (stays inside the folder being tidied, for anything else)."
+    } else {
+        "- place: always \"here\" (the new folder is made inside the folder being tidied)."
+    };
     format!(
-        "You help a person who is not technical tidy the Downloads folder of their Windows PC. \
+        "You help a person who is not technical tidy {what} of their Windows PC. \
 Below are the files lying in it: number, name, size and month of the last change. You cannot see what is inside the files.
 
 {}
 
 Group the files that belong together into a few folders with clear, short names (for example \"Bills 2025\", \"Holiday photos\", \"Manuals\").
 Reply with one JSON object and nothing else:
-{{\"folders\": [{{\"name\": \"...\", \"place\": \"documents\", \"why\": \"...\", \"files\": [1, 2]}}]}}
+{{\"folders\": [{{\"name\": \"...\", \"place\": \"here\", \"why\": \"...\", \"files\": [1, 2]}}]}}
 
 - name: the folder name, two to four words, in {language}. No slashes.
-- place: where the folder goes: \"documents\", \"pictures\" (photos and videos only), \"videos\" (videos only), \"music\" (audio only) or \"downloads\" (stays inside Downloads, for anything else).
+{places}
 - why: a few words on what is inside, in {language}.
 - files: the numbers of the files that go in it, each file in one folder at most. Leave out files you are not sure about: they stay where they are.
 - At most {MAX_FOLDERS} folders. Make a folder for a single file only when it clearly belongs to a theme.",
@@ -483,7 +537,7 @@ fn parse_proposals(text: &str, files: &[Seen]) -> Option<Vec<Proposal>> {
     Some(out)
 }
 
-/// Without the AI: one folder per kind of file, inside Downloads.
+/// Without the AI: one folder per kind of file, inside the folder being tidied.
 fn by_type(files: &[Seen], lang: &str) -> Vec<Proposal> {
     let names: [(FileKind, &str, &str); 7] = [
         (FileKind::Document, "Documents", "Documenti"),
@@ -505,7 +559,7 @@ fn by_type(files: &[Seen], lang: &str) -> Vec<Proposal> {
                 .collect();
             (!picked.is_empty()).then(|| Proposal {
                 name: (if lang == "it" { *it } else { *en }).to_string(),
-                dest: Dest::Downloads,
+                dest: Dest::Here,
                 why: String::new(),
                 files: picked,
             })
@@ -688,17 +742,109 @@ fn write_log(path: &Path, log: &Log) -> Result<(), String> {
     fs::rename(&tmp, path).map_err(|e| e.to_string())
 }
 
-fn dirs() -> Result<Dirs, String> {
-    Dirs::of_this_pc().ok_or_else(|| "tidy.error.noDownloads".to_string())
+/// True when `a` and `b` name the same folder (case and a final separator aside).
+fn same_dir(a: &Path, b: &Path) -> bool {
+    key(a) == key(b)
+}
+
+/// A path as compared: lower case, `/` for separators, no final separator.
+fn key(p: &Path) -> String {
+    p.to_string_lossy()
+        .replace('\\', "/")
+        .trim_end_matches('/')
+        .to_lowercase()
+}
+
+/// True when `dir` is `root` or inside it.
+fn inside(dir: &Path, root: &Path) -> bool {
+    let (d, r) = (key(dir), key(root));
+    !r.is_empty() && (d == r || d.starts_with(&format!("{r}/")))
+}
+
+/// Folders of Windows and of programs: nothing in them or below them is tidied.
+fn system_dirs() -> Vec<PathBuf> {
+    [
+        "SystemRoot",
+        "ProgramFiles",
+        "ProgramFiles(x86)",
+        "ProgramW6432",
+        "ProgramData",
+        "APPDATA",
+        "LOCALAPPDATA",
+    ]
+    .iter()
+    .filter_map(std::env::var_os)
+    .map(PathBuf::from)
+    .collect()
+}
+
+/// Folders that are refused themselves, though their subfolders may be tidied:
+/// the user profile and the drive Windows is on.
+fn exact_dirs() -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = files::profile_dir().into_iter().collect();
+    if let Some(drive) = std::env::var_os("SystemDrive") {
+        out.push(PathBuf::from(format!("{}\\", drive.to_string_lossy())));
+    }
+    out
+}
+
+/// Why `dir` cannot be tidied, as an i18n key; `None` when it can. Refused: what is
+/// not a real folder (missing, a link), Windows and program folders, the user
+/// profile and the system drive themselves, the quarantine, and folders that hold
+/// a program or a project (loose `.dll` or `.sys` files, a `.git` folder), whose
+/// files must stay together.
+fn refused(dir: &Path, system: &[PathBuf], exact: &[PathBuf]) -> Option<&'static str> {
+    let real = dir.is_absolute() && fs::symlink_metadata(dir).is_ok_and(|m| m.is_dir());
+    if !real {
+        return Some("tidy.error.notFound");
+    }
+    let quarantine = dir
+        .components()
+        .any(|c| c.as_os_str().eq_ignore_ascii_case(DRIVE_FOLDER));
+    if quarantine || system.iter().any(|r| inside(dir, r)) || exact.iter().any(|r| same_dir(dir, r))
+    {
+        return Some("tidy.error.system");
+    }
+    let program = dir.join(".git").exists()
+        || fs::read_dir(dir).is_ok_and(|entries| {
+            entries
+                .flatten()
+                .any(|e| has_extension(&e.path(), &["dll", "sys"]))
+        });
+    program.then_some("tidy.error.program")
+}
+
+/// The folder to tidy and where its files may go. `None` is Downloads. Files from
+/// Downloads and the Desktop may also go to Documents, Pictures, Videos and Music;
+/// from any other folder, only into new folders inside it.
+fn dirs_for(folder: Option<&str>) -> Result<Dirs, String> {
+    let Some(folder) = folder else {
+        let here = Place::Downloads
+            .dir()
+            .ok_or_else(|| "tidy.error.noDownloads".to_string())?;
+        return Ok(Dirs::with_libraries(here));
+    };
+    let here = PathBuf::from(folder);
+    if let Some(why) = refused(&here, &system_dirs(), &exact_dirs()) {
+        return Err(why.to_string());
+    }
+    let inbox = [Place::Downloads, Place::Desktop]
+        .into_iter()
+        .any(|p| p.dir().is_some_and(|d| same_dir(&d, &here)));
+    Ok(if inbox {
+        Dirs::with_libraries(here)
+    } else {
+        Dirs::only(here)
+    })
 }
 
 fn user_name() -> String {
     std::env::var("USERNAME").unwrap_or_default()
 }
 
-/// The loose files of Downloads: the installers apart, the others to group (newest first, at most [`MAX_SENT`]).
+/// The loose files of the folder: the installers apart, the others to group (newest first, at most [`MAX_SENT`]).
 fn gather(dirs: &Dirs) -> (Vec<Seen>, Vec<Seen>, u64) {
-    let all = loose_files(&dirs.downloads, SystemTime::now());
+    let all = loose_files(&dirs.here, SystemTime::now());
     let (installers, mut rest) = split_installers(all, &files::installed_app_names());
     let not_sent = rest.len().saturating_sub(MAX_SENT) as u64;
     rest.truncate(MAX_SENT);
@@ -710,26 +856,43 @@ fn keep_plan(app: &AppHandle, kept: Kept) -> Result<(), String> {
     Ok(())
 }
 
-/// How many loose files Downloads has, and the last tidy that can be undone.
+/// How many loose files the folder has (Downloads when `folder` is `None`), the
+/// folders offered with one click, and the last tidy that can be undone.
 #[tauri::command]
-pub async fn tidy_overview(app: AppHandle) -> Result<TidyOverview, String> {
+pub async fn tidy_overview(app: AppHandle, folder: Option<String>) -> Result<TidyOverview, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let last_run = {
             let tidy = app.state::<Tidy>();
             let _lock = tidy.log.lock().map_err(|e| e.to_string())?;
             read_log(&log_path(&app)?).runs.last().map(Run::info)
         };
-        let Some(dirs) = Dirs::of_this_pc() else {
-            return Ok(TidyOverview {
-                downloads: None,
-                file_count: 0,
-                size_bytes: 0,
-                last_run,
-            });
+        let places = [Place::Downloads, Place::Desktop, Place::Documents]
+            .into_iter()
+            .zip(["downloads", "desktop", "documents"])
+            .filter_map(|(p, id)| {
+                Some(TidyPlace {
+                    id: id.to_string(),
+                    path: p.dir()?.to_string_lossy().into_owned(),
+                })
+            })
+            .collect();
+        let dirs = match dirs_for(folder.as_deref()) {
+            Ok(dirs) => dirs,
+            Err(e) if folder.is_none() && e == "tidy.error.noDownloads" => {
+                return Ok(TidyOverview {
+                    folder: None,
+                    places,
+                    file_count: 0,
+                    size_bytes: 0,
+                    last_run,
+                });
+            }
+            Err(e) => return Err(e),
         };
-        let files = loose_files(&dirs.downloads, SystemTime::now());
+        let files = loose_files(&dirs.here, SystemTime::now());
         Ok(TidyOverview {
-            downloads: Some(dirs.downloads.to_string_lossy().into_owned()),
+            folder: Some(dirs.here.to_string_lossy().into_owned()),
+            places,
             file_count: files.len() as u64,
             size_bytes: files.iter().map(|f| f.size).sum(),
             last_run,
@@ -739,14 +902,30 @@ pub async fn tidy_overview(app: AppHandle) -> Result<TidyOverview, String> {
     .map_err(|e| e.to_string())?
 }
 
+/// Opens Windows' folder picker over the app; `None` when the user cancels.
+#[tauri::command]
+pub async fn tidy_pick_folder(
+    app: AppHandle,
+    title: String,
+    start: Option<String>,
+) -> Result<Option<String>, String> {
+    let owner = crate::elevated::main_window(&app);
+    tauri::async_runtime::spawn_blocking(move || {
+        platform::pick_folder(owner, &title, start.as_deref())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// What would be sent to the AI.
 #[tauri::command]
-pub async fn tidy_preview(lang: String) -> Result<TidyPreview, String> {
+pub async fn tidy_preview(folder: Option<String>, lang: String) -> Result<TidyPreview, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let (sent, _, not_sent) = gather(&dirs()?);
+        let dirs = dirs_for(folder.as_deref())?;
+        let (sent, _, not_sent) = gather(&dirs);
         let lines = lines(&sent, &user_name());
         Ok(TidyPreview {
-            question: question(&lines, &lang),
+            question: question(&lines, &lang, &dirs),
             lines,
             not_sent_count: not_sent,
         })
@@ -757,15 +936,23 @@ pub async fn tidy_preview(lang: String) -> Result<TidyPreview, String> {
 
 /// Asks the AI to propose folders. Nothing moves: the proposal is shown first.
 #[tauri::command]
-pub async fn tidy_ask(app: AppHandle, config: AiConfig, lang: String) -> Result<TidyPlan, String> {
+pub async fn tidy_ask(
+    app: AppHandle,
+    folder: Option<String>,
+    config: AiConfig,
+    lang: String,
+) -> Result<TidyPlan, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let dirs = dirs()?;
+        let dirs = dirs_for(folder.as_deref())?;
         let (sent, installers, not_sent) = gather(&dirs);
         let proposals = if sent.is_empty() {
             Vec::new()
         } else {
-            let text =
-                crate::ai::ask_text(&app, &config, &question(&lines(&sent, &user_name()), &lang))?;
+            let text = crate::ai::ask_text(
+                &app,
+                &config,
+                &question(&lines(&sent, &user_name()), &lang, &dirs),
+            )?;
             parse_proposals(&text, &sent).ok_or("ai.error.badAnswer")?
         };
         let (plan, kept) = plan(proposals, &sent, &installers, not_sent, &dirs, true);
@@ -778,9 +965,13 @@ pub async fn tidy_ask(app: AppHandle, config: AiConfig, lang: String) -> Result<
 
 /// Proposes one folder per kind of file, without the AI.
 #[tauri::command]
-pub async fn tidy_by_type(app: AppHandle, lang: String) -> Result<TidyPlan, String> {
+pub async fn tidy_by_type(
+    app: AppHandle,
+    folder: Option<String>,
+    lang: String,
+) -> Result<TidyPlan, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let dirs = dirs()?;
+        let dirs = dirs_for(folder.as_deref())?;
         let (sent, installers, not_sent) = gather(&dirs);
         let (plan, kept) = plan(
             by_type(&sent, &lang),
@@ -845,7 +1036,7 @@ pub async fn tidy_apply(
     .map_err(|e| e.to_string())?
 }
 
-/// Undoes a tidy: its files go back to Downloads and the folders it made go away when empty.
+/// Undoes a tidy: its files go back where they were and the folders it made go away when empty.
 #[tauri::command]
 pub async fn tidy_undo(app: AppHandle, run_id: String) -> Result<UndoReport, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -865,6 +1056,82 @@ pub async fn tidy_undo(app: AppHandle, run_id: String) -> Result<UndoReport, Str
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[cfg(windows)]
+mod platform {
+    use windows::core::HSTRING;
+    use windows::Win32::Foundation::{ERROR_CANCELLED, HWND};
+    use windows::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, CLSCTX_INPROC_SERVER,
+        COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE,
+    };
+    use windows::Win32::UI::Shell::{
+        FileOpenDialog, IFileOpenDialog, IShellItem, SHCreateItemFromParsingName,
+        FOS_FORCEFILESYSTEM, FOS_PATHMUSTEXIST, FOS_PICKFOLDERS, SIGDN_FILESYSPATH,
+    };
+
+    /// Windows' own "Select folder" dialog, owned by `owner` so it stays in front of the app.
+    pub fn pick_folder(
+        owner: Option<isize>,
+        title: &str,
+        start: Option<&str>,
+    ) -> Result<Option<String>, String> {
+        // SAFETY: COM is set up for this thread and undone below when we did set it up.
+        let init =
+            unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) };
+        let result = show(owner, title, start);
+        if init.is_ok() {
+            // SAFETY: matches the successful CoInitializeEx above.
+            unsafe { CoUninitialize() };
+        }
+        result.map_err(|e| e.message().to_string())
+    }
+
+    fn show(
+        owner: Option<isize>,
+        title: &str,
+        start: Option<&str>,
+    ) -> windows::core::Result<Option<String>> {
+        // SAFETY: plain COM calls on this thread; the returned path is freed below.
+        unsafe {
+            let dialog: IFileOpenDialog =
+                CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER)?;
+            dialog.SetOptions(
+                dialog.GetOptions()? | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST,
+            )?;
+            dialog.SetTitle(&HSTRING::from(title))?;
+            if let Some(start) = start {
+                if let Ok(item) =
+                    SHCreateItemFromParsingName::<_, _, IShellItem>(&HSTRING::from(start), None)
+                {
+                    dialog.SetFolder(&item)?;
+                }
+            }
+            if let Err(e) = dialog.Show(owner.map(|h| HWND(h as *mut _))) {
+                return if e.code() == ERROR_CANCELLED.to_hresult() {
+                    Ok(None)
+                } else {
+                    Err(e)
+                };
+            }
+            let name = dialog.GetResult()?.GetDisplayName(SIGDN_FILESYSPATH)?;
+            let path = name.to_string().ok();
+            CoTaskMemFree(Some(name.0 as *const _));
+            Ok(path)
+        }
+    }
+}
+
+#[cfg(not(windows))]
+mod platform {
+    pub fn pick_folder(
+        _owner: Option<isize>,
+        _title: &str,
+        _start: Option<&str>,
+    ) -> Result<Option<String>, String> {
+        Ok(None)
+    }
 }
 
 #[cfg(test)]
@@ -889,7 +1156,7 @@ mod tests {
 
         fn dirs(&self) -> Dirs {
             Dirs {
-                downloads: self.0.join("Downloads"),
+                here: self.0.join("Downloads"),
                 documents: Some(self.0.join("Documents")),
                 pictures: Some(self.0.join("Pictures")),
                 videos: None,
@@ -931,6 +1198,7 @@ mod tests {
         t.download("photo.jpg", 10, 3);
         t.download("movie.mp4.crdownload", 10, 0);
         t.download("desktop.ini", 10, 100);
+        t.download("Spotify.lnk", 10, 100);
         fs::write(t.0.join("Downloads/just-now.zip"), b"x").unwrap();
         fs::create_dir_all(t.0.join("Downloads/old folder")).unwrap();
         fs::write(t.0.join("Downloads/old folder/inside.txt"), b"x").unwrap();
@@ -1011,7 +1279,7 @@ mod tests {
         fs::create_dir_all(t.0.join("Documents/Bollette")).unwrap();
         fs::write(t.0.join("Documents/Bollette/enel.pdf"), b"old").unwrap();
 
-        let all = loose_files(&dirs.downloads, SystemTime::now());
+        let all = loose_files(&dirs.here, SystemTime::now());
         let (installers, sent) = split_installers(all, &["Google Chrome".to_string()]);
         assert_eq!(file_names(&installers), ["ChromeSetup.exe"]);
         let names = file_names(&sent);
@@ -1028,7 +1296,7 @@ mod tests {
         assert!(plan.folders[0].exists);
         assert_eq!(
             plan.folders[1].dest,
-            Dest::Downloads,
+            Dest::Here,
             "no Videos folder: it stays in Downloads"
         );
         assert_eq!(plan.left_count, 0);
@@ -1089,7 +1357,7 @@ mod tests {
         let dirs = t.dirs();
         t.download("a.pdf", 10, 5);
         t.download("b.pdf", 10, 5);
-        let sent = loose_files(&dirs.downloads, SystemTime::now());
+        let sent = loose_files(&dirs.here, SystemTime::now());
         let (plan, kept) = plan(by_type(&sent, "it"), &sent, &[], 0, &dirs, false);
         assert_eq!(plan.folders[0].name, "Documenti");
         assert!(!plan.folders[0].exists);
@@ -1127,8 +1395,77 @@ mod tests {
         let l = lines(&sent, "mario");
         assert_eq!(l.len(), 1);
         assert!(l[0].starts_with("1. CV %USERNAME% Rossi.pdf · 2 KB · "));
-        let q = question(&l, "it");
+        let q = question(&l, "it", &Dirs::only(t.0.join("Downloads")));
         assert!(q.contains("in Italian"));
         assert!(!q.contains(&t.0.to_string_lossy().into_owned()), "no paths");
+        assert!(q.contains("always \"here\""), "no other places offered");
+        assert!(!q.contains("\"documents\""));
+        let q = question(&l, "it", &t.dirs());
+        assert!(q.contains("\"documents\", \"pictures\""));
+    }
+
+    #[test]
+    fn a_picked_folder_gets_folders_inside_it_only() {
+        let t = TempDir::new("picked");
+        let dirs = Dirs::only(t.0.join("Downloads"));
+        t.download("enel.pdf", 10, 5);
+        let sent = loose_files(&dirs.here, SystemTime::now());
+        let text = r#"{"folders": [{"name": "Bollette", "place": "documents", "files": [1]}]}"#;
+        let (plan, _) = plan(
+            parse_proposals(text, &sent).unwrap(),
+            &sent,
+            &[],
+            0,
+            &dirs,
+            true,
+        );
+        assert_eq!(plan.folders[0].dest, Dest::Here);
+        assert_eq!(
+            PathBuf::from(&plan.folders[0].target),
+            t.0.join("Downloads/Bollette")
+        );
+    }
+
+    #[test]
+    fn system_program_and_project_folders_are_refused() {
+        let t = TempDir::new("refused");
+        let system = [t.0.join("Windows"), t.0.join("Program Files")];
+        let exact = [t.0.join("Users/me")];
+        for d in [
+            "Windows/System32",
+            "Program Files/App",
+            "Users/me/Foto",
+            "Users/me/Documents",
+            "Game",
+            "Code/.git",
+            "Easy Uninstaller Quarantine/1",
+        ] {
+            fs::create_dir_all(t.0.join(d)).unwrap();
+        }
+        fs::write(t.0.join("Game/engine.dll"), b"x").unwrap();
+        let check = |rel: &str| refused(&t.0.join(rel), &system, &exact);
+        assert_eq!(check("Windows"), Some("tidy.error.system"));
+        assert_eq!(check("Windows/System32"), Some("tidy.error.system"));
+        assert_eq!(check("Program Files/App"), Some("tidy.error.system"));
+        assert_eq!(check("Users/me"), Some("tidy.error.system"));
+        assert_eq!(
+            check("Easy Uninstaller Quarantine/1"),
+            Some("tidy.error.system")
+        );
+        assert_eq!(check("Game"), Some("tidy.error.program"));
+        assert_eq!(check("Code"), Some("tidy.error.program"));
+        assert_eq!(check("Missing"), Some("tidy.error.notFound"));
+        assert_eq!(
+            refused(Path::new("Foto"), &system, &exact),
+            Some("tidy.error.notFound")
+        );
+        assert_eq!(check("Users/me/Foto"), None);
+        assert_eq!(check("Users/me/Documents"), None);
+        assert_eq!(check("Downloads"), None);
+        assert!(!inside(&t.0.join("Windows2"), &t.0.join("Windows")));
+        assert!(same_dir(
+            Path::new("C:\\Users\\Me\\"),
+            Path::new("c:/users/me")
+        ));
     }
 }

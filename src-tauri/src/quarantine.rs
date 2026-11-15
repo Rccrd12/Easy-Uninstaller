@@ -45,7 +45,7 @@ const MANIFEST: &str = "manifest.json";
 /// Stored in the default quarantine folder (a file, so never taken for an entry).
 const SETTINGS: &str = "settings.json";
 /// The quarantine folder on a drive picked by the user.
-const DRIVE_FOLDER: &str = "Easy Uninstaller Quarantine";
+pub(crate) const DRIVE_FOLDER: &str = "Easy Uninstaller Quarantine";
 /// How many files per entry are sent to the UI (largest first).
 const MAX_ITEMS: usize = 50;
 
