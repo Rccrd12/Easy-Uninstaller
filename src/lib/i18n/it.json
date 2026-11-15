@@ -1344,7 +1344,8 @@
       "hideFiles": "Nascondi i file",
       "empty": "Nessuna cartella proposta.",
       "again": "Proponi di nuovo",
-      "pick": "Sposta {name}"
+      "pick": "Sposta {name}",
+      "inside": "Riordina dentro la cartella"
     },
     "installers": {
       "title": "Installer già usati"

@@ -30,6 +30,7 @@ import {
   sampleQuarantineSettings,
   sampleLooseFiles,
   sampleRefusedFolder,
+  sampleInbox,
   SAMPLE_PICKED_FOLDER,
   SAMPLE_TIDY_PLACES,
   sampleSearch,
@@ -1208,6 +1209,7 @@ export async function tidyOverview(folder: string | null): Promise<TidyOverview>
   return {
     folder: folder ?? SAMPLE_TIDY_PLACES[0].path,
     places: SAMPLE_TIDY_PLACES,
+    canGoOut: sampleInbox(folder ?? SAMPLE_TIDY_PLACES[0].path),
     fileCount: loose.length,
     sizeBytes: loose.reduce((s, f) => s + f.sizeBytes, 0),
     lastRun: last ? { id: last.id, at: last.at, folder: last.folder, movedCount: last.moves.length, folderCount: last.folderCount } : null,
@@ -1222,19 +1224,22 @@ export async function tidyPickFolder(title: string, start: string | null): Promi
 }
 
 /** What would be sent to the AI: one line per file (name, size, month). */
-export async function tidyPreview(folder: string | null, lang: string): Promise<TidyPreview> {
-  if (isTauri()) return invoke<TidyPreview>("tidy_preview", { folder, lang });
+export async function tidyPreview(folder: string | null, inside: boolean, lang: string): Promise<TidyPreview> {
+  if (isTauri()) return invoke<TidyPreview>("tidy_preview", { folder, inside, lang });
   await sleep(200);
   const lines = sampleTidyLines(sampleLoose(folder));
   return { lines, question: lines.join("\n"), notSentCount: 0 };
 }
 
-/** Asks the AI to propose folders. Nothing moves until `tidyApply`. */
-export async function tidyAsk(folder: string | null, config: AiConfig, lang: string): Promise<TidyPlan> {
-  if (isTauri()) return invoke<TidyPlan>("tidy_ask", { folder, config, lang });
+/**
+ * Asks the AI to propose folders. Nothing moves until `tidyApply`. With `inside`, every
+ * folder is made inside the folder tidied, also from Downloads and the Desktop.
+ */
+export async function tidyAsk(folder: string | null, inside: boolean, config: AiConfig, lang: string): Promise<TidyPlan> {
+  if (isTauri()) return invoke<TidyPlan>("tidy_ask", { folder, inside, config, lang });
   await sampleEnsure(config);
   await sleep(2200);
-  return sampleTidyPlan(sampleLoose(folder), folder ?? SAMPLE_TIDY_PLACES[0].path, lang, true);
+  return sampleTidyPlan(sampleLoose(folder), folder ?? SAMPLE_TIDY_PLACES[0].path, lang, true, inside);
 }
 
 /** One folder per kind of file, without the AI. */

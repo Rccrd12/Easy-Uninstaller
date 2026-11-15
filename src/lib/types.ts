@@ -812,6 +812,8 @@ export interface TidyOverview {
   /** The folder to tidy; null when Downloads was asked for and there is none. */
   folder: string | null;
   places: TidyPlace[];
+  /** Files may also go to Documents, Pictures, Videos and Music (Downloads and the Desktop), unless tidied inside. */
+  canGoOut: boolean;
   fileCount: number;
   sizeBytes: number;
   /** The last tidy, which can still be undone. */

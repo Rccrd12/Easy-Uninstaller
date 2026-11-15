@@ -761,6 +761,9 @@ export function sampleLooseFiles(folder: string): SampleFile[] {
   return [];
 }
 
+/** Downloads and the Desktop: their files may also go to Documents, Pictures, Videos and Music. */
+export const sampleInbox = (folder: string) => [D, `${U}\\Desktop`].some((f) => f.toLowerCase() === folder.toLowerCase());
+
 /** Why a pretend folder cannot be tidied (an i18n key), or null. */
 export function sampleRefusedFolder(folder: string): string | null {
   const f = folder.toLowerCase();
@@ -774,9 +777,9 @@ const SAMPLE_USED_INSTALLERS = /SpotifyFullSetup|vlc-/;
 const tidyFile = (f: SampleFile): TidyFile => ({ path: f.path, sizeBytes: f.sizeBytes, modified: f.modified });
 
 /** What the sample AI proposes for the loose files of `folder` still there. */
-export function sampleTidyPlan(present: SampleFile[], folder: string, lang: string, byAi: boolean): TidyPlan {
+export function sampleTidyPlan(present: SampleFile[], folder: string, lang: string, byAi: boolean, inside = false): TidyPlan {
   const it = lang === "it";
-  const inbox = folder.toLowerCase() === D.toLowerCase() || folder.toLowerCase() === `${U}\\Desktop`.toLowerCase();
+  const inbox = sampleInbox(folder) && !inside;
   const installers = present.filter((f) => SAMPLE_USED_INSTALLERS.test(f.path));
   const rest = present.filter((f) => !installers.includes(f));
   const groups: [string, string, TidyDest, string, string, RegExp][] = byAi

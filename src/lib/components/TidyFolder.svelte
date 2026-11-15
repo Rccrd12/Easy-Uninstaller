@@ -41,6 +41,8 @@
   let showSent = $state(false);
   /** Waiting for the AI (not for the quick grouping by type). */
   let askingAi = $state(false);
+  /** The AI was asked to keep every folder inside the folder tidied. */
+  let inside = $state(false);
 
   const service = $derived(t(`ai.services.${settings.ai.service}.name`));
 
@@ -95,12 +97,14 @@
 
   function startAi() {
     error = null;
+    inside = false;
+    plan = null;
     if (!aiReady()) {
       openSetup(startAi);
       return;
     }
     if (settings.ai.confirm) {
-      tidyPreview(current, getLanguage())
+      tidyPreview(current, inside, getLanguage())
         .then((p) => {
           preview = p;
           phase = "confirm";
@@ -120,12 +124,21 @@
     askingAi = true;
     error = null;
     try {
-      show(await tidyAsk(current, aiConfig(), getLanguage()));
+      show(await tidyAsk(current, inside, aiConfig(), getLanguage()));
     } catch (e) {
       error = errorText(e);
-      phase = "intro";
+      phase = plan ? "plan" : "intro";
     }
   }
+
+  /** Asks again with every folder inside the folder tidied. The same names are sent, so no new confirmation. */
+  function askInside() {
+    inside = true;
+    ask();
+  }
+
+  /** Some proposed folder is outside the folder tidied (Documents, Pictures, ...). */
+  const goesOut = $derived(!!plan?.byAi && !!overview?.canGoOut && !inside && plan.folders.some((f) => f.dest !== "here"));
 
   async function byType() {
     error = null;
@@ -289,6 +302,11 @@
       <h2>{t("tidy.plan.title", { files: fileCount(p.folders.reduce((s, f) => s + f.files.length, 0)), folders: folders(p.folders.length) })}</h2>
       <span class="who">{#if p.byAi}<Icon name="sparkle" size={14} />{t("tidy.plan.byAi", { service: serviceLabel(settings.ai.service, settings.ai.model) })}{:else}{t("tidy.plan.byType")}{/if}</span>
     </div>
+    {#if goesOut}
+      <div class="inside-row">
+        <button class="btn btn-ghost" disabled={phase === "applying"} onclick={askInside}><Icon name="folder" />{t("tidy.plan.inside")}</button>
+      </div>
+    {/if}
     {#if p.folders.length === 0 && p.installers.length === 0}
       <div class="card status"><Icon name="info" />{t("tidy.plan.empty")}</div>
     {/if}
@@ -438,6 +456,7 @@
   .dont-ask input { accent-color: var(--ai); }
 
   .plan-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .inside-row { display: flex; justify-content: flex-end; margin: -4px 0 10px; }
   .who { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ai-fg); flex: none; }
   .folder { margin-bottom: 8px; overflow: hidden; }
   .folder.off .folder-head { opacity: 0.6; }

@@ -10,7 +10,8 @@
 //! - only files listed in the proposal move, and only if unchanged since;
 //! - files are moved, not removed: they go into new folders inside the folder
 //!   being tidied (from Downloads and the Desktop also into Documents, Pictures,
-//!   Videos or Music), never anywhere else, and a file of the same name is never replaced;
+//!   Videos or Music, unless the user asks to stay inside), never anywhere else,
+//!   and a file of the same name is never replaced;
 //! - system and program folders cannot be picked (see [`refused`]);
 //! - every tidy is recorded, so it can be undone: files go back where they were
 //!   and the folders it made are removed when empty;
@@ -199,6 +200,9 @@ pub struct TidyOverview {
     pub folder: Option<String>,
     /// Folders offered with one click: Downloads, Desktop, Documents.
     pub places: Vec<TidyPlace>,
+    /// Files may also go to Documents, Pictures, Videos and Music (from Downloads
+    /// and the Desktop), unless the user asks to tidy inside the folder only.
+    pub can_go_out: bool,
     /// Loose files that can be tidied.
     pub file_count: u64,
     pub size_bytes: u64,
@@ -814,24 +818,31 @@ fn refused(dir: &Path, system: &[PathBuf], exact: &[PathBuf]) -> Option<&'static
     program.then_some("tidy.error.program")
 }
 
-/// The folder to tidy and where its files may go. `None` is Downloads. Files from
-/// Downloads and the Desktop may also go to Documents, Pictures, Videos and Music;
-/// from any other folder, only into new folders inside it.
-fn dirs_for(folder: Option<&str>) -> Result<Dirs, String> {
-    let Some(folder) = folder else {
-        let here = Place::Downloads
-            .dir()
-            .ok_or_else(|| "tidy.error.noDownloads".to_string())?;
-        return Ok(Dirs::with_libraries(here));
-    };
-    let here = PathBuf::from(folder);
-    if let Some(why) = refused(&here, &system_dirs(), &exact_dirs()) {
-        return Err(why.to_string());
-    }
-    let inbox = [Place::Downloads, Place::Desktop]
+/// True for Downloads and the Desktop, whose files may also go to Documents,
+/// Pictures, Videos and Music.
+fn is_inbox(here: &Path) -> bool {
+    [Place::Downloads, Place::Desktop]
         .into_iter()
-        .any(|p| p.dir().is_some_and(|d| same_dir(&d, &here)));
-    Ok(if inbox {
+        .any(|p| p.dir().is_some_and(|d| same_dir(&d, here)))
+}
+
+/// The folder to tidy and where its files may go. `None` is Downloads. Files from
+/// Downloads and the Desktop may also go to Documents, Pictures, Videos and Music
+/// unless `inside`; from any other folder, only into new folders inside it.
+fn dirs_for(folder: Option<&str>, inside: bool) -> Result<Dirs, String> {
+    let here = match folder {
+        None => Place::Downloads
+            .dir()
+            .ok_or_else(|| "tidy.error.noDownloads".to_string())?,
+        Some(folder) => {
+            let here = PathBuf::from(folder);
+            if let Some(why) = refused(&here, &system_dirs(), &exact_dirs()) {
+                return Err(why.to_string());
+            }
+            here
+        }
+    };
+    Ok(if !inside && is_inbox(&here) {
         Dirs::with_libraries(here)
     } else {
         Dirs::only(here)
@@ -876,12 +887,13 @@ pub async fn tidy_overview(app: AppHandle, folder: Option<String>) -> Result<Tid
                 })
             })
             .collect();
-        let dirs = match dirs_for(folder.as_deref()) {
+        let dirs = match dirs_for(folder.as_deref(), true) {
             Ok(dirs) => dirs,
             Err(e) if folder.is_none() && e == "tidy.error.noDownloads" => {
                 return Ok(TidyOverview {
                     folder: None,
                     places,
+                    can_go_out: false,
                     file_count: 0,
                     size_bytes: 0,
                     last_run,
@@ -893,6 +905,7 @@ pub async fn tidy_overview(app: AppHandle, folder: Option<String>) -> Result<Tid
         Ok(TidyOverview {
             folder: Some(dirs.here.to_string_lossy().into_owned()),
             places,
+            can_go_out: is_inbox(&dirs.here),
             file_count: files.len() as u64,
             size_bytes: files.iter().map(|f| f.size).sum(),
             last_run,
@@ -919,9 +932,13 @@ pub async fn tidy_pick_folder(
 
 /// What would be sent to the AI.
 #[tauri::command]
-pub async fn tidy_preview(folder: Option<String>, lang: String) -> Result<TidyPreview, String> {
+pub async fn tidy_preview(
+    folder: Option<String>,
+    inside: bool,
+    lang: String,
+) -> Result<TidyPreview, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let dirs = dirs_for(folder.as_deref())?;
+        let dirs = dirs_for(folder.as_deref(), inside)?;
         let (sent, _, not_sent) = gather(&dirs);
         let lines = lines(&sent, &user_name());
         Ok(TidyPreview {
@@ -939,11 +956,12 @@ pub async fn tidy_preview(folder: Option<String>, lang: String) -> Result<TidyPr
 pub async fn tidy_ask(
     app: AppHandle,
     folder: Option<String>,
+    inside: bool,
     config: AiConfig,
     lang: String,
 ) -> Result<TidyPlan, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let dirs = dirs_for(folder.as_deref())?;
+        let dirs = dirs_for(folder.as_deref(), inside)?;
         let (sent, installers, not_sent) = gather(&dirs);
         let proposals = if sent.is_empty() {
             Vec::new()
@@ -963,7 +981,7 @@ pub async fn tidy_ask(
     .map_err(|e| e.to_string())?
 }
 
-/// Proposes one folder per kind of file, without the AI.
+/// Proposes one folder per kind of file, without the AI, inside the folder.
 #[tauri::command]
 pub async fn tidy_by_type(
     app: AppHandle,
@@ -971,7 +989,7 @@ pub async fn tidy_by_type(
     lang: String,
 ) -> Result<TidyPlan, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let dirs = dirs_for(folder.as_deref())?;
+        let dirs = dirs_for(folder.as_deref(), true)?;
         let (sent, installers, not_sent) = gather(&dirs);
         let (plan, kept) = plan(
             by_type(&sent, &lang),

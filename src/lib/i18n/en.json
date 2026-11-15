@@ -1344,7 +1344,8 @@
       "hideFiles": "Hide files",
       "empty": "No folders proposed.",
       "again": "Propose again",
-      "pick": "Move {name}"
+      "pick": "Move {name}",
+      "inside": "Tidy up inside the folder"
     },
     "installers": {
       "title": "Installers already used"
