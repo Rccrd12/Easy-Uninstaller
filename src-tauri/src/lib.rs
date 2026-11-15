@@ -12,6 +12,7 @@ mod explain;
 mod files;
 mod history;
 mod leftovers;
+mod mcp;
 mod offload;
 mod quarantine;
 mod regkey;
@@ -39,9 +40,20 @@ pub fn run_reminders_check() -> Option<i32> {
     reminders::run_from_args()
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    tauri::Builder::default()
+/// When started by an MCP client with `--mcp` (see `mcp.rs`), answers it on stdin and
+/// stdout without opening a window and returns the exit code; `None` means start the app normally.
+pub fn run_mcp_server() -> Option<i32> {
+    mcp::run_from_args(|| with_state(tauri::Builder::default()).build(context()))
+}
+
+/// One place for the compiled-in context: the frontend files are embedded once.
+fn context() -> tauri::Context {
+    tauri::generate_context!()
+}
+
+/// The state the commands read, shared by the window and the MCP server.
+fn with_state(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+    builder
         .manage(ai::Answers::default())
         .manage(app_cache::LastAppCaches::default())
         .manage(files::LastScan::default())
@@ -53,6 +65,11 @@ pub fn run() {
         .manage(tidy::Tidy::default())
         .manage(uninstall::Pending::default())
         .manage(updater::PendingUpdate::default())
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    with_state(tauri::Builder::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             quarantine::init(app.handle())?;
@@ -84,6 +101,8 @@ pub fn run() {
             history::clear_history,
             leftovers::list_leftovers,
             leftovers::quarantine_leftovers,
+            mcp::mcp_status,
+            mcp::mcp_set_enabled,
             offload::scan_offload,
             offload::current_offload,
             offload::make_online_only,
@@ -140,7 +159,7 @@ pub fn run() {
             updater::check_for_update,
             updater::install_update
         ])
-        .build(tauri::generate_context!())
+        .build(context())
         .expect("error while building Easy Uninstaller")
         .run(|_app, event| {
             if let tauri::RunEvent::Exit = event {

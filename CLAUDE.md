@@ -31,6 +31,9 @@ space. Goals in order: **safe**, **simple for non-technical users**, **lightweig
   keeps lives in its own `LocalIndex` folder, which "Delete model and index" removes whole.
   The user's own model (`Source::Files`/`Source::Server`) is only read or asked, never moved
   or removed, and a server must be on a loopback address: pictures never leave the PC.
+- The MCP server (`mcp.rs`, started by a client with `--mcp`) is read only and off until the
+  user turns it on in Settings. Its tools call the same commands as the window; a tool that
+  changes something needs the owner's decision first.
 - Windows-only code goes behind `#[cfg(windows)]` with a stub for other platforms, so the crate
   still builds and tests on Linux/macOS.
 - Lightness matters: think twice before adding a dependency (frontend or Rust); prefer

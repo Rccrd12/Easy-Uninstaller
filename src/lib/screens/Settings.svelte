@@ -2,15 +2,15 @@
   import EyeOffIcon from "../components/EyeOffIcon.svelte";
   import Icon from "../components/Icon.svelte";
   import AiServicePicker from "../components/AiServicePicker.svelte";
-  import { AI_PARALLEL_CHOICES, aiStats, createRestorePoint, INDEX_DOWNLOAD_BYTES, indexCheck, indexFindModels, KEEP_DAYS_CHOICES, listExclusions, REMINDER_THRESHOLDS } from "../api";
+  import { AI_PARALLEL_CHOICES, aiStats, createRestorePoint, getMcpStatus, mcpClientConfig, setMcpEnabled, INDEX_DOWNLOAD_BYTES, indexCheck, indexFindModels, KEEP_DAYS_CHOICES, listExclusions, REMINDER_THRESHOLDS } from "../api";
   import { cancelIndexDownload, changeIndex, indexErrorText, installIndex, localIndex, removeIndex, retryIndex, watchIndex } from "../localIndex.svelte";
   import { forgetAnswers, serviceInfo } from "../ai.svelte";
-  import { formatBytes } from "../format";
+  import { formatBytes, relativeTime } from "../format";
   import { getLanguage, languages, setLanguage, t, type Language } from "../i18n/index.svelte";
   import { applyTextSize, quarantine, saveQuarantine, saveSettings, settings } from "../settings.svelte";
   import { reminders, saveReminders, showSampleNotice } from "../reminders.svelte";
   import type { Screen } from "../screens";
-  import type { AiMode, AiStats, IndexCheck, IndexDepth, IndexQuality, IndexSource, OwnModel, ReminderSettings, RestorePointOutcome } from "../types";
+  import type { AiMode, AiStats, McpStatus, IndexCheck, IndexDepth, IndexQuality, IndexSource, OwnModel, ReminderSettings, RestorePointOutcome } from "../types";
   import { getTheme, setTheme, themes } from "../theme.svelte";
   import { betaChanged, check, install, splitVersion, update, versionLabel } from "../updates.svelte";
   // Only this field ends up in the bundle; the release workflow keeps it in sync with the tag.
@@ -51,6 +51,37 @@
     } finally {
       saving = false;
     }
+  }
+
+  // ── MCP server ──
+  const MCP_AREAS = ["disk", "apps", "startup", "caches", "files", "leftovers", "space", "onedrive", "quarantine", "history"] as const;
+  let mcp = $state<McpStatus | null>(null);
+  let mcpSaving = $state(false);
+  let mcpError = $state<string | null>(null);
+  let mcpCopied = $state(false);
+  $effect(() => {
+    getMcpStatus()
+      .then((s) => (mcp = s))
+      .catch(() => (mcp = null));
+  });
+
+  async function toggleMcp(enabled: boolean) {
+    mcpSaving = true;
+    mcpError = null;
+    try {
+      mcp = await setMcpEnabled(enabled);
+    } catch (e) {
+      mcpError = String(e);
+    } finally {
+      mcpSaving = false;
+    }
+  }
+
+  async function copyMcpConfig() {
+    if (!mcp) return;
+    await navigator.clipboard.writeText(mcpClientConfig(mcp.command)).catch(() => {});
+    mcpCopied = true;
+    setTimeout(() => (mcpCopied = false), 2000);
   }
 
   // ── Reminders ──
@@ -493,6 +524,48 @@
   </div>
 {/if}
 
+{#if mcp}
+  <h2 class="section">{t("mcp.title")} <span class="new">{t("ai.settings.new")}</span></h2>
+  <div class="card list">
+    <label class="row">
+      <span class="grow">
+        {t("mcp.enable")}
+        <span class="tag">{t("mcp.readOnly")}</span>
+      </span>
+      <input type="checkbox" checked={mcp.enabled} disabled={mcpSaving} onchange={(e) => toggleMcp(e.currentTarget.checked)} />
+    </label>
+    {#if mcp.enabled}
+      <div class="row column">
+        <div class="how">
+          <span class="grow">{t("mcp.config")}</span>
+          <button class="btn btn-ghost" onclick={copyMcpConfig}>
+            <Icon name={mcpCopied ? "check" : "code"} />{mcpCopied ? t("mcp.copied") : t("mcp.copy")}
+          </button>
+        </div>
+        <pre class="code">{mcpClientConfig(mcp.command)}</pre>
+      </div>
+      <div class="row column">
+        <span>{t("mcp.data")}</span>
+        <div class="chips">
+          {#each MCP_AREAS as area (area)}<span class="chip">{t(`mcp.areas.${area}`)}</span>{/each}
+        </div>
+      </div>
+      <div class="row">
+        <span>{t("mcp.lastClient")}</span>
+        <span class="muted value">
+          {#if mcp.lastClient}
+            {t(mcp.lastClient.calls === 1 ? "mcp.lastClientOne" : "mcp.lastClientValue", { name: mcp.lastClient.name, when: relativeTime(mcp.lastClient.lastSeen), count: mcp.lastClient.calls })}
+          {:else}{t("mcp.never")}{/if}
+        </span>
+      </div>
+      <div class="row">
+        <span class="muted privacy">{t("mcp.privacy")}</span>
+      </div>
+    {/if}
+    {#if mcpError}<div class="row"><span class="note bad" role="alert">{t("mcp.saveFailed", { error: mcpError })}</span></div>{/if}
+  </div>
+{/if}
+
 <h2 class="section">{t("settings.updates")}</h2>
 <div class="card list">
   <div class="row update" aria-live="polite">
@@ -624,5 +697,11 @@
   .bar { display: block; height: 6px; margin-top: 8px; border-radius: 3px; background: var(--track); overflow: hidden; max-width: 360px; }
   .bar > span { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.15s; }
   .bar.indeterminate > span { animation: slide 1.2s ease-in-out infinite; }
+  .tag { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 8px; background: var(--track); color: var(--text-muted); vertical-align: 1px; }
+  .code { margin: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; line-height: 1.5; white-space: pre; overflow-x: auto; user-select: text; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12.5px; padding: 3px 10px; border-radius: 12px; background: var(--track); }
+  .value { font-size: 13px; text-align: right; }
+  .privacy { font-size: 12.5px; }
   @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
 </style>

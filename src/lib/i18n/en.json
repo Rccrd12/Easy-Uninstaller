@@ -1452,5 +1452,32 @@
       "renamed": "Moved back with a new name (name in use): {count}.",
       "backFailed": "Not found on the other drive or in use: {count}."
     }
+  },
+  "mcp": {
+    "title": "MCP server",
+    "enable": "Allow MCP clients",
+    "readOnly": "Read only",
+    "config": "Client configuration",
+    "copy": "Copy",
+    "copied": "Copied",
+    "data": "Available data",
+    "areas": {
+      "disk": "Disk space",
+      "apps": "Installed apps",
+      "startup": "Startup apps",
+      "caches": "App caches",
+      "files": "Files",
+      "leftovers": "Leftovers",
+      "space": "Space map",
+      "onedrive": "OneDrive",
+      "quarantine": "Quarantine",
+      "history": "History"
+    },
+    "lastClient": "Last access",
+    "lastClientValue": "{name} · {when} · {count} requests",
+    "lastClientOne": "{name} · {when} · 1 request",
+    "never": "None",
+    "privacy": "Connected clients receive names, paths and sizes of apps and files. With an online AI service, this data leaves the PC.",
+    "saveFailed": "Saving failed: {error}"
   }
 }

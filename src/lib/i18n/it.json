@@ -1452,5 +1452,32 @@
       "renamed": "Ripristinati con un nuovo nome (nome già in uso): {count}.",
       "backFailed": "Non trovati sull'altro disco o in uso: {count}."
     }
+  },
+  "mcp": {
+    "title": "Server MCP",
+    "enable": "Consenti i client MCP",
+    "readOnly": "Sola lettura",
+    "config": "Configurazione del client",
+    "copy": "Copia",
+    "copied": "Copiato",
+    "data": "Dati disponibili",
+    "areas": {
+      "disk": "Spazio su disco",
+      "apps": "App installate",
+      "startup": "Avvio automatico",
+      "caches": "Cache delle app",
+      "files": "File",
+      "leftovers": "Avanzi",
+      "space": "Mappa dello spazio",
+      "onedrive": "OneDrive",
+      "quarantine": "Quarantena",
+      "history": "Cronologia"
+    },
+    "lastClient": "Ultimo accesso",
+    "lastClientValue": "{name} · {when} · {count} richieste",
+    "lastClientOne": "{name} · {when} · 1 richiesta",
+    "never": "Nessuno",
+    "privacy": "I client collegati ricevono nomi, percorsi e dimensioni di app e file. Con un servizio AI online questi dati escono dal PC.",
+    "saveFailed": "Salvataggio non riuscito: {error}"
   }
 }
