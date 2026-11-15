@@ -308,6 +308,9 @@
       {#if result.partial}<p class="muted small warn-line">{t("search.partial")}</p>{/if}
       {#if files.length === 0}
         <div class="card status"><Icon name="search" />{t("search.none")}</div>
+        {#if result.lessAlike > 0 && !f.loose}
+          <button class="link more" onclick={() => change({ loose: true })}>{t("searchTopic.more", { count: count(result.lessAlike) })}</button>
+        {/if}
       {:else}
         <div class="card rows">
           {#each files as file (file.path)}

@@ -7,6 +7,9 @@
 //!   (`models.rs`). It turns each picture into a vector, kept in `index.bin`
 //!   (`store.rs`); a search turns the words into a vector and the closest
 //!   pictures win.
+//! - Names: the model also reads file names that say something ("Vacanze
+//!   Sardegna 2023.jpg", not "IMG_1234.jpg"), so a search in any language finds
+//!   them (`names.rs`); their vectors are kept in `names.bin`.
 //! - Documents: Windows Search already reads them (`docs.rs`).
 //!
 //! Read only: the index looks at files, it never changes, moves or removes one.
@@ -17,6 +20,7 @@ mod engine;
 mod frames;
 mod hardware;
 mod models;
+mod names;
 mod sha256;
 mod store;
 
@@ -197,6 +201,8 @@ struct Inner {
 pub struct LocalIndex {
     inner: Mutex<Inner>,
     index: Mutex<Option<Index>>,
+    /// The vectors of file names (`names.rs`), in `names.bin`.
+    names: Mutex<Option<Index>>,
     /// One indexing round at a time.
     round: Mutex<()>,
     /// Bumped to stop the running round (new settings, pause, removal).
@@ -580,8 +586,9 @@ fn download_all(app: &AppHandle, settings: &IndexSettings) -> Result<(), String>
 
 // ── Indexing ─────────────────────────────────────────────────────────────────
 
-/// Top-level Windows folders that hold no personal files.
-const SYSTEM_DIRS: [&str; 14] = [
+/// Top-level Windows folders that hold no personal files: Windows, programs,
+/// drivers, games and developer tools.
+const SYSTEM_DIRS: [&str; 19] = [
     "Windows",
     "Windows.old",
     "Program Files",
@@ -596,19 +603,37 @@ const SYSTEM_DIRS: [&str; 14] = [
     "Intel",
     "AMD",
     "NVIDIA",
+    "Games",
+    "msys64",
+    "cygwin64",
+    "Strawberry",
+    "SteamLibrary",
 ];
+/// Folders of games anywhere: their pictures and videos are the game's, not the person's.
+const GAME_DIRS: [&str; 5] = [
+    "steamapps",
+    "Epic Games",
+    "Riot Games",
+    "GOG Games",
+    "XboxGames",
+];
+/// Files that say a folder is a game (Steam's own library, shipped with every Steam game).
+const GAME_MARKERS: [&str; 2] = ["steam_api.dll", "steam_api64.dll"];
 
 /// What the whole-PC walk leaves out: system folders at the top of a drive,
 /// `$` folders (Recycle Bin, Windows setup), and what the user folders skip.
 pub fn skip_dir(path: &Path) -> bool {
-    if files::skip_personal_dir(path) {
+    if crate::search::skip_dir(path) {
         return true;
     }
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
         return false;
     };
     let at_top = path.parent().is_some_and(|p| p.parent().is_none());
-    name.starts_with('$') || (at_top && SYSTEM_DIRS.iter().any(|d| d.eq_ignore_ascii_case(name)))
+    name.starts_with('$')
+        || (at_top && SYSTEM_DIRS.iter().any(|d| d.eq_ignore_ascii_case(name)))
+        || GAME_DIRS.iter().any(|d| d.eq_ignore_ascii_case(name))
+        || GAME_MARKERS.iter().any(|m| path.join(m).is_file())
 }
 
 /// Where the index looks: the user's folders, or every fixed drive too.
@@ -642,13 +667,38 @@ struct Todo {
 
 /// The photos and videos to look at: what the settings ask for, new or changed
 /// since the last round. Also drops from the index files that are gone.
-fn plan(settings: &IndexSettings, index: &mut Index) -> Vec<Todo> {
-    plan_in(&roots(settings), settings, index)
+/// What a round looks at.
+#[derive(Default)]
+struct Plan {
+    /// Photos and videos, new or changed.
+    pictures: Vec<Todo>,
+    /// Files whose name says something (`names.rs`) and is not in the index yet, with that name.
+    names: Vec<(PathBuf, String)>,
 }
 
-fn plan_in(roots: &[PathBuf], settings: &IndexSettings, index: &mut Index) -> Vec<Todo> {
+/// Files whose names the model reads: what a person keeps, not programs or disc images.
+const NAMED_KINDS: [FileKind; 5] = [
+    FileKind::Image,
+    FileKind::Video,
+    FileKind::Audio,
+    FileKind::Document,
+    FileKind::Archive,
+];
+
+fn plan(settings: &IndexSettings, index: &mut Index, names: &mut Index) -> Plan {
+    plan_in(&roots(settings), settings, index, names)
+}
+
+fn plan_in(
+    roots: &[PathBuf],
+    settings: &IndexSettings,
+    index: &mut Index,
+    names: &mut Index,
+) -> Plan {
     let mut seen: HashSet<PathBuf> = HashSet::new();
+    let mut seen_names: HashSet<PathBuf> = HashSet::new();
     let mut todo = Vec::new();
+    let mut name_todo = Vec::new();
     let mut walked = 0u64;
     for root in roots {
         files::walk(root, &skip_dir, &mut |path, meta| {
@@ -656,7 +706,18 @@ fn plan_in(roots: &[PathBuf], settings: &IndexSettings, index: &mut Index) -> Ve
             if walked > MAX_WALK {
                 return;
             }
-            let kind = match kind_of(&path) {
+            let file_kind = kind_of(&path);
+            if file_kind.is_some_and(|k| NAMED_KINDS.contains(&k))
+                && seen_names.len() < names::MAX_NAMES
+            {
+                if let Some(text) = names::text_of(&path) {
+                    seen_names.insert(path.clone());
+                    if !names.entries.contains_key(&path) {
+                        name_todo.push((path.clone(), text));
+                    }
+                }
+            }
+            let kind = match file_kind {
                 Some(FileKind::Image) if settings.photos && meta.len() >= MIN_PHOTO_BYTES => {
                     FileKind::Image
                 }
@@ -685,20 +746,98 @@ fn plan_in(roots: &[PathBuf], settings: &IndexSettings, index: &mut Index) -> Ve
     }
     if walked <= MAX_WALK {
         index.entries.retain(|p, _| seen.contains(p));
+        names.entries.retain(|p, _| seen_names.contains(p));
     }
     // The newest first: they are what people look for most.
     todo.sort_by_key(|t| std::cmp::Reverse(t.modified));
-    todo
+    Plan {
+        pictures: todo,
+        names: name_todo,
+    }
 }
 
 fn save_index(app: &AppHandle, h: &Path) {
     let state = app.state::<LocalIndex>();
-    let index = state.index.lock();
-    if let Ok(index) = index {
-        if let Some(index) = index.as_ref() {
-            let _ = index.save(&h.join("index.bin"));
+    for (slot, file) in [(&state.index, "index.bin"), (&state.names, "names.bin")] {
+        if let Ok(index) = slot.lock() {
+            if let Some(index) = index.as_ref() {
+                let _ = index.save(&h.join(file));
+            }
         }
-    };
+    }
+}
+
+/// The index in `slot`, loaded from `file` when missing or made by another model.
+fn loaded<'a>(slot: &'a mut Option<Index>, file: &Path, model: &str) -> &'a mut Index {
+    if slot.as_ref().is_none_or(|i| i.model != model) {
+        *slot = Some(Index::load_or_new(file, model));
+    }
+    slot.get_or_insert_with(|| Index::new(model))
+}
+
+/// Reads the names of `todo` (the same name once), a few at a time. Stops when
+/// the round does, or at the model's first problem.
+fn index_names(
+    app: &AppHandle,
+    engine: &engine::Engine,
+    todo: Vec<(PathBuf, String)>,
+    pictures: usize,
+    current: &dyn Fn() -> bool,
+    saved: &mut Instant,
+    h: &Path,
+) -> Result<(), String> {
+    let state = app.state::<LocalIndex>();
+    let mut by_text: std::collections::HashMap<String, Vec<PathBuf>> = Default::default();
+    let mut texts: Vec<String> = Vec::new();
+    for (path, text) in todo {
+        let paths = by_text.entry(text.clone()).or_default();
+        if paths.is_empty() {
+            texts.push(text);
+        }
+        paths.push(path);
+    }
+    for (n, chunk) in texts.chunks(names::BATCH).enumerate() {
+        if !current() {
+            break;
+        }
+        state.update(|i| {
+            i.current = chunk.first().cloned();
+            i.pending = (texts.len() - n * names::BATCH + pictures) as u64;
+        });
+        emit(app, false);
+        let vectors = engine::embed_names(engine, chunk)?;
+        if !current() {
+            break;
+        }
+        let mut slot = state.names.lock().map_err(|e| e.to_string())?;
+        let Some(index) = slot.as_mut() else { break };
+        for (text, v) in chunk.iter().zip(vectors) {
+            let Some(q) = store::quantize(&v) else {
+                continue;
+            };
+            if index.dim != 0 && q.len() != index.dim {
+                return Err("index.error.engine:size".into());
+            }
+            index.dim = q.len();
+            for path in by_text.get(text).into_iter().flatten() {
+                index.entries.insert(
+                    path.clone(),
+                    store::Entry {
+                        size: 0,
+                        modified: 0,
+                        depth: 0,
+                        vectors: q.clone(),
+                    },
+                );
+            }
+        }
+        drop(slot);
+        if saved.elapsed() > SAVE_EVERY {
+            save_index(app, h);
+            *saved = Instant::now();
+        }
+    }
+    Ok(())
 }
 
 /// One round: looks at every new or changed photo and video, then stops.
@@ -715,21 +854,33 @@ fn index_round(app: &AppHandle, generation: u64) -> Result<(), String> {
         return Ok(());
     };
     let model = model_id(&settings);
-    let todo = {
+    let Plan {
+        pictures: todo,
+        names: name_todo,
+    } = {
         let mut slot = state.index.lock().map_err(|e| e.to_string())?;
-        if slot.as_ref().is_none_or(|i| i.model != model) {
-            *slot = Some(Index::load_or_new(&h.join("index.bin"), &model));
-        }
-        let index = slot.as_mut().ok_or("no index")?;
-        plan(&settings, index)
+        let mut names_slot = state.names.lock().map_err(|e| e.to_string())?;
+        let index = loaded(&mut slot, &h.join("index.bin"), &model);
+        let names = loaded(&mut names_slot, &h.join("names.bin"), &model);
+        plan(&settings, index, names)
     };
     state.update(|i| {
         i.indexing = true;
-        i.pending = todo.len() as u64;
+        i.pending = (todo.len() + name_todo.len()) as u64;
         i.error = None;
     });
     emit(app, true);
     let mut saved = Instant::now();
+    // Names first: they are quick, a few dozen in one request.
+    let names_result = index_names(
+        app,
+        &engine,
+        name_todo,
+        todo.len(),
+        &current,
+        &mut saved,
+        &h,
+    );
     let mut result = Ok(());
     let mut failures = 0;
     // Pictures are prepared (previews, frames of videos) on other threads while the
@@ -834,6 +985,7 @@ fn index_round(app: &AppHandle, generation: u64) -> Result<(), String> {
         // Leaving drops `rx`: the preparers stop at their next picture.
     });
     save_index(app, &h);
+    let result = result.and(names_result);
     state.update(|i| {
         i.indexing = false;
         i.pending = 0;
@@ -876,6 +1028,8 @@ pub fn on_exit() {
 pub struct Found {
     /// Photos and videos with how close they are (from -1 to 1).
     pub media: Vec<(PathBuf, f32)>,
+    /// Files whose name is close to the topic, with how close (from -1 to 1), best first.
+    pub names: Vec<(PathBuf, f32)>,
     /// Documents in Windows Search's order.
     pub documents: Vec<PathBuf>,
     /// Photos and videos not looked at yet: they may match too.
@@ -896,28 +1050,32 @@ pub fn find(app: &AppHandle, topic: &str, media: bool, documents: bool) -> Resul
     let h = home(app)?;
     let mut found = Found {
         media: Vec::new(),
+        names: Vec::new(),
         documents: Vec::new(),
         not_indexed: state.inner.lock().map(|i| i.pending).unwrap_or(0),
     };
-    if media {
-        let engine = engine_for(&h, &settings).ok_or("index.error.notReady")?;
-        let query = engine::embed(&engine, &engine::Input::Query(topic))?;
-        let mut slot = state.index.lock().map_err(|e| e.to_string())?;
-        let model = model_id(&settings);
-        if slot.as_ref().is_none_or(|i| i.model != model) {
-            *slot = Some(Index::load_or_new(&h.join("index.bin"), &model));
-        }
-        if let Some(index) = slot.as_ref().filter(|i| i.dim == query.len()) {
-            found.media = index
+    let engine = engine_for(&h, &settings).ok_or("index.error.notReady")?;
+    let query = engine::embed(&engine, &engine::Input::Query(topic))?;
+    let model = model_id(&settings);
+    let scored = |slot: &Mutex<Option<Index>>, file: &str| -> Result<Vec<(PathBuf, f32)>, String> {
+        let mut slot = slot.lock().map_err(|e| e.to_string())?;
+        let index = loaded(&mut slot, &h.join(file), &model);
+        let mut out: Vec<(PathBuf, f32)> = if index.dim == query.len() {
+            index
                 .entries
                 .iter()
                 .filter_map(|(p, e)| Some((p.clone(), e.score(&query)?)))
-                .collect();
-        }
-        found
-            .media
-            .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                .collect()
+        } else {
+            Vec::new()
+        };
+        out.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        Ok(out)
+    };
+    if media {
+        found.media = scored(&state.index, "index.bin")?;
     }
+    found.names = scored(&state.names, "names.bin")?;
     if documents && settings.documents {
         found.documents = docs::search(topic, &roots(&settings));
     }
@@ -949,8 +1107,10 @@ pub fn index_set_settings(app: AppHandle, settings: IndexSettings) -> Result<Ind
         start_round(&app);
     }
     if changed_model {
-        if let Ok(mut slot) = state.index.lock() {
-            *slot = None;
+        for slot in [&state.index, &state.names] {
+            if let Ok(mut slot) = slot.lock() {
+                *slot = None;
+            }
         }
     }
     let status = state.status(&app);
@@ -1168,8 +1328,10 @@ pub async fn index_remove(app: AppHandle) -> Result<IndexStatus, String> {
         engine::stop();
         // Waits for the round to stop before the files go.
         let _round = state.round.lock().map_err(|e| e.to_string())?;
-        if let Ok(mut slot) = state.index.lock() {
-            *slot = None;
+        for slot in [&state.index, &state.names] {
+            if let Ok(mut slot) = slot.lock() {
+                *slot = None;
+            }
         }
         let h = home(&app)?;
         let settings = state.settings(&app);
@@ -1179,6 +1341,8 @@ pub async fn index_remove(app: AppHandle) -> Result<IndexStatus, String> {
             "downloads",
             "index.bin",
             "index.tmp",
+            "names.bin",
+            "names.tmp",
             "engine.log",
         ] {
             let p = h.join(name);
@@ -1301,6 +1465,13 @@ mod tests {
         assert!(skip_dir(&top("Foto/$tmp")));
         assert!(!skip_dir(&top("Foto/Windows")));
         assert!(!skip_dir(&top("Foto")));
+        assert!(skip_dir(&top("Games")));
+        assert!(!skip_dir(&top("Foto/Games")));
+        assert!(skip_dir(&top("XboxGames")));
+        assert!(skip_dir(&top("D/SteamLibrary/steamapps")));
+        assert!(skip_dir(&top(
+            "Users/a/Music/Apple Music/Apple Music Library.musiclibrary"
+        )));
     }
 
     #[test]
@@ -1310,6 +1481,48 @@ mod tests {
         assert_eq!(s.depth, Depth::Partial);
         assert!(s.photos && s.videos && s.documents);
         assert!(!s.whole_pc && !s.paused);
+    }
+
+    #[test]
+    fn the_plan_takes_names_that_say_something() {
+        let dir = std::env::temp_dir().join(format!("eu-plan-names-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("Matrimonio Anna")).unwrap();
+        fs::create_dir_all(dir.join("Downloads")).unwrap();
+        for f in [
+            "Matrimonio Anna/IMG_0001.jpg",
+            "Matrimonio Anna/IMG_0002.jpg",
+            "fattura luce.pdf",
+            "Downloads/IMG_1234.jpg",
+            "setup tool.exe",
+        ] {
+            fs::write(dir.join(f), b"x").unwrap();
+        }
+        let mut names = Index::new("m");
+        names.entries.insert(
+            dir.join("gone.pdf"),
+            store::Entry {
+                size: 0,
+                modified: 0,
+                depth: 0,
+                vectors: Vec::new(),
+            },
+        );
+        let plan = plan_in(
+            std::slice::from_ref(&dir),
+            &IndexSettings::default(),
+            &mut Index::new("m"),
+            &mut names,
+        );
+        let mut got: Vec<&str> = plan.names.iter().map(|(_, t)| t.as_str()).collect();
+        got.sort();
+        assert_eq!(
+            got,
+            ["Matrimonio Anna", "Matrimonio Anna", "fattura luce"],
+            "not codes, not programs"
+        );
+        assert!(names.entries.is_empty(), "a name gone is forgotten");
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -1332,7 +1545,13 @@ mod tests {
                 vectors: Vec::new(),
             },
         );
-        let todo = plan_in(std::slice::from_ref(&dir), &settings, &mut index);
+        let todo = plan_in(
+            std::slice::from_ref(&dir),
+            &settings,
+            &mut index,
+            &mut Index::new("m"),
+        )
+        .pictures;
         let mut names: Vec<&str> = todo
             .iter()
             .map(|t| t.path.file_name().unwrap().to_str().unwrap())
@@ -1364,18 +1583,38 @@ mod tests {
                 },
             );
         }
-        assert!(plan_in(std::slice::from_ref(&dir), &settings, &mut index).is_empty());
+        assert!(plan_in(
+            std::slice::from_ref(&dir),
+            &settings,
+            &mut index,
+            &mut Index::new("m")
+        )
+        .pictures
+        .is_empty());
         let deeper = IndexSettings {
             depth: Depth::Full,
             ..settings.clone()
         };
-        let again = plan_in(std::slice::from_ref(&dir), &deeper, &mut index);
+        let again = plan_in(
+            std::slice::from_ref(&dir),
+            &deeper,
+            &mut index,
+            &mut Index::new("m"),
+        )
+        .pictures;
         assert_eq!(again.len(), 1, "a deeper look takes the videos again");
         let no_videos = IndexSettings {
             videos: false,
             ..settings
         };
-        assert!(plan_in(std::slice::from_ref(&dir), &no_videos, &mut index).is_empty());
+        assert!(plan_in(
+            std::slice::from_ref(&dir),
+            &no_videos,
+            &mut index,
+            &mut Index::new("m")
+        )
+        .pictures
+        .is_empty());
         let _ = fs::remove_dir_all(&dir);
     }
 }
