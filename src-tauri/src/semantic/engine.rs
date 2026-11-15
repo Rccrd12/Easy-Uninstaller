@@ -63,6 +63,21 @@ pub enum Input<'a> {
     Query(&'a str),
     /// A picture (PNG): a photo, or a frame of a video.
     Picture(&'a [u8]),
+    /// A file's name, as `names::text_of` gives it.
+    Name(&'a str),
+}
+
+/// What EmbeddingGemma reads before a search, and before a text to find.
+const QUERY_PREFIX: &str = "task: search result | query: ";
+const DOCUMENT_PREFIX: &str = "title: none | text: ";
+
+/// A name as the model reads it: as a text to find, for EmbeddingGemma.
+fn name_text(name: &str, gemma: bool) -> String {
+    if gemma {
+        format!("{DOCUMENT_PREFIX}{name}")
+    } else {
+        name.to_string()
+    }
 }
 
 /// The marker that stands for a picture in the prompt. llama.cpp picks a random
@@ -72,13 +87,15 @@ pub const MARKER: &str = "<__media__>";
 
 /// The request body for llama.cpp's own `/embeddings` endpoint. Pictures go as
 /// base64 with the media `marker` in the prompt; EmbeddingGemma wants no prefix
-/// for them, and `task: search result | query: ` before a search.
+/// for them, `task: search result | query: ` before a search and
+/// `title: none | text: ` before a text to find (a name).
 pub fn body(input: &Input, gemma: bool, marker: &str) -> Value {
     match input {
         Input::Query(text) if gemma => {
-            json!({ "content": format!("task: search result | query: {text}") })
+            json!({ "content": format!("{QUERY_PREFIX}{text}") })
         }
         Input::Query(text) => json!({ "content": text }),
+        Input::Name(name) => json!({ "content": name_text(name, gemma) }),
         Input::Picture(png) => json!({
             "content": [{ "prompt_string": marker, "multimodal_data": [crate::apps::icon::base64(png)] }]
         }),
@@ -284,8 +301,55 @@ pub fn embed(engine: &Engine, input: &Input) -> Result<Vec<f32>, String> {
         (Backend::Server(base), Input::Picture(_)) => server_marker(base),
         _ => MARKER.to_string(),
     };
-    let body =
-        serde_json::to_vec(&body(input, engine.gemma, &marker)).map_err(|e| e.to_string())?;
+    let value = ask(engine, &body(input, engine.gemma, &marker))?;
+    let v = vector_of(&value).ok_or("index.error.engine:answer")?;
+    store::unit(&v).ok_or_else(|| "index.error.engine:answer".into())
+}
+
+/// The request body for several names at once: llama.cpp takes a list of texts.
+pub fn names_body(names: &[String], gemma: bool) -> Value {
+    let texts: Vec<String> = names.iter().map(|n| name_text(n, gemma)).collect();
+    json!({ "content": texts })
+}
+
+/// The vectors in llama.cpp's answer to several texts, in the order they were sent
+/// (each item says its `index`). `None` unless there is one for each.
+pub fn vectors_of(answer: &Value, count: usize) -> Option<Vec<Vec<f32>>> {
+    let items = answer.as_array()?;
+    if items.len() != count {
+        return None;
+    }
+    let mut out: Vec<Option<Vec<f32>>> = vec![None; count];
+    for (n, item) in items.iter().enumerate() {
+        let at = item
+            .get("index")
+            .and_then(Value::as_u64)
+            .map_or(n, |i| i as usize);
+        let v = store::unit(&vector_of(item)?)?;
+        *out.get_mut(at)? = Some(v);
+    }
+    out.into_iter().collect()
+}
+
+/// One vector per name, unit length, in one request; one request per name when
+/// the server does not take a list.
+pub fn embed_names(engine: &Engine, names: &[String]) -> Result<Vec<Vec<f32>>, String> {
+    if names.len() > 1 {
+        if let Ok(value) = ask(engine, &names_body(names, engine.gemma)) {
+            if let Some(vs) = vectors_of(&value, names.len()) {
+                return Ok(vs);
+            }
+        }
+    }
+    names
+        .iter()
+        .map(|n| embed(engine, &Input::Name(n)))
+        .collect()
+}
+
+/// Sends `body` to the model and reads its JSON answer.
+fn ask(engine: &Engine, body: &Value) -> Result<Value, String> {
+    let body = serde_json::to_vec(body).map_err(|e| e.to_string())?;
     let answer = match &engine.backend {
         Backend::Own(setup) => ask_own(setup, &body)?,
         Backend::Server(base) => match http::request(
@@ -309,10 +373,7 @@ pub fn embed(engine: &Engine, input: &Input) -> Result<Vec<f32>, String> {
             crate::ai::prompt::tidy(&text, 200)
         ));
     }
-    let value: Value =
-        serde_json::from_slice(&answer.body).map_err(|_| "index.error.engine:answer")?;
-    let v = vector_of(&value).ok_or("index.error.engine:answer")?;
-    store::unit(&v).ok_or_else(|| "index.error.engine:answer".into())
+    serde_json::from_slice(&answer.body).map_err(|_| "index.error.engine:answer".into())
 }
 
 fn ask_own(setup: &Setup, body: &[u8]) -> Result<http::Response, String> {
@@ -424,6 +485,39 @@ mod tests {
             "an older server: the usual marker"
         );
         assert_eq!(p["content"][0]["multimodal_data"][0], "cG5n");
+    }
+
+    #[test]
+    fn names_go_as_texts_to_find_several_at_once() {
+        let one = body(&Input::Name("fattura luce"), true, MARKER);
+        assert_eq!(one["content"], "title: none | text: fattura luce");
+        assert_eq!(
+            body(&Input::Name("fattura luce"), false, MARKER)["content"],
+            "fattura luce"
+        );
+        let many = names_body(&["a b".into(), "c".into()], true);
+        assert_eq!(
+            many["content"],
+            json!(["title: none | text: a b", "title: none | text: c"])
+        );
+
+        // Answers come with their index, maybe out of order; one vector per row.
+        let v = |x: f32| vec![x; 64];
+        let answer = json!([
+            { "index": 1, "embedding": [v(2.0)] },
+            { "index": 0, "embedding": [v(-1.0)] },
+        ]);
+        let got = vectors_of(&answer, 2).unwrap();
+        assert!(got[0][0] < 0.0 && got[1][0] > 0.0);
+        assert!(
+            (got[1].iter().map(|x| x * x).sum::<f32>() - 1.0).abs() < 1e-4,
+            "unit length"
+        );
+        assert_eq!(vectors_of(&answer, 3), None, "one for each, or none");
+        assert_eq!(
+            vectors_of(&json!([{ "index": 5, "embedding": [v(1.0)] }]), 1),
+            None
+        );
     }
 
     #[test]

@@ -40,6 +40,12 @@ const TOPIC_STANDOUT: f32 = 0.06;
 const STANDOUT_MIN_FILES: usize = 20;
 /// Files found by name for a topic, at most.
 const MAX_NAMED: usize = 500;
+/// With a topic, names this much less like it than the best name are left out.
+/// Wider than for pictures: two texts spread more than a text and a picture.
+/// Set by hand, to check with `test-qualita-ricerca.ps1`.
+const NAME_MARGIN: f32 = 0.06;
+/// The names closest to a topic that are looked at on disk, at most.
+const MAX_NAME_CANDIDATES: usize = 2000;
 const MAX_WORD_CHARS: usize = 40;
 /// A sentence longer than this is refused (it is not a search).
 pub const MAX_SENTENCE_CHARS: usize = 300;
@@ -569,18 +575,30 @@ fn checked(
 /// Of files scored by likeness (best first), the ones close enough to the best,
 /// and none when even the best does not stand out from the middle one.
 pub fn alike(scored: Vec<(PathBuf, f32)>, loose: bool) -> (Vec<PathBuf>, u64) {
+    let middle = middle_of(&scored);
+    alike_with(scored, loose, TOPIC_MARGIN, middle)
+}
+
+/// The score of the middle file (best first), when there are enough files for it to say something.
+fn middle_of(scored: &[(PathBuf, f32)]) -> Option<f32> {
+    (scored.len() >= STANDOUT_MIN_FILES).then(|| scored[scored.len() / 2].1)
+}
+
+/// [`alike`] with its own margin, and the middle score of a longer list this one was cut from.
+fn alike_with(
+    scored: Vec<(PathBuf, f32)>,
+    loose: bool,
+    margin: f32,
+    middle: Option<f32>,
+) -> (Vec<PathBuf>, u64) {
     let Some(best) = scored.first().map(|s| s.1) else {
         return (Vec::new(), 0);
     };
-    let floor = if scored.len() >= STANDOUT_MIN_FILES {
-        scored[scored.len() / 2].1 + TOPIC_STANDOUT
-    } else {
-        f32::MIN
-    };
+    let floor = middle.map_or(f32::MIN, |m| m + TOPIC_STANDOUT);
     let cut = if loose {
         f32::MIN
     } else {
-        (best - TOPIC_MARGIN).max(floor)
+        (best - margin).max(floor)
     };
     let total = scored.len();
     let kept: Vec<PathBuf> = scored
@@ -592,9 +610,10 @@ pub fn alike(scored: Vec<(PathBuf, f32)>, loose: bool) -> (Vec<PathBuf>, u64) {
     (kept, left)
 }
 
-/// A search with a topic, through the local index: files with the topic in
-/// their name first, then photos and videos by likeness, then documents Windows
-/// Search finds. Only files that pass the rest of the filter are kept.
+/// A search with a topic, through the local index: files with the topic's words
+/// in their name first, then files whose name means the same (any language), then
+/// photos and videos by what they show, then documents Windows Search finds.
+/// Only files that pass the rest of the filter are kept.
 fn search_topic(
     app: &AppHandle,
     filter: &SearchFilter,
@@ -623,11 +642,13 @@ fn search_topic(
         .filter(|(p, _)| passing.contains(p))
         .collect();
     let (media, less_alike) = alike(scored, filter.loose);
+    let (alike_names, names_left) = names_alike(filter, found.names, now);
     let mut taken = HashSet::new();
     let paths: Vec<PathBuf> = named
         .into_iter()
         .take(MAX_NAMED)
         .map(|s| s.path)
+        .chain(alike_names)
         .chain(media)
         .chain(found.documents)
         .filter(|p| taken.insert(p.clone()))
@@ -636,8 +657,29 @@ fn search_topic(
     let mut r = result(filter.clone(), &seen, false);
     r.by_topic = true;
     r.not_indexed = found.not_indexed;
-    r.less_alike = less_alike;
+    r.less_alike = less_alike + names_left;
     Ok(r)
+}
+
+/// Of files scored by their name's likeness (best first, maybe very many), the
+/// ones that pass the filter and are close enough to the best. The bar is set on
+/// the whole list; only the closest are looked at on disk.
+fn names_alike(
+    filter: &SearchFilter,
+    scored: Vec<(PathBuf, f32)>,
+    now: SystemTime,
+) -> (Vec<PathBuf>, u64) {
+    let middle = middle_of(&scored);
+    let top: Vec<(PathBuf, f32)> = scored.into_iter().take(MAX_NAME_CANDIDATES).collect();
+    let passing: HashSet<PathBuf> = checked(filter, top.iter().map(|(p, _)| p.clone()), now)
+        .into_iter()
+        .map(|s| s.path)
+        .collect();
+    let top: Vec<(PathBuf, f32)> = top
+        .into_iter()
+        .filter(|(p, _)| passing.contains(p))
+        .collect();
+    alike_with(top, filter.loose, NAME_MARGIN, middle)
 }
 
 /// Runs the search on this PC (read only) and keeps its files for a later move.
@@ -1022,6 +1064,18 @@ mod tests {
         let (kept, left) = alike(standout, false);
         assert_eq!(kept, [PathBuf::from("dog"), PathBuf::from("dog2")]);
         assert_eq!(left, 30);
+    }
+
+    #[test]
+    fn names_are_judged_on_the_whole_list() {
+        // The middle of all the names says that nothing stands out, even if the few
+        // looked at on disk are close to each other.
+        let top = vec![(PathBuf::from("a"), 0.50), (PathBuf::from("b"), 0.47)];
+        assert!(alike_with(top.clone(), false, NAME_MARGIN, Some(0.48))
+            .0
+            .is_empty());
+        let (kept, _) = alike_with(top, false, NAME_MARGIN, Some(0.30));
+        assert_eq!(kept.len(), 2);
     }
 
     #[test]
