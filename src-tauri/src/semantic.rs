@@ -580,8 +580,9 @@ fn download_all(app: &AppHandle, settings: &IndexSettings) -> Result<(), String>
 
 // ── Indexing ─────────────────────────────────────────────────────────────────
 
-/// Top-level Windows folders that hold no personal files.
-const SYSTEM_DIRS: [&str; 14] = [
+/// Top-level Windows folders that hold no personal files: Windows, programs,
+/// drivers, games and developer tools.
+const SYSTEM_DIRS: [&str; 19] = [
     "Windows",
     "Windows.old",
     "Program Files",
@@ -596,19 +597,37 @@ const SYSTEM_DIRS: [&str; 14] = [
     "Intel",
     "AMD",
     "NVIDIA",
+    "Games",
+    "msys64",
+    "cygwin64",
+    "Strawberry",
+    "SteamLibrary",
 ];
+/// Folders of games anywhere: their pictures and videos are the game's, not the person's.
+const GAME_DIRS: [&str; 5] = [
+    "steamapps",
+    "Epic Games",
+    "Riot Games",
+    "GOG Games",
+    "XboxGames",
+];
+/// Files that say a folder is a game (Steam's own library, shipped with every Steam game).
+const GAME_MARKERS: [&str; 2] = ["steam_api.dll", "steam_api64.dll"];
 
 /// What the whole-PC walk leaves out: system folders at the top of a drive,
 /// `$` folders (Recycle Bin, Windows setup), and what the user folders skip.
 pub fn skip_dir(path: &Path) -> bool {
-    if files::skip_personal_dir(path) {
+    if crate::search::skip_dir(path) {
         return true;
     }
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
         return false;
     };
     let at_top = path.parent().is_some_and(|p| p.parent().is_none());
-    name.starts_with('$') || (at_top && SYSTEM_DIRS.iter().any(|d| d.eq_ignore_ascii_case(name)))
+    name.starts_with('$')
+        || (at_top && SYSTEM_DIRS.iter().any(|d| d.eq_ignore_ascii_case(name)))
+        || GAME_DIRS.iter().any(|d| d.eq_ignore_ascii_case(name))
+        || GAME_MARKERS.iter().any(|m| path.join(m).is_file())
 }
 
 /// Where the index looks: the user's folders, or every fixed drive too.
@@ -1301,6 +1320,13 @@ mod tests {
         assert!(skip_dir(&top("Foto/$tmp")));
         assert!(!skip_dir(&top("Foto/Windows")));
         assert!(!skip_dir(&top("Foto")));
+        assert!(skip_dir(&top("Games")));
+        assert!(!skip_dir(&top("Foto/Games")));
+        assert!(skip_dir(&top("XboxGames")));
+        assert!(skip_dir(&top("D/SteamLibrary/steamapps")));
+        assert!(skip_dir(&top(
+            "Users/a/Music/Apple Music/Apple Music Library.musiclibrary"
+        )));
     }
 
     #[test]

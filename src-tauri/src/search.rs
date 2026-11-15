@@ -29,8 +29,17 @@ const MAX_WALK: u64 = 400_000;
 const MAX_WORDS: usize = 6;
 const MAX_TOPIC_CHARS: usize = 120;
 /// With a topic, files this much less like it than the best one are left out
-/// (unless the person asks for them). Set by hand: scores from -1 to 1.
-const TOPIC_MARGIN: f32 = 0.08;
+/// (unless the person asks for them). Scores from -1 to 1: with EmbeddingGemma 2
+/// the right picture beats the best wrong one by 0.05 to 0.1 (`test-qualita-ricerca.ps1`).
+const TOPIC_MARGIN: f32 = 0.04;
+/// With a topic, the best file must be at least this much more like it than the
+/// middle file, or none is alike: a topic nothing shows gives scores that are all
+/// low and close together. Set by hand: checked with `test-qualita-ricerca.ps1`.
+const TOPIC_STANDOUT: f32 = 0.06;
+/// With fewer files than this, the middle one says nothing and only the margin counts.
+const STANDOUT_MIN_FILES: usize = 20;
+/// Files found by name for a topic, at most.
+const MAX_NAMED: usize = 500;
 const MAX_WORD_CHARS: usize = 40;
 /// A sentence longer than this is refused (it is not a search).
 pub const MAX_SENTENCE_CHARS: usize = 300;
@@ -305,6 +314,110 @@ fn clean_word(word: &str) -> String {
     w.trim().chars().take(MAX_WORD_CHARS).collect()
 }
 
+/// Folders of a program's own files inside a project (a folder with `.git`,
+/// `package.json`, `Cargo.toml`, ...): the sounds, icons and builds of an app
+/// someone writes, not their own files.
+const PROJECT_DIRS: [&str; 16] = [
+    "assets",
+    "dist",
+    "build",
+    "out",
+    "target",
+    "bin",
+    "obj",
+    "public",
+    "static",
+    "res",
+    "resources",
+    "vendor",
+    "packages",
+    "__pycache__",
+    "venv",
+    "src-tauri",
+];
+/// What says a folder is a project.
+const PROJECT_MARKERS: [&str; 10] = [
+    ".git",
+    "package.json",
+    "Cargo.toml",
+    "pyproject.toml",
+    "go.mod",
+    "pom.xml",
+    "build.gradle",
+    "CMakeLists.txt",
+    "composer.json",
+    "pubspec.yaml",
+];
+/// How many folders up a project's root is looked for.
+const PROJECT_DEPTH: usize = 3;
+
+/// True for a folder that holds no personal files: a program's own files inside a
+/// project, and music libraries' cover caches (Apple Music, iTunes).
+pub fn noise_dir(path: &Path) -> bool {
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+    let lower = name.to_ascii_lowercase();
+    if lower.ends_with(".musiclibrary") || lower == "album artwork" {
+        return true;
+    }
+    PROJECT_DIRS.contains(&lower.as_str()) && in_project(path)
+}
+
+/// True when one of the few folders above `dir` is a project's root.
+fn in_project(dir: &Path) -> bool {
+    let profile = files::profile_dir();
+    dir.ancestors()
+        .skip(1)
+        .take(PROJECT_DEPTH)
+        .take_while(|a| a.parent().is_some() && profile.as_deref() != Some(*a))
+        .any(|a| PROJECT_MARKERS.iter().any(|m| a.join(m).exists()) || has_solution(a))
+}
+
+/// A Visual Studio project (`.sln`, `.csproj`) in `dir`.
+fn has_solution(dir: &Path) -> bool {
+    std::fs::read_dir(dir).is_ok_and(|entries| {
+        entries.flatten().any(|e| {
+            let name = e.file_name();
+            let name = name.to_string_lossy().to_ascii_lowercase();
+            name.ends_with(".sln") || name.ends_with(".csproj")
+        })
+    })
+}
+
+/// The folders a search and the local index leave out.
+pub fn skip_dir(path: &Path) -> bool {
+    files::skip_personal_dir(path) || noise_dir(path)
+}
+
+/// True when `path` is inside a folder a search leaves out (an index made before may still hold it).
+fn in_noise_dir(path: &Path) -> bool {
+    path.ancestors().skip(1).any(noise_dir)
+}
+
+/// The words of a name: letters and digits, lower case ("Greeting-Light.wav": greeting, light, wav).
+fn name_words(name: &str) -> Vec<String> {
+    name.split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_lowercase)
+        .collect()
+}
+
+/// True when every word of the topic is a word of the file's name or of its folder's.
+fn named(topic: &[String], path: &Path) -> bool {
+    if topic.is_empty() {
+        return false;
+    }
+    let mut words = Vec::new();
+    for part in [path.file_name(), path.parent().and_then(Path::file_name)]
+        .into_iter()
+        .flatten()
+    {
+        words.extend(name_words(&part.to_string_lossy()));
+    }
+    topic.iter().all(|t| words.contains(t))
+}
+
 /// A file found by the search, as the UI shows it.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -363,15 +476,24 @@ fn roots(places: &[Place]) -> Vec<PathBuf> {
     files::dedup_dirs(&dirs)
 }
 
-/// Looks through `roots` for files matching `filter`, in the filter's order.
+/// Looks through `roots` for files matching `filter`, in the filter's order, and,
+/// when `names` is not empty, named with all those words ([`named`]).
 /// Returns the matches and whether the walk stopped early.
-pub fn search(roots: &[PathBuf], filter: &SearchFilter, now: SystemTime) -> (Vec<Seen>, bool) {
+pub fn search(
+    roots: &[PathBuf],
+    filter: &SearchFilter,
+    names: &[String],
+    now: SystemTime,
+) -> (Vec<Seen>, bool) {
     let mut found = Vec::new();
     let mut walked = 0u64;
     for root in roots {
-        files::walk(root, &files::skip_personal_dir, &mut |path, meta| {
+        files::walk(root, &skip_dir, &mut |path, meta| {
             walked += 1;
             if walked > MAX_WALK {
+                return;
+            }
+            if !names.is_empty() && !named(names, &path) {
                 return;
             }
             let seen = Seen::from_meta(path, meta);
@@ -435,7 +557,7 @@ fn checked(
 ) -> Vec<Seen> {
     paths
         .into_iter()
-        .filter(|p| in_places(filter, p))
+        .filter(|p| in_places(filter, p) && !in_noise_dir(p))
         .filter_map(|p| {
             let meta = std::fs::symlink_metadata(&p).ok()?;
             meta.is_file().then(|| Seen::from_meta(p, &meta))
@@ -444,12 +566,22 @@ fn checked(
         .collect()
 }
 
-/// Of files scored by likeness (best first), the ones close enough to the best.
+/// Of files scored by likeness (best first), the ones close enough to the best,
+/// and none when even the best does not stand out from the middle one.
 pub fn alike(scored: Vec<(PathBuf, f32)>, loose: bool) -> (Vec<PathBuf>, u64) {
     let Some(best) = scored.first().map(|s| s.1) else {
         return (Vec::new(), 0);
     };
-    let cut = if loose { f32::MIN } else { best - TOPIC_MARGIN };
+    let floor = if scored.len() >= STANDOUT_MIN_FILES {
+        scored[scored.len() / 2].1 + TOPIC_STANDOUT
+    } else {
+        f32::MIN
+    };
+    let cut = if loose {
+        f32::MIN
+    } else {
+        (best - TOPIC_MARGIN).max(floor)
+    };
     let total = scored.len();
     let kept: Vec<PathBuf> = scored
         .into_iter()
@@ -460,9 +592,9 @@ pub fn alike(scored: Vec<(PathBuf, f32)>, loose: bool) -> (Vec<PathBuf>, u64) {
     (kept, left)
 }
 
-/// A search with a topic, through the local index: photos and videos by
-/// likeness, then documents Windows Search finds. Only files that pass the rest
-/// of the filter are kept.
+/// A search with a topic, through the local index: files with the topic in
+/// their name first, then photos and videos by likeness, then documents Windows
+/// Search finds. Only files that pass the rest of the filter are kept.
 fn search_topic(
     app: &AppHandle,
     filter: &SearchFilter,
@@ -471,7 +603,14 @@ fn search_topic(
 ) -> Result<SearchResult, String> {
     let wants = |k: FileKind| filter.kinds.is_empty() || filter.kinds.contains(&k);
     let media = wants(FileKind::Image) || wants(FileKind::Video);
-    let found = crate::semantic::find(app, topic, media, wants(FileKind::Document))?;
+    // The names are looked through while the model works.
+    let (found, named) = std::thread::scope(|scope| {
+        let names =
+            scope.spawn(|| search(&roots(&filter.places), filter, &name_words(topic), now).0);
+        let found = crate::semantic::find(app, topic, media, wants(FileKind::Document));
+        (found, names.join().unwrap_or_default())
+    });
+    let found = found?;
     // Likeness among the files that pass the filter, so the best of them sets the bar.
     let passing: HashSet<PathBuf> =
         checked(filter, found.media.iter().map(|(p, _)| p.clone()), now)
@@ -484,12 +623,15 @@ fn search_topic(
         .filter(|(p, _)| passing.contains(p))
         .collect();
     let (media, less_alike) = alike(scored, filter.loose);
-    let mut paths = media;
-    for d in found.documents {
-        if !paths.contains(&d) {
-            paths.push(d);
-        }
-    }
+    let mut taken = HashSet::new();
+    let paths: Vec<PathBuf> = named
+        .into_iter()
+        .take(MAX_NAMED)
+        .map(|s| s.path)
+        .chain(media)
+        .chain(found.documents)
+        .filter(|p| taken.insert(p.clone()))
+        .collect();
     let seen = checked(filter, paths, now);
     let mut r = result(filter.clone(), &seen, false);
     r.by_topic = true;
@@ -516,8 +658,9 @@ pub async fn search_files(app: AppHandle, filter: SearchFilter) -> Result<Search
                 }
             }
         }
-        // No index (yet): the rest of the filter, without the topic.
-        let (found, partial) = search(&roots(&filter.places), &filter, now);
+        // No index (yet): the rest of the filter, and the topic in the names.
+        let names = filter.topic.as_deref().map(name_words).unwrap_or_default();
+        let (found, partial) = search(&roots(&filter.places), &filter, &names, now);
         let kept: Vec<ScannedFile> = found.iter().take(MAX_KEPT).map(Seen::scanned).collect();
         *app.state::<LastSearch>()
             .0
@@ -774,7 +917,7 @@ mod tests {
             unused_days: Some(365),
             ..SearchFilter::default()
         };
-        let (found, partial) = search(std::slice::from_ref(&t.0), &filter, SystemTime::now());
+        let (found, partial) = search(std::slice::from_ref(&t.0), &filter, &[], SystemTime::now());
         assert!(!partial);
         assert_eq!(
             names(&found),
@@ -786,7 +929,7 @@ mod tests {
             words: vec!["holidays".into()],
             ..SearchFilter::default()
         };
-        let (found, _) = search(std::slice::from_ref(&t.0), &words, SystemTime::now());
+        let (found, _) = search(std::slice::from_ref(&t.0), &words, &[], SystemTime::now());
         assert_eq!(names(&found), ["drone.mp4"], "words match folder names too");
 
         let recent = SearchFilter {
@@ -794,7 +937,7 @@ mod tests {
             sort: SortBy::Newest,
             ..SearchFilter::default()
         };
-        let (found, _) = search(std::slice::from_ref(&t.0), &recent, SystemTime::now());
+        let (found, _) = search(std::slice::from_ref(&t.0), &recent, &[], SystemTime::now());
         assert_eq!(names(&found), ["new.mov"]);
 
         let oldest = SearchFilter {
@@ -802,7 +945,7 @@ mod tests {
             sort: SortBy::Oldest,
             ..SearchFilter::default()
         };
-        let (found, _) = search(std::slice::from_ref(&t.0), &oldest, SystemTime::now());
+        let (found, _) = search(std::slice::from_ref(&t.0), &oldest, &[], SystemTime::now());
         assert_eq!(names(&found)[0], "invoice.pdf");
     }
 
@@ -861,6 +1004,116 @@ mod tests {
         assert_eq!(all.len(), 4);
         assert_eq!(none_left, 0);
         assert_eq!(alike(Vec::new(), false), (Vec::new(), 0));
+    }
+
+    #[test]
+    fn a_topic_nothing_shows_finds_nothing() {
+        let flat: Vec<(PathBuf, f32)> = (0..30)
+            .map(|i| (PathBuf::from(format!("f{i}")), 0.31 - i as f32 * 0.001))
+            .collect();
+        let (kept, left) = alike(flat.clone(), false);
+        assert!(kept.is_empty(), "no file stands out");
+        assert_eq!(left, 30);
+        assert_eq!(alike(flat.clone(), true).0.len(), 30, "unless asked");
+
+        let mut standout = flat;
+        standout.insert(0, (PathBuf::from("dog"), 0.45));
+        standout.insert(1, (PathBuf::from("dog2"), 0.41));
+        let (kept, left) = alike(standout, false);
+        assert_eq!(kept, [PathBuf::from("dog"), PathBuf::from("dog2")]);
+        assert_eq!(left, 30);
+    }
+
+    #[test]
+    fn a_topic_is_found_in_names() {
+        assert_eq!(
+            name_words("Greeting-Light_02.WAV"),
+            ["greeting", "light", "02", "wav"]
+        );
+        let words = name_words("greeting light");
+        assert!(named(&words, Path::new("a/sounds/greeting-light.wav")));
+        assert!(named(
+            &name_words("greeting-light"),
+            Path::new("a/greeting_light.wav")
+        ));
+        assert!(!named(&words, Path::new("a/greeting.wav")), "every word");
+        assert!(
+            named(
+                &name_words("vacanze"),
+                Path::new("Foto/Vacanze 2023/IMG_1.jpg")
+            ),
+            "or the folder's"
+        );
+        assert!(
+            !named(&name_words("cane"), Path::new("Foto/arcane.jpg")),
+            "whole words only"
+        );
+        assert!(!named(&[], Path::new("a.jpg")));
+    }
+
+    #[test]
+    fn projects_and_cover_caches_are_not_searched() {
+        let t = TempDir::new("noise");
+        t.file("Lumo-src/package.json", 10, 1);
+        t.file("Lumo-src/windows/assets/sounds/greeting-light.wav", 10, 1);
+        t.file("Lumo-src/windows/dist/sounds/greeting-light.wav", 10, 1);
+        t.file("Lumo-src/notes/greeting-light.wav", 10, 1);
+        t.file("Game/assets/greeting-light.wav", 10, 1); // no project: kept
+        t.file(
+            "Music/Apple Music/Apple Music Library.musiclibrary/artwork/A1.jpeg",
+            10,
+            1,
+        );
+        t.file("Music/iTunes/Album Artwork/Cache/B2.jpg", 10, 1);
+        t.file("Music/song.mp3", 10, 1);
+        let rel = |found: &[Seen]| -> Vec<String> {
+            let mut v: Vec<String> = found
+                .iter()
+                .map(|f| {
+                    f.path
+                        .strip_prefix(&t.0)
+                        .unwrap()
+                        .to_string_lossy()
+                        .replace('\\', "/")
+                })
+                .collect();
+            v.sort();
+            v
+        };
+        let (found, _) = search(
+            std::slice::from_ref(&t.0),
+            &SearchFilter::default(),
+            &name_words("greeting light"),
+            SystemTime::now(),
+        );
+        assert_eq!(
+            rel(&found),
+            [
+                "Game/assets/greeting-light.wav",
+                "Lumo-src/notes/greeting-light.wav"
+            ]
+        );
+        let (found, _) = search(
+            std::slice::from_ref(&t.0),
+            &SearchFilter {
+                kinds: vec![FileKind::Image, FileKind::Audio],
+                ..SearchFilter::default()
+            },
+            &[],
+            SystemTime::now(),
+        );
+        assert_eq!(
+            rel(&found),
+            [
+                "Game/assets/greeting-light.wav",
+                "Lumo-src/notes/greeting-light.wav",
+                "Music/song.mp3"
+            ]
+        );
+        assert!(in_noise_dir(
+            &t.0.join("Lumo-src/windows/assets/sounds/x.wav")
+        ));
+        assert!(!in_noise_dir(&t.0.join("Game/assets/x.wav")));
     }
 
     #[test]

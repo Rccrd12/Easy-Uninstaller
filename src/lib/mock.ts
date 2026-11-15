@@ -671,10 +671,21 @@ export function sampleSearch(filter: SearchFilter, files: SampleFile[], indexRea
       .map((f) => ({ f, score: sampleLikeness(f.path, topic) }))
       .sort((a, b) => b.score - a.score);
     const best = media[0]?.score ?? 0;
-    const kept = media.filter((m) => filter.loose || m.score >= best - 0.08).map((m) => m.f);
+    // As search.rs: close to the best, and only when the best stands out from the middle one.
+    const floor = media.length >= 20 ? media[Math.floor(media.length / 2)].score + 0.06 : -Infinity;
+    const cut = Math.max(best - 0.04, floor);
+    const kept = media.filter((m) => filter.loose || m.score >= cut).map((m) => m.f);
     lessAlike = media.length - kept.length;
     const documents = found.filter((f) => kindOf(f.path) === "document" && sampleLikeness(f.path, topic) > 0.2);
-    shown = [...kept, ...documents];
+    // Files with every word of the topic in their name, or their folder's, come first.
+    const words = (name: string) => name.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    const topicWords = words(topic);
+    const named = found.filter((f) => {
+      const parts = f.path.split("\\");
+      const own = [...words(parts[parts.length - 1] ?? ""), ...words(parts[parts.length - 2] ?? "")];
+      return topicWords.length > 0 && topicWords.every((w) => own.includes(w));
+    });
+    shown = [...new Set([...named, ...kept, ...documents])];
   }
   return {
     filter,
